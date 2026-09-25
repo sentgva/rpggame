@@ -1,0 +1,23 @@
+{
+  "name": "idle-rpg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Idle RPG — idle RPG с автобоем для Telegram Mini App",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @idle/shared && npm run build -w @idle/client && npm run build -w @idle/server",
+    "build:shared": "npm run build -w @idle/shared",
+    "dev:client": "npm run dev -w @idle/client",
+    "dev:server": "npm run build:shared && npm run dev -w @idle/server",
+    "start": "npm run start -w @idle/server",
+    "test": "npm test -w @idle/shared && npm test -w @idle/server",
+    "typecheck": "npm run typecheck -w @idle/shared && npm run typecheck -w @idle/client && npm run typecheck -w @idle/server",
+    "balance": "npm run balance -w @idle/shared"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

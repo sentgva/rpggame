@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "stat": {
+    "levelGrowth": 0.08,
+    "starGrowth": 0.15,
+    "rarityMult": {
+      "R": 1.0,
+      "SR": 1.25,
+      "SSR": 1.6,
+      "UR": 2.0
+    },
+    "critBase": 0.05,
+    "critMax": 0.8,
+    "critDmgBase": 1.5,
+    "accMax": 0.5,
+    "evaMax": 0.5,
+    "penMax": 0.6,
+    "lifestealMax": 0.4,
+    "resistMax": 0.7,
+    "dmgReduceMax": 0.6,
+    "spdBase": 100,
+    "skinBonus": 0.03
+  },
+  "hero": {
+    "xpBase": 100,
+    "xpExp": 2.2,
+    "goldBase": 20,
+    "goldExp": 1.9,
+    "levelCaps": [
+      20,
+      40,
+      60,
+      80,
+      100,
+      120
+    ],
+    "awakenCap": 200,
+    "starShards": [
+      10,
+      20,
+      40,
+      80,
+      160
+    ],
+    "maxStars": {
+      "R": 4,
+      "SR": 5,
+      "SSR": 6,
+      "UR": 6
+    },
+    "startStars": {
+      "R": 1,
+      "SR": 2,
+      "SSR": 3,
+      "UR": 4
+    },
+    "recruitShards": {
+      "R": 10,
+      "SR": 20,
+      "SSR": 40,
+      "UR": 80
+    },
+    "dupeShards": {
+      "R": 10,
+      "SR": 20,
+      "SSR": 40,
+      "UR": 80
+    },
+    "awakenShards": 160,
+    "awakenCrystals": 3000,
+    "specLevel": 60,
+    "treeFreeResetLevel": 30,
+    "treeResetCost": 200
+  },
+  "account": {
+    "xpBase": 60,
+    "xpExp": 1.75,
+    "maxLevel": 200,
+    "crystalsPer5": 100,
+    "partySlots": [
+      [
+        1,
+        3
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        10,
+        5
+      ]
+    ]
+  },
+  "enemy": {
+    "hp0": 230,
+    "atk0": 22,
+    "def0": 18,
+    "hpGrowth": 1.09,
+    "atkGrowth": 1.08,
+    "defGrowth": 1.012,
+    "spd": 95,
+    "bossHp": 8,
+    "bossAtk": 1.5,
+    "difficultyMult": [
+      1,
+      25,
+      400
+    ],
+    "difficultyOffset": 200,
+    "miniMult": 1.3,
+    "actBossMult": 1.8,
+    "waveSizes": [
+      3,
+      4,
+      5
+    ]
+  },
+  "battle": {
+    "bossTimeLimit": 60,
+    "waveTimeLimit": 45,
+    "energyPerAttack": 10,
+    "energyPerHit": 5,
+    "energyMax": 100,
+    "elemAdv": 0.3,
+    "frontRowAggro": 0.7,
+    "varianceMin": 0.95,
+    "varianceMax": 1.05,
+    "defConst": 1000,
+    "actionInterval": 1000,
+    "retryMinutes": 10
+  },
+  "gear": {
+    "growth": 1.085,
+    "defGrowth": 1.07,
+    "enhanceStep": 0.1,
+    "rarityMain": [
+      1.0,
+      1.15,
+      1.35,
+      1.6,
+      1.9,
+      2.2,
+      2.6
+    ],
+    "rarityWeights": [
+      55,
+      28,
+      12,
+      4,
+      0.9,
+      0.1
+    ],
+    "stageRarityBonus": 0.004,
+    "difficultyRarityShift": [
+      0,
+      1,
+      2
+    ],
+    "affixCount": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      4,
+      5
+    ],
+    "sockets": [
+      0,
+      0,
+      0,
+      1,
+      2,
+      3,
+      3
+    ],
+    "tierWeights": [
+      40,
+      30,
+      18,
+      9,
+      3
+    ],
+    "enhanceMax": 15,
+    "enhanceSafe": 10,
+    "enhanceChance": [
+      0.7,
+      0.6,
+      0.5,
+      0.4,
+      0.3
+    ],
+    "enhanceLuck": 0.1,
+    "enhanceGoldBase": 40,
+    "enhanceGoldExp": 1.25,
+    "enhanceGoldGrowth": 1.22,
+    "enhanceDustBase": 4,
+    "reforgeGoldBase": 200,
+    "smeltDust": [
+      1,
+      3,
+      8,
+      20,
+      60,
+      150,
+      400
+    ],
+    "smeltForge": [
+      0,
+      0,
+      1,
+      2,
+      5,
+      12,
+      30
+    ],
+    "transferCostPct": 0.2
+  },
+  "gems": {
+    "types": [
+      "ruby",
+      "sapphire",
+      "emerald",
+      "topaz",
+      "amethyst"
+    ],
+    "maxLevel": 8,
+    "combine": 3
+  },
+  "income": {
+    "goldBase": 25,
+    "goldExp": 1.35,
+    "xpBase": 40,
+    "xpExp": 1.45,
+    "accXpPerMin": 2,
+    "dustPerHour": 2,
+    "itemEveryMin": 3,
+    "capHours": 12,
+    "maxCapHours": 24,
+    "quickHours": 2,
+    "quickCrystals": [
+      20,
+      50,
+      100
+    ],
+    "adLimit": 10,
+    "x2Minutes": 30
+  },
+  "rewards": {
+    "waveGoldMin": 0.4,
+    "waveXpMin": 0.4,
+    "bossGoldMin": 10,
+    "bossXpMin": 10,
+    "bossAccXp": 25,
+    "bossCrystalsEvery": 5,
+    "bossCrystals": 30,
+    "actBossCrystals": 150,
+    "actBossSkillPoints": 1,
+    "bossStarDust": 5,
+    "actBossStarDust": 40,
+    "bossItems": 1,
+    "actBossItems": 3
+  },
+  "summon": {
+    "rates": {
+      "R": 60,
+      "SR": 32,
+      "SSR": 7.2,
+      "UR": 0.8
+    },
+    "pitySSR": 60,
+    "pityUR": 150,
+    "cost1": 300,
+    "cost10": 2700,
+    "scrollCost": 1
+  },
+  "constellation": {
+    "count": 12,
+    "stars": 20,
+    "costBase": 20,
+    "costGrowth": 1.045
+  },
+  "ascension": {
+    "unlockGlobal": 81,
+    "etherBase": 10,
+    "etherDiv": 50,
+    "etherExp": 1.6
+  },
+  "modes": {
+    "dungeonKeys": 3,
+    "dungeonLevels": 20,
+    "towerFloors": 500,
+    "arenaFights": 5,
+    "arenaBuyCost": 50,
+    "expeditionSlots": [
+      [
+        1,
+        3
+      ],
+      [
+        15,
+        4
+      ],
+      [
+        30,
+        5
+      ],
+      [
+        50,
+        6
+      ],
+      [
+        80,
+        7
+      ],
+      [
+        120,
+        8
+      ]
+    ]
+  },
+  "inventory": {
+    "start": 100,
+    "max": 400
+  },
+  "unlocks": {
+    "stage": {
+      "tree": 5,
+      "stars": 10,
+      "expeditions": 15,
+      "dungeons": 21,
+      "tower": 30,
+      "constellation": 41,
+      "labyrinth": 61,
+      "ascension": 81,
+      "hard": 201,
+      "nightmare": 401,
+      "abyss": 601
+    },
+    "level": {
+      "events": 10,
+      "arena": 20
+    }
+  }
+}
