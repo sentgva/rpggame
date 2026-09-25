@@ -1,6 +1,8 @@
 import { ITEM_RARITY_NAMES } from '@idle/shared';
 import type { ReactNode } from 'react';
-import { Button, Panel, Toggle, css } from '../../components/ui';
+import { useState } from 'react';
+import { Button, Panel, Toggle, css, openSheet } from '../../components/ui';
+import { collectDiag } from '../../net/diag';
 import { t, tl } from '../../i18n';
 import { useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
@@ -90,6 +92,12 @@ export function Settings() {
           </Button>
         </Panel>
       )}
+      <Panel title={t('bug.title')}>
+        <div className={css.tiny}>{t('bug.desc')}</div>
+        <Button kind="secondary" block style={{ marginTop: 6 }} onClick={() => openBugReport()}>
+          🐞 {t('bug.button')}
+        </Button>
+      </Panel>
       <Panel title={t('settings.account')}>
         <div className={css.tiny}>{t('settings.id', { id: s.id })}</div>
         <div className={css.tiny}>{t('settings.version', { v: `0.1.0 · ${g.mode}` })}</div>
@@ -99,6 +107,57 @@ export function Settings() {
           </Button>
         )}
       </Panel>
+    </div>
+  );
+}
+
+export function openBugReport() {
+  openSheet(t('bug.title'), (close) => <BugReportForm onDone={close} />);
+}
+
+function BugReportForm({ onDone }: { onDone: () => void }) {
+  const [text, setText] = useState('');
+  const [withDiag, setWithDiag] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    const g = useGame.getState();
+    const ui = useUi.getState();
+    if (g.mode === 'local') {
+      ui.toast(t('bug.local'), 'info');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await g.backend().bugReport(text.trim(), withDiag ? collectDiag() : { source: 'app' });
+      if (r.ok) {
+        ui.toast(r.delivered ? t('bug.sent') : t('bug.saved'), 'good');
+        onDone();
+      } else ui.toast(r.error?.code === 'rateLimit' ? t('bug.limit') : t('bug.short'), 'bad');
+    } catch {
+      ui.toast(t('err.network'), 'bad');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className={css.col}>
+      <div className={css.tiny}>{t('bug.hint')}</div>
+      <textarea
+        className={css.input}
+        value={text}
+        maxLength={1500}
+        rows={6}
+        placeholder={t('bug.placeholder')}
+        onChange={(e) => setText(e.target.value)}
+        style={{ width: '100%', resize: 'vertical', minHeight: 110, fontFamily: 'inherit', fontSize: 14, lineHeight: 1.35 }}
+      />
+      <div className={css.row} style={{ justifyContent: 'space-between' }}>
+        <span className={css.tiny}>{t('bug.attach')}</span>
+        <Toggle value={withDiag} onChange={setWithDiag} />
+      </div>
+      <Button block disabled={busy || text.trim().length < 3} onClick={() => void send()}>
+        {t('bug.send')}
+      </Button>
     </div>
   );
 }

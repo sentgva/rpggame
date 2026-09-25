@@ -132,6 +132,7 @@ export function tick(ctx: Ctx) {
     s.shop.passXp = 0;
     s.shop.passClaimed = [];
     s.shop.passPremiumClaimed = [];
+    s.shop.passBonus = 0;
   }
   // почта: храним не больше 50 писем
   if (s.mail.length > 50) s.mail = s.mail.slice(-50);

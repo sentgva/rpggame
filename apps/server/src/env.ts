@@ -33,6 +33,8 @@ export const env = {
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-session-secret-change-me',
   /** Белый список Telegram ID для режима разработчика. */
   devUserIds: list(process.env.DEV_USER_IDS),
+  /** Куда бот присылает баг-репорты (Telegram ID/чаты через запятую); пусто — разработчикам из DEV_USER_IDS. */
+  bugReportChatIds: list(process.env.BUG_REPORT_CHAT_ID),
   /** Полностью отключает dev-эндпоинты и dev-действия. */
   devModeEnabled: bool(process.env.DEV_MODE_ENABLED, false),
   /** Разрешить вход без Telegram (только для локальной разработки). */

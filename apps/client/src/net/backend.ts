@@ -39,6 +39,14 @@ export interface Backend {
   action(id: string, action: Action): Promise<ActionResponse>;
   fetchState(): Promise<{ state: PlayerState; now: number }>;
   dev(op: string, body?: unknown): Promise<unknown>;
+  /** Баг-репорт разработчику (через бота). */
+  bugReport(text: string, diag: Record<string, unknown>): Promise<BugReportResult>;
+}
+
+export interface BugReportResult {
+  ok: boolean;
+  delivered?: boolean;
+  error?: { code: string };
 }
 
 // ——— локальный режим (без сервера): прогресс в localStorage ———
@@ -97,6 +105,10 @@ export class LocalBackend implements Backend {
 
   async fetchState() {
     return { state: structuredClone(this.state), now: Date.now() };
+  }
+
+  async bugReport(): Promise<BugReportResult> {
+    return { ok: false, error: { code: 'localOnly' } };
   }
 
   async dev(op: string, body?: any): Promise<unknown> {
@@ -222,6 +234,10 @@ export class RemoteBackend implements Backend {
 
   async dev(op: string, body?: unknown): Promise<unknown> {
     return this.req('/dev', { op, body });
+  }
+
+  async bugReport(text: string, diag: Record<string, unknown>): Promise<BugReportResult> {
+    return this.req<BugReportResult>('/bug-report', { text, diag });
   }
 }
 

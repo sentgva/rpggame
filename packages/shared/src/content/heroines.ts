@@ -15,7 +15,12 @@ export type Accessory =
   | 'elfEars'
   | 'veil'
   | 'bandana'
-  | 'catEars';
+  | 'catEars'
+  | 'sunHat'
+  | 'bow';
+
+/** Сменный наряд облика: купальники (swim*) и бельё (lace*) вместо классового костюма. */
+export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4';
 
 export interface Look {
   hair: string;
@@ -29,6 +34,8 @@ export interface Look {
   accColor?: string;
   /** Крылья/хвосты для владычиц и монстродевушек. */
   extra?: 'wings' | 'darkWings' | 'tail' | 'snake' | 'fishTail' | 'scorpion' | 'vines' | 'gears' | 'none';
+  /** Сменный наряд (только у обликов). */
+  wear?: Wear;
 }
 
 export interface HeroineDef {
@@ -353,6 +360,8 @@ export interface SkinDef {
   source: 'shop' | 'tower' | 'labyrinth' | 'pass' | 'event' | 'arena';
   /** Цена в магазине обликов (кристаллы). */
   crystals?: number;
+  /** Коллекция: летние купальники или бельё. */
+  set?: 'summer' | 'lingerie';
 }
 
 export const SKINS: SkinDef[] = [
@@ -377,5 +386,86 @@ export const SKINS: SkinDef[] = [
   { id: 'belladonna_rose', hero: 'belladonna', name: { ru: 'Чёрная роза', en: 'Black Rose' }, look: { outfit: '#1E1420', trim: '#E03A3A' }, source: 'event' },
   { id: 'sigrid_valk', hero: 'sigrid', name: { ru: 'Валькирия', en: 'Valkyrie' }, look: { outfit: '#C0C8D8', trim: '#E0A13A', acc: 'helmet', accColor: '#E0E6F0', extra: 'wings' }, source: 'pass' },
 ];
+
+const SET_PRICE: Record<HeroRarity, number> = { R: 1200, SR: 1800, SSR: 2500, UR: 3500 };
+
+type SetSkin = [hero: string, wear: Wear, acc: Accessory | null, outfit: string, trim: string, ru: string, en: string, accColor?: string];
+
+/** Летняя коллекция: 20 купальников. */
+const SUMMER: SetSkin[] = [
+  ['lira', 'swim', 'sunHat', '#E0532A', '#F2E6D8', 'Пляжная ведьма', 'Beach Witch', '#E8C87A'],
+  ['astrid', 'swim4', 'none', '#E03A3A', '#F2F0E6', 'Спасательница', 'Lifeguard'],
+  ['seyra', 'swim2', 'flower', '#7ACF5A', '#F2F0E6', 'Лесная лагуна', 'Forest Lagoon', '#F4B8CC'],
+  ['hanna', 'swim2', null, '#E03A6A', '#FFFFFF', 'Клубничный лёд', 'Strawberry Ice'],
+  ['keira', 'swim3', null, '#E03A3A', '#F2D46B', 'Жаркий песок', 'Hot Sand'],
+  ['coral', 'swim4', null, '#3D7BE0', '#F2E6D8', 'Морской бриз', 'Sea Breeze'],
+  ['brianna', 'swim', 'sunHat', '#6FD0E0', '#F2E6D8', 'Бирюзовая волна', 'Turquoise Wave', '#E8C87A'],
+  ['gwendolyn', 'swim2', null, '#E8641E', '#FFFFFF', 'Солнечный зайчик', 'Sunbeam'],
+  ['ulfa', 'swim3', null, '#1E1A2A', '#F2D46B', 'Кошка на пляже', 'Beach Cat'],
+  ['fiona', 'swim4', null, '#E0406A', '#6FD0E0', 'Серфингистка', 'Surfer'],
+  ['nerissa', 'swim', 'flower', '#9B4DE0', '#F2E6D8', 'Лиловый закат', 'Lilac Sunset', '#F2D46B'],
+  ['aurora', 'swim3', null, '#C8901A', '#F2F0E6', 'Золотой пляж', 'Golden Beach'],
+  ['flora', 'swim2', null, '#7ACF5A', '#F4B8CC', 'Тропический цветок', 'Tropical Bloom'],
+  ['amber', 'swim', 'sunHat', '#F08A24', '#FFFFFF', 'Янтарный берег', 'Amber Shore', '#E8C87A'],
+  ['liana', 'swim3', null, '#E0532A', '#F2D46B', 'Джунгли', 'Jungle'],
+  ['kana', 'swim4', null, '#1E1A2A', '#E03A3A', 'Ночной пляж', 'Night Beach'],
+  ['melody', 'swim2', null, '#6FB0F0', '#FFFFFF', 'Морская пена', 'Sea Foam'],
+  ['echo', 'swim', 'sunHat', '#E03A6A', '#F2E6D8', 'Пина-колада', 'Piña Colada', '#E8C87A'],
+  ['carmen', 'swim3', null, '#E03A3A', '#1E1A1A', 'Фламенко у моря', 'Seaside Flamenco'],
+  ['lorelei', 'swim2', null, '#6FD0E0', '#F2F0E6', 'Жемчужина лагуны', 'Lagoon Pearl'],
+];
+
+/** Коллекция «Будуар»: 20 комплектов белья. */
+const LINGERIE: SetSkin[] = [
+  ['mirabel', 'lace2', null, '#9B4DE0', '#F2F0E6', 'Лавандовое кружево', 'Lavender Lace'],
+  ['nox', 'lace4', 'bow', '#1E1A2A', '#9B4DE0', 'Полночь', 'Midnight', '#9B4DE0'],
+  ['velvet', 'lace3', null, '#1E1420', '#9B4DE0', 'Чёрный шёлк', 'Black Silk'],
+  ['isolde', 'lace2', null, '#3D7BE0', '#FFFFFF', 'Ледяной шёлк', 'Ice Silk'],
+  ['rin', 'lace', null, '#E03A6A', '#1E1A2A', 'Сакура в будуаре', 'Boudoir Sakura'],
+  ['ravenna', 'lace4', 'none', '#8A1E2A', '#F2D46B', 'Алый бархат', 'Crimson Velvet'],
+  ['sigrid', 'lace', null, '#3A4A6A', '#F2F0E6', 'Северное сияние', 'Northern Lights'],
+  ['valeska', 'lace3', null, '#E03A3A', '#1E1A1A', 'Роковая', 'Femme Fatale'],
+  ['lilith', 'lace4', null, '#1E1A1A', '#E03A3A', 'Адское искушение', 'Infernal Temptation'],
+  ['veyla', 'lace2', null, '#7ACF5A', '#F2E6D8', 'Лесная нимфа', 'Forest Nymph'],
+  ['celestine', 'lace', null, '#9B4DE0', '#F2D46B', 'Звёздная ночь', 'Starry Night'],
+  ['melisandre', 'lace3', null, '#2A1A2A', '#E890B0', 'Ночная ведьма', 'Night Witch'],
+  ['seraphina', 'lace2', null, '#3D7BE0', '#F2D46B', 'Небесная лазурь', 'Heavenly Azure'],
+  ['ophelia', 'lace', null, '#6A5AC8', '#E6E0F0', 'Лунное кружево', 'Moon Lace'],
+  ['ash', 'lace4', 'none', '#3A3A4A', '#E03A3A', 'Пепел и шёлк', 'Ash & Silk'],
+  ['belladonna', 'lace3', null, '#4A0E2A', '#E03A3A', 'Ядовитая роза', 'Poison Rose'],
+  ['undine', 'lace2', null, '#3D7BE0', '#F2F0E6', 'Глубина', 'Deep Blue'],
+  ['elegy', 'lace', null, '#1E1A2A', '#F2F0E6', 'Реквием', 'Requiem'],
+  ['scarlet', 'lace4', null, '#E03A3A', '#1E1A1A', 'Алая кошка', 'Scarlet Cat'],
+  ['liora', 'lace3', 'none', '#D49A1E', '#1E1A1A', 'Золотой час', 'Golden Hour'],
+];
+
+/**
+ * Где добывается облик коллекции (кроме магазина за кристаллы, где продаются все).
+ * 'shop' — эксклюзив магазина: только за кристаллы.
+ */
+const SET_SOURCE: Record<string, SkinDef['source']> = {
+  lira_beach: 'shop', astrid_beach: 'shop', aurora_beach: 'shop', lorelei_beach: 'shop',
+  velvet_lace: 'shop', isolde_lace: 'shop', lilith_lace: 'shop', seraphina_lace: 'shop',
+  ulfa_beach: 'arena', kana_beach: 'arena', ravenna_lace: 'arena', valeska_lace: 'arena', scarlet_lace: 'arena',
+  seyra_beach: 'labyrinth', flora_beach: 'labyrinth', liana_beach: 'labyrinth', melisandre_lace: 'labyrinth', ash_lace: 'labyrinth',
+  nerissa_beach: 'event', echo_beach: 'event', belladonna_lace: 'event', undine_lace: 'event',
+  coral_beach: 'tower', brianna_beach: 'tower', ophelia_lace: 'tower', elegy_lace: 'tower',
+};
+
+for (const [set, list] of [
+  ['summer', SUMMER],
+  ['lingerie', LINGERIE],
+] as const)
+  for (const [hero, wear, acc, outfit, trim, ru, en, accColor] of list) {
+    const look: Partial<Look> = { wear, outfit, trim };
+    if (acc) look.acc = acc;
+    if (accColor) look.accColor = accColor;
+    const id = `${hero}_${set === 'summer' ? 'beach' : 'lace'}`;
+    const rarity = HEROINES.find((x) => x.id === hero)!.rarity;
+    const source = SET_SOURCE[id] ?? 'pass';
+    // эксклюзивы магазина чуть дороже
+    const crystals = Math.round(SET_PRICE[rarity] * (source === 'shop' ? 1.4 : 1) / 100) * 100;
+    SKINS.push({ id, hero, name: { ru, en }, look, source, crystals, set });
+  }
 
 export const SKIN_MAP: Record<string, SkinDef> = Object.fromEntries(SKINS.map((s) => [s.id, s]));

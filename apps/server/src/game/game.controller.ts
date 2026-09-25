@@ -4,6 +4,7 @@ import { validateInitData } from '../auth/telegram';
 import { AuthGuard, type AuthedRequest } from '../auth/auth.guard';
 import { signSession } from '../auth/session';
 import { BalanceService } from '../balance/balance.service';
+import { BugService } from '../bug/bug.service';
 import { RateLimiter } from '../common/rate-limit';
 import { DevService } from '../dev/dev.service';
 import { env, isDevUser } from '../env';
@@ -16,7 +17,17 @@ export class GameController {
     @Inject(BalanceService) private readonly balance: BalanceService,
     @Inject(DevService) private readonly dev: DevService,
     @Inject(RateLimiter) private readonly limiter: RateLimiter,
+    @Inject(BugService) private readonly bugs: BugService,
   ) {}
+
+  /** Баг-репорт из настроек игры: приходит разработчику в личку от бота. */
+  @Post('bug-report')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  async bugReport(@Req() req: AuthedRequest, @Body() body: { text?: string; diag?: unknown }) {
+    if (!(await this.limiter.hit(`bug:${req.uid}`, 3))) return { ok: false, error: { code: 'rateLimit' } };
+    return this.bugs.report(req.uid, body?.text, body?.diag);
+  }
 
   @Get('health')
   health() {

@@ -345,6 +345,8 @@ export interface PlayerState {
     passXp: number;
     passClaimed: number[];
     passPremiumClaimed: number[];
+    /** Открыто бонусных сундуков пропуска (после 50-го уровня). */
+    passBonus?: number;
     starterUntil: number;
   };
   mail: MailMessage[];

@@ -11,6 +11,7 @@ import {
   TilingSprite,
 } from 'pixi.js';
 import { unitCanvas } from '../art/runtime';
+import { useGame } from '../store/game';
 import { frameKey, lifeFrame, newLife, type LifeAnim, type LifeFrame } from '../art/anim';
 import { t } from '../i18n';
 import { sfx } from '../audio/sfx';
@@ -74,6 +75,8 @@ class UnitView {
     public snap: UnitSnap,
     scale: number,
     now: number,
+    /** облик героини из отряда игрока */
+    public skin?: string,
   ) {
     this.hp = snap.hp;
     this.maxHp = snap.maxHp;
@@ -82,7 +85,7 @@ class UnitView {
     this.bobPhase = this.life.phase;
     const big = snap.kind === 'boss' ? 2 : snap.kind === 'mini' ? 1.35 : snap.kind === 'summon' ? 0.8 : 1;
     this.scale = scale * big;
-    const canvas = unitCanvas(snap.ref, snap.side, { mirror: snap.mirror });
+    const canvas = unitCanvas(snap.ref, { mirror: snap.mirror, skin });
     this.sprite = new Sprite(Texture.from(canvas));
     this.sprite.anchor.set(0.5, 1);
     const flip = snap.side === 1 ? -1 : 1;
@@ -110,7 +113,7 @@ class UnitView {
     const key = frameKey(f);
     if (key === this.frame) return;
     this.frame = key;
-    const canvas = unitCanvas(this.snap.ref, this.snap.side, { mirror: this.snap.mirror }, f);
+    const canvas = unitCanvas(this.snap.ref, { mirror: this.snap.mirror, skin: this.skin }, f);
     this.sprite.texture = Texture.from(canvas);
     this.flash.texture = Texture.from(silhouette(canvas));
   }
@@ -249,6 +252,8 @@ export class BattleRenderer {
   /** WebGL-контекст потерян (свернули Telegram, сброс GPU) — сцену нужно пересоздать. */
   lost = false;
   onContextLost: (() => void) | null = null;
+  /** Облик героини игрока (сторона 0) — из текущего состояния игры. */
+  skinOf: (heroId: string) => string | undefined = (id) => useGame.getState().state?.heroines[id]?.skin;
 
   async init(host?: HTMLElement) {
     const w = host?.clientWidth || 360;
@@ -422,7 +427,7 @@ export class BattleRenderer {
   }
 
   private addUnit(snap: UnitSnap, appear = false) {
-    const u = new UnitView(snap, this.unitScale, this.time);
+    const u = new UnitView(snap, this.unitScale, this.time, snap.side === 0 || snap.mirror ? this.skinOf(snap.ref) : undefined);
     this.units.set(snap.uid, u);
     this.world.addChild(u.root);
     this.placeUnit(u);
@@ -813,6 +818,14 @@ export class BattleRenderer {
     for (const u of this.units.values()) {
       if (u.alive) u.sprite.y = Math.sin(this.time / 380 + u.bobPhase) * 1.2;
       u.flash.y = u.sprite.y;
+      // облик сменили во время боя — перерисовываем кадры сразу, не дожидаясь новой волны
+      if (u.snap.side === 0 || u.snap.mirror) {
+        const sk = this.skinOf(u.snap.ref);
+        if (sk !== u.skin) {
+          u.skin = sk;
+          u.frame = '';
+        }
+      }
       u.animate(this.time);
       u.drawStatuses(this.time);
     }

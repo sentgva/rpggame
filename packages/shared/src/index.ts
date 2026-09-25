@@ -12,7 +12,7 @@ export * from './engine/apply';
 export * from './engine/hash';
 export { targetStage, difficultyUnlocked, nextBattleSeed } from './engine/actions/battle';
 export { enhanceCost, enhanceChance, reforgeCost, forgeGoldCost, autoEquipHero } from './engine/actions/items';
-export { constellationCost, etherForStage, passLevel } from './engine/actions/meta';
+export { constellationCost, etherForStage, passLevel, passBonus } from './engine/actions/meta';
 export { dungeonReward, towerReward, expeditionSlots, expeditionBoard } from './engine/actions/modes';
 export { doSummon, boostsLeft, type SummonPull } from './engine/actions/economy';
 export { onExpedition } from './engine/actions/heroes';

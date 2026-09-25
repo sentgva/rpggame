@@ -108,4 +108,19 @@ CREATE TABLE IF NOT EXISTS action_results (
 CREATE INDEX IF NOT EXISTS action_results_age ON action_results (player_id, created_at);
 `,
   },
+  {
+    id: 3,
+    sql: `
+-- баг-репорты игроков (кнопка в настройках и команда /bug)
+CREATE TABLE IF NOT EXISTS bug_reports (
+  id         BIGSERIAL PRIMARY KEY,
+  player_id  TEXT,
+  text       TEXT NOT NULL,
+  diag       JSONB,
+  delivered  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS bug_reports_at ON bug_reports (created_at DESC);
+`,
+  },
 ];

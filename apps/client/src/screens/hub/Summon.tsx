@@ -1,14 +1,14 @@
 import { HEROINE_MAP, HERO_RARITY_COLORS, type SummonPull } from '@idle/shared';
-import { useEffect, useState } from 'react';
-import { heroUrl } from '../../art/runtime';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { HeroImg } from '../../components/HeroImg';
-import { Button, Cost, Icon, Panel, css } from '../../components/ui';
+import { Button, Cost, Icon, Panel, css, cx } from '../../components/ui';
 import { t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { haptic, share } from '../../tg/telegram';
 import { sfx } from '../../audio/sfx';
 import { BackHeader } from '../common';
+import st from './Summon.module.css';
 
 export function Summon() {
   const s = useGameState();
@@ -84,51 +84,127 @@ export function showPulls(pulls: SummonPull[]) {
   useUi.getState().open((close) => <PullReveal pulls={pulls} onClose={close} />, { sticky: true });
 }
 
+const ORDER = ['R', 'SR', 'SSR', 'UR'] as const;
+const rank = (r: string) => ORDER.indexOf(r as (typeof ORDER)[number]);
+const rarColor = (r: string) => HERO_RARITY_COLORS[r] ?? '#3D7BE0';
+/** CSS-переменные цвета редкости: основной, полупрозрачный и фоновый. */
+const rarVars = (r: string) => ({ '--c': rarColor(r), '--c2': rarColor(r) + '88', '--c3': rarColor(r) + '30' }) as CSSProperties;
+
 function PullReveal({ pulls, onClose }: { pulls: SummonPull[]; onClose: () => void }) {
-  const [shown, setShown] = useState(0);
   const botUsername = useGame((g) => g.botUsername);
+  const best = useMemo(() => pulls.reduce((a, p) => (rank(p.rarity) > rank(a.rarity) ? p : a), pulls[0]), [pulls]);
+  const bestRank = rank(best.rarity);
+  const chargeDur = 1100 + bestRank * 320;
+  const [phase, setPhase] = useState<'charge' | 'cards'>('charge');
+  // цвет портала «поднимается» по редкостям до лучшей в призыве
+  const [tier, setTier] = useState(0);
+  const [flipped, setFlipped] = useState<boolean[]>(() => pulls.map(() => false));
+  const [charging, setCharging] = useState(-1);
+  const next = flipped.indexOf(false);
+  const done = next < 0;
+
   useEffect(() => {
-    if (shown >= pulls.length) return;
-    const p = pulls[shown];
-    const rare = p.rarity === 'SSR' || p.rarity === 'UR';
-    if (rare) {
+    if (phase !== 'charge') return;
+    sfx('summon');
+    haptic.medium();
+    const timers: number[] = [];
+    for (let k = 1; k <= bestRank; k++)
+      timers.push(
+        window.setTimeout(() => {
+          setTier(k);
+          if (k >= 2) {
+            sfx('rare');
+            haptic.heavy();
+          } else haptic.tap();
+        }, (chargeDur * 0.8 * k) / (bestRank + 1)),
+      );
+    timers.push(window.setTimeout(() => setPhase('cards'), chargeDur));
+    return () => timers.forEach(clearTimeout);
+  }, [phase, bestRank, chargeDur]);
+
+  const flip = (i: number, quiet = false) => {
+    setCharging(-1);
+    setFlipped((f) => {
+      if (f[i]) return f;
+      const n = f.slice();
+      n[i] = true;
+      return n;
+    });
+    if (quiet) return;
+    if (rank(pulls[i].rarity) >= 2) {
       sfx('rare');
       haptic.heavy();
-    } else sfx('summon');
-    const id = setTimeout(() => setShown((n) => n + 1), rare ? 700 : 220);
-    return () => clearTimeout(id);
-  }, [shown, pulls]);
-  const best = [...pulls].sort((a, b) => ['R', 'SR', 'SSR', 'UR'].indexOf(b.rarity) - ['R', 'SR', 'SSR', 'UR'].indexOf(a.rarity))[0];
+    } else {
+      sfx('summon');
+      haptic.tap();
+    }
+  };
+
+  // карты открываются по очереди; редкие сначала «дрожат» и дольше светятся рубашкой
+  useEffect(() => {
+    if (phase !== 'cards' || done) return;
+    const rare = rank(pulls[next].rarity) >= 2;
+    const t1 = window.setTimeout(() => rare && setCharging(next), 240);
+    const t2 = window.setTimeout(() => flip(next), rare ? 950 : 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, next]);
+
+  const skip = () => {
+    if (phase === 'charge') setPhase('cards');
+    setCharging(-1);
+    setFlipped(pulls.map(() => true));
+    if (bestRank >= 2) sfx('rare');
+  };
+
+  const big = pulls.length === 1;
   return (
-    <div className={css.panel} style={{ width: '100%', maxWidth: 480, paddingBottom: 'calc(14px + var(--safe-bottom))' }} onClick={(e) => e.stopPropagation()}>
+    <div className={cx(css.panel, st.wrap)} onClick={(e) => e.stopPropagation()}>
       <div className={css.panelTitle}>{t('summon.title')}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: pulls.length === 1 ? '1fr' : 'repeat(5, 1fr)', gap: 6, justifyItems: 'center' }}>
-        {pulls.map((p, i) => {
-          const visible = i < shown;
-          const glow = p.rarity === 'UR' ? '#e03a3a' : p.rarity === 'SSR' ? '#f08a24' : p.rarity === 'SR' ? '#9b4de0' : '#3d7be0';
+      {phase === 'charge' ? (
+        <div
+          className={cx(st.stage, tier >= 3 && st.shake)}
+          style={{ ...rarVars(ORDER[tier]), ['--dur' as string]: `${chargeDur}ms` }}
+          onClick={() => setPhase('cards')}
+        >
+          <div className={st.rays} style={{ opacity: 0.18 + tier * 0.08 }} />
+          <div className={st.ring} />
+          <div className={st.ring} style={{ animationDelay: '.36s' }} />
+          <div className={st.ring} style={{ animationDelay: '.72s' }} />
+          <div className={st.orb} />
+          <div className={st.flash} />
+          <div className={st.stageHint}>{t('summon.tap')}</div>
+        </div>
+      ) : (
+        <div className={st.grid} style={{ gridTemplateColumns: big ? '160px' : 'repeat(5, 1fr)', justifyContent: 'center' }}>
+          {pulls.map((p, i) => (
+            <PullCard key={i} p={p} i={i} big={big} flipped={flipped[i]} charging={charging === i} onFlip={() => flip(i)} />
+          ))}
+        </div>
+      )}
+      <div className={st.chips}>
+        <span className={css.tiny}>{t('summon.found')}:</span>
+        {[...ORDER].reverse().map((r) => {
+          const n = pulls.filter((p) => p.rarity === r).length;
+          const on = n > 0 && (phase === 'cards' || rank(r) <= tier);
           return (
-            <div
-              key={i}
-              style={{
-                width: pulls.length === 1 ? 140 : 62,
-                textAlign: 'center',
-                opacity: visible ? 1 : 0.15,
-                transform: visible ? 'scale(1)' : 'scale(0.8)',
-                transition: 'all .2s var(--ease)',
-              }}
-            >
-              <div style={{ borderRadius: 6, border: `2px solid ${glow}`, boxShadow: visible && (p.rarity === 'SSR' || p.rarity === 'UR') ? `0 0 14px ${glow}` : undefined, background: 'radial-gradient(circle,#3a2a30,#140e12)' }}>
-                <img className="pixel" src={heroUrl(p.hero)} alt="" style={{ width: '100%' }} />
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 800, color: glow }}>{p.rarity}</div>
-              <div style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tl(HEROINE_MAP[p.hero].name)}</div>
-              <div style={{ fontSize: 9, color: p.isNew ? '#7ae07a' : 'var(--text-2)' }}>{p.isNew ? t('summon.new') : t('summon.dupe', { n: p.shards })}</div>
-            </div>
+            <span key={r} className={cx(st.rchip, on && st.rchipOn)} style={rarVars(r)}>
+              {r}
+              {on ? ` ×${n}` : ''}
+            </span>
           );
         })}
       </div>
-      <div className={css.row} style={{ marginTop: 12 }}>
-        {(best.rarity === 'UR' || best.rarity === 'SSR') && shown >= pulls.length && (
+      <div className={css.row}>
+        {!done && (
+          <Button kind="secondary" block onClick={skip}>
+            {t('summon.skip')}
+          </Button>
+        )}
+        {done && bestRank >= 2 && (
           <Button
             kind="secondary"
             block
@@ -140,10 +216,48 @@ function PullReveal({ pulls, onClose }: { pulls: SummonPull[]; onClose: () => vo
             {t('summon.share')}
           </Button>
         )}
-        <Button block disabled={shown < pulls.length} onClick={onClose}>
+        <Button block disabled={!done} onClick={onClose}>
           {t('common.ok')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function PullCard({ p, i, big, flipped, charging, onFlip }: { p: SummonPull; i: number; big: boolean; flipped: boolean; charging: boolean; onFlip: () => void }) {
+  const rare = rank(p.rarity) >= 2;
+  const fs = big ? 13 : 10;
+  return (
+    <div
+      className={cx(st.card, flipped && st.flipped, charging && st.charging)}
+      style={{ ...rarVars(p.rarity), animationDelay: `${i * 45}ms` }}
+      onClick={() => !flipped && onFlip()}
+    >
+      <div className={st.inner}>
+        <div className={cx(st.face, st.back, rare && st.backRare)}>
+          <Icon name="summon" size={big ? 60 : 26} />
+          <div className={st.backMark} style={{ fontSize: big ? 18 : 11 }}>
+            {p.rarity}
+          </div>
+        </div>
+        <div className={cx(st.face, st.front, rare && st.shine)} style={{ fontSize: fs }}>
+          {rare && <div className={st.frontRays} />}
+          {p.isNew && (
+            <span className={st.newTag} style={{ fontSize: big ? 11 : 8 }}>
+              NEW
+            </span>
+          )}
+          <HeroImg className={st.hero} id={p.hero} still={!flipped} />
+          <div className={st.rar} style={{ fontSize: big ? 18 : 11 }}>
+            {p.rarity}
+          </div>
+          <div className={st.name}>{tl(HEROINE_MAP[p.hero].name)}</div>
+          <div className={st.sub} style={p.isNew ? { color: '#7ae07a' } : undefined}>
+            {p.isNew ? t('summon.new') : t(big ? 'summon.dupe' : 'summon.dupeShort', { n: p.shards })}
+          </div>
+        </div>
+      </div>
+      {flipped && rare && <div className={st.burst} />}
     </div>
   );
 }

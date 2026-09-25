@@ -1,6 +1,6 @@
 /** Превью героинь/врагов нового генератора: npx tsx scripts/figure-preview.ts out.png [heroines|enemies] [scale] [ids] */
 import { writeFileSync } from 'node:fs';
-import { ENEMIES, HEROINES } from '@idle/shared';
+import { ENEMIES, HEROINES, HEROINE_MAP, SKINS } from '@idle/shared';
 import { CLASS_OUTFIT, renderFigure, type Pose } from '../src/art/figure';
 import { CLASS_WEAPON, ROLE_CLASS, type Bitmap } from '../src/art/sprite';
 import { encodePng } from './png';
@@ -17,7 +17,14 @@ const poses: Pose[] = (process.argv[6] ?? 'open:idle')
     return { eyes, arms };
   });
 const sprites: Bitmap[] = [];
-if (which === 'heroines') {
+if (which === 'summer' || which === 'lingerie') {
+  for (const sk of SKINS) {
+    if (sk.set !== which) continue;
+    const h = HEROINE_MAP[sk.hero];
+    for (const pose of poses)
+      sprites.push(renderFigure({ look: { ...h.look, ...sk.look }, weapon: CLASS_WEAPON[h.cls], body: 'robe', element: h.element, outfit: CLASS_OUTFIT[h.cls] }, pose));
+  }
+} else if (which === 'heroines') {
   for (const h of HEROINES) {
     if (only && !only.includes(h.id)) continue;
     for (const pose of poses)

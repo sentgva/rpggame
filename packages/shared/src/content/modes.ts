@@ -33,8 +33,12 @@ export function towerStage(floor: number): number {
 export const TOWER_SKIN_FLOORS: Record<number, string> = {
   50: 'mirabel_pearl',
   100: 'keira_winter',
+  150: 'coral_beach',
   200: 'seyra_autumn',
+  250: 'brianna_beach',
   300: 'celestine_nova',
+  350: 'ophelia_lace',
+  450: 'elegy_lace',
 };
 
 // ——— Экспедиции ———

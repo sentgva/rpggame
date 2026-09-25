@@ -22,6 +22,16 @@ import {
   legionMult,
   BASE_ITEMS,
   canWear,
+  SKINS,
+  SKIN_MAP,
+  SHOP_OFFERS,
+  TOWER_SKIN_FLOORS,
+  PASS_LEVELS,
+  PASS_SKIN_LEVELS,
+  PASS_SKIN_DUPE_CRYSTALS,
+  passSkins,
+  passReward,
+  seasonKey,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -258,5 +268,59 @@ describe('ГПСЧ', () => {
     const a = new Rng(5);
     const b = new Rng(5);
     for (let i = 0; i < 100; i++) expect(a.u32()).toBe(b.u32());
+  });
+});
+
+describe('облики и боевой пропуск', () => {
+  const setSkins = SKINS.filter((x) => x.set);
+
+  it('коллекции: 20 летних и 20 бельевых, эксклюзивов мало, все продаются за кристаллы', () => {
+    expect(setSkins.filter((x) => x.set === 'summer')).toHaveLength(20);
+    expect(setSkins.filter((x) => x.set === 'lingerie')).toHaveLength(20);
+    const exclusive = setSkins.filter((x) => x.source === 'shop');
+    expect(exclusive.length).toBeGreaterThan(0);
+    expect(exclusive.length).toBeLessThanOrEqual(10);
+    for (const sk of setSkins) expect(SHOP_OFFERS.some((o) => o.shop === 'skins' && o.give.skin === sk.id)).toBe(true);
+    expect(new Set(SKINS.map((x) => x.id)).size).toBe(SKINS.length);
+  });
+
+  it('у каждого облика есть рабочий источник', () => {
+    for (const sk of setSkins) {
+      if (sk.source === 'arena' || sk.source === 'labyrinth' || sk.source === 'event')
+        expect(SHOP_OFFERS.some((o) => o.shop === sk.source && o.give.skin === sk.id)).toBe(true);
+      if (sk.source === 'tower') expect(Object.values(TOWER_SKIN_FLOORS)).toContain(sk.id);
+    }
+    for (const id of Object.values(TOWER_SKIN_FLOORS)) expect(SKIN_MAP[id]).toBeTruthy();
+    // облики пропуска попадают в ротацию сезонов
+    const rotated = new Set<string>();
+    for (let n = 0; n < 12; n++) for (const id of passSkins(`s${n}`)) rotated.add(id);
+    for (const sk of setSkins.filter((x) => x.source === 'pass')) expect(rotated.has(sk.id)).toBe(true);
+  });
+
+  it('каждый сезон — своя четвёрка обликов', () => {
+    const a = passSkins('s0');
+    const b = passSkins('s1');
+    expect(a).toHaveLength(PASS_SKIN_LEVELS.length);
+    expect(new Set(a).size).toBe(a.length);
+    expect(a).not.toEqual(b);
+    for (const id of [...a, ...b]) expect(SKIN_MAP[id]).toBeTruthy();
+    expect(passReward(PASS_SKIN_LEVELS[0], 's1').skin).toBe(b[0]);
+  });
+
+  it('«забрать всё»: все уровни, облики сезона, бонусные сундуки; повторный облик → кристаллы', () => {
+    let s = fresh();
+    const season = seasonKey(T0);
+    const skins = passSkins(season);
+    s.skins.push(skins[0]);
+    s.shop.passXp = PASS_LEVELS * 100 + 450; // 50 уровней + 2 бонусных сундука
+    const before = s.cur.crystals;
+    const r = applyAction(s, { type: 'pass.claimAll' }, { cfg, now: T0 });
+    s = r.state;
+    expect(s.shop.passClaimed).toHaveLength(PASS_LEVELS);
+    for (const id of skins) expect(s.skins).toContain(id);
+    expect((r.result as { skins?: string[] }).skins).not.toContain(skins[0]);
+    expect(s.shop.passBonus).toBe(2);
+    expect(s.cur.crystals).toBeGreaterThan(before + PASS_SKIN_DUPE_CRYSTALS);
+    expect(() => applyAction(s, { type: 'pass.claimAll' }, { cfg, now: T0 })).toThrow(GameError);
   });
 });

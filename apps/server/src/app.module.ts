@@ -3,6 +3,7 @@ import { AdminController } from './admin/admin.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { BalanceService } from './balance/balance.service';
 import { BotService } from './bot/bot.service';
+import { BugService } from './bug/bug.service';
 import { CacheService } from './common/cache.service';
 import { RateLimiter } from './common/rate-limit';
 import { DbService } from './db/db.service';
@@ -25,6 +26,7 @@ import { SocialService } from './social/social.service';
     AnalyticsService,
     PlayerService,
     BotService,
+    BugService,
     NotifyService,
     SocialService,
     DevService,

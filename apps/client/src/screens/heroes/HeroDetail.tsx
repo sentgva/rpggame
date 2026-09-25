@@ -176,7 +176,7 @@ const PCT = new Set(['crit', 'critDmg', 'acc', 'eva', 'pen', 'lifesteal', 'healP
 function StatsPanel({ stats, fx }: { stats: FinalStats; fx: string[] }) {
   const bonus = Object.entries(stats.bonus).filter(([, v]) => v);
   return (
-    <Panel title="STATUS">
+    <Panel title={t('heroes.tabStats')}>
       {MAIN_STATS.map((k) => {
         const v = stats[k] as number;
         return (
@@ -272,8 +272,9 @@ function HeroSkins({ heroId }: { heroId: string }) {
                 else useUi.getState().toast(t('heroes.skinLocked'), 'info');
               }}
             >
-              <img className={cx(css.heroSprite, !owned && css.dim)} src={heroUrl(heroId, sk.id)} alt="" />
+              <HeroImg className={cx(css.heroSprite, !owned && css.dim)} id={heroId} skin={sk.id} still={!owned} />
               <div className={css.heroName}>{tl(sk.name)}</div>
+              {!owned && sk.source !== 'shop' && <div className={css.tiny}>{t(`src.${sk.source}`)}</div>}
               <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : t('heroes.skinLocked')}</div>
             </div>
           );

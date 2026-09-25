@@ -47,16 +47,21 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Миграции под advisory-блокировкой: несколько процессов (serverless-инстансы, параллельные тесты)
+   * могут стартовать одновременно — применяет их только один, остальные ждут и видят готовую схему.
+   */
   private async migrate() {
-    await this.pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, at TIMESTAMPTZ NOT NULL DEFAULT now())');
-    const done = new Set((await this.query<{ id: number }>('SELECT id FROM schema_migrations')).map((r) => r.id));
-    for (const m of MIGRATIONS) {
-      if (done.has(m.id)) continue;
-      await this.tx(async (c) => {
+    await this.tx(async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(727274)');
+      await c.query('CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, at TIMESTAMPTZ NOT NULL DEFAULT now())');
+      const done = new Set((await c.query<{ id: number }>('SELECT id FROM schema_migrations')).rows.map((r) => r.id));
+      for (const m of MIGRATIONS) {
+        if (done.has(m.id)) continue;
         await c.query(m.sql);
         await c.query('INSERT INTO schema_migrations (id) VALUES ($1)', [m.id]);
-      });
-      this.log.log(`migration ${m.id} applied`);
-    }
+        this.log.log(`migration ${m.id} applied`);
+      }
+    });
   }
 }

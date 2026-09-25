@@ -1,6 +1,7 @@
-import { HEROINE_MAP, formatNum, type Item } from '@idle/shared';
+import { HEROINE_MAP, SKIN_MAP, formatNum, type Item } from '@idle/shared';
 import type { ReactNode } from 'react';
 import { heroUrl } from '../art/runtime';
+import { HeroImg } from '../components/HeroImg';
 import { Button, CUR_ICON, Icon, ItemSlot, Sheet, css, itemName, rarityColor } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useGame } from '../store/game';
@@ -14,6 +15,7 @@ export interface RewardLike {
   gems?: Record<string, number>;
   heroes?: string[];
   skin?: string;
+  skins?: string[];
   levels?: Record<string, number>;
 }
 
@@ -48,6 +50,18 @@ export function RewardList({ r }: { r: RewardLike }) {
           <div key={id} className={css.row}>
             <img className="pixel" src={heroUrl(id)} width={48} height={48} alt="" />
             <b>{tl(HEROINE_MAP[id]?.name)}</b>
+          </div>
+        ))}
+      {[...(r.skin ? [r.skin] : []), ...(r.skins ?? [])]
+        .filter((id) => SKIN_MAP[id])
+        .map((id) => (
+          <div key={id} className={css.row}>
+            <HeroImg className="pixel" id={SKIN_MAP[id].hero} skin={id} width={56} height={56} />
+            <div>
+              <div className={css.tiny}>{t('reward.skin')}</div>
+              <b>{tl(SKIN_MAP[id].name)}</b>
+              <div className={css.tiny}>{tl(HEROINE_MAP[SKIN_MAP[id].hero]?.name)}</div>
+            </div>
           </div>
         ))}
       {r.gems && (

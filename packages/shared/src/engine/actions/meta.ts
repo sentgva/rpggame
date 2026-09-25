@@ -7,8 +7,11 @@ import {
   HEROINE_MAP,
   LOGIN_REWARDS,
   LORE,
+  PASS_BONUS_XP,
   PASS_LEVELS,
+  PASS_SKIN_DUPE_CRYSTALS,
   PASS_XP_PER_LEVEL,
+  passBonusReward,
   WEEKLY_CHESTS,
   WEEKLY_QUESTS,
   ascensionCost,
@@ -59,6 +62,44 @@ function activity(ctx: Ctx, kind: 'daily' | 'weekly'): number {
 
 export function passLevel(s: Ctx['s']): number {
   return Math.min(PASS_LEVELS, Math.floor(s.shop.passXp / PASS_XP_PER_LEVEL));
+}
+
+/** Сколько бонусных сундуков (после 50-го уровня) накоплено и сколько уже открыто. */
+export function passBonus(s: Ctx['s']): { earned: number; claimed: number } {
+  const over = s.shop.passXp - PASS_LEVELS * PASS_XP_PER_LEVEL;
+  return { earned: over > 0 ? Math.floor(over / PASS_BONUS_XP) : 0, claimed: s.shop.passBonus ?? 0 };
+}
+
+type PassOut = { cur?: Record<string, number>; skins?: string[]; items?: unknown[] };
+
+function mergeCur(out: PassOut, cur: Record<string, number>) {
+  out.cur ??= {};
+  for (const [k, v] of Object.entries(cur)) out.cur[k] = (out.cur[k] ?? 0) + v;
+}
+
+/** Выдать награду уровня пропуска (облик, уже имеющийся, превращается в кристаллы). */
+function grantPassLevel(ctx: Ctx, level: number, out: PassOut) {
+  const { s, cfg } = ctx;
+  s.shop.passClaimed.push(level);
+  const r = passReward(level, s.shop.passSeason);
+  if (r.cur) {
+    const cur = scaleReward(cfg, s, r.cur) as Record<string, number>;
+    give(ctx, cur);
+    mergeCur(out, cur);
+  }
+  if (r.skin) {
+    if (!s.skins.includes(r.skin)) {
+      s.skins.push(r.skin);
+      (out.skins ??= []).push(r.skin);
+    } else {
+      give(ctx, { crystals: PASS_SKIN_DUPE_CRYSTALS });
+      mergeCur(out, { crystals: PASS_SKIN_DUPE_CRYSTALS });
+    }
+  }
+  if (r.item) {
+    const it = rollLoot(ctx, { lvl: farmLevel(cfg, s), forceRarity: r.item === 'legendary' ? 4 : 3 });
+    (out.items ??= []).push(addItem(ctx, it, { noAutoSmelt: true }));
+  }
 }
 
 export const metaActions = {
@@ -207,27 +248,35 @@ export const metaActions = {
   },
 
   'pass.claim': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
+    const { s } = ctx;
     const level = vInt(a.level, 1, PASS_LEVELS, 'level');
     assert(passLevel(s) >= level, 'notDone');
-    const list = s.shop.passClaimed;
-    assert(!list.includes(level), 'claimed');
-    list.push(level);
-    const r = passReward(level);
-    const out: Record<string, unknown> = {};
-    if (r.cur) {
-      const cur = scaleReward(cfg, s, r.cur);
+    assert(!s.shop.passClaimed.includes(level), 'claimed');
+    const out: PassOut = {};
+    grantPassLevel(ctx, level, out);
+    return out;
+  },
+
+  /** Забрать все доступные уровни и бонусные сундуки разом. */
+  'pass.claimAll': (ctx: Ctx) => {
+    const { s, cfg } = ctx;
+    const out: PassOut = {};
+    const lvl = passLevel(s);
+    let n = 0;
+    for (let level = 1; level <= lvl; level++) {
+      if (s.shop.passClaimed.includes(level)) continue;
+      grantPassLevel(ctx, level, out);
+      n++;
+    }
+    const b = passBonus(s);
+    for (let i = b.claimed; i < b.earned; i++) {
+      const cur = scaleReward(cfg, s, passBonusReward().cur!) as Record<string, number>;
       give(ctx, cur);
-      out.cur = cur;
+      mergeCur(out, cur);
+      n++;
     }
-    if (r.skin && !s.skins.includes(r.skin)) {
-      s.skins.push(r.skin);
-      out.skin = r.skin;
-    }
-    if (r.item) {
-      const it = rollLoot(ctx, { lvl: farmLevel(cfg, s), forceRarity: r.item === 'legendary' ? 4 : 3 });
-      out.item = addItem(ctx, it, { noAutoSmelt: true });
-    }
+    s.shop.passBonus = Math.max(b.claimed, b.earned);
+    assert(n > 0, 'notDone');
     return out;
   },
 

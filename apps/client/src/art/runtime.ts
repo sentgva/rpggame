@@ -73,8 +73,9 @@ export function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}, pos
 }
 
 /** Юнит боя: героиня, враг, призыв или тёмный двойник. */
-export function unitCanvas(ref: string, side: 0 | 1, opts: { mirror?: boolean; skin?: string } = {}, pose: Pose = {}): HTMLCanvasElement {
-  if (HEROINE_MAP[ref] && (side === 0 || opts.mirror)) return heroCanvas(ref, opts.skin, { shadow: opts.mirror }, pose);
+export function unitCanvas(ref: string, opts: { mirror?: boolean; skin?: string } = {}, pose: Pose = {}): HTMLCanvasElement {
+  // героини (в т.ч. отряд соперника на арене и тёмные двойники) — по своему облику
+  if (HEROINE_MAP[ref]) return heroCanvas(ref, opts.skin, { shadow: opts.mirror }, pose);
   if (ENEMY_MAP[ref]) return enemyCanvas(ref, {}, pose);
   return heroCanvas('lira', undefined, {}, pose);
 }

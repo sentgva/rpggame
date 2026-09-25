@@ -4,12 +4,70 @@ import { env } from '../env';
 
 const TEXT = {
   ru: {
-    welcome: 'Командор, Кристалл Эфира пробудился! Собери Легион Валькирий и освободи владычиц Аэриса.',
-    play: 'Играть',
+    welcome: [
+      '⚔️ <b>IDLE RPG · Легион Валькирий</b>',
+      '',
+      'Командор, Кристалл Эфира пробудился! Собери отряд валькирий и освободи владычиц Аэриса.',
+      '',
+      '✨ <b>Что ждёт в игре</b>',
+      '• 50 героинь: 8 классов и 5 стихий',
+      '• Бой идёт сам — награды копятся, даже когда ты не в игре',
+      '• Снаряжение, заточка, самоцветы и созвездия',
+      '• Башня, подземелья, лабиринт, арена и экспедиции',
+      '• Облики: летняя коллекция и «Будуар», боевой пропуск',
+      '',
+      '🎁 Лира уже ждёт в отряде — жми <b>«Играть»</b>!',
+    ].join('\n'),
+    help: [
+      '📖 <b>Как играть</b>',
+      '',
+      '1️⃣ Отряд сражается сам — забирай добычу из <b>сундука</b> на вкладке «Бой».',
+      '2️⃣ Когда волны идут легко — жми <b>«Вызвать босса»</b> и открывай новые этапы.',
+      '3️⃣ Надевай лучшее снаряжение одной кнопкой, качай уровни и звёзды героинь.',
+      '4️⃣ Выполняй задания — они дают опыт <b>боевого пропуска</b> с обликами сезона.',
+      '5️⃣ Застрял — загляни в Башню, подземелья и экспедиции за ресурсами.',
+      '',
+      '🐞 Нашёл ошибку? Напиши <code>/bug что случилось</code> или нажми кнопку в настройках игры.',
+    ].join('\n'),
+    bugAsk: '🐞 Опиши проблему одной командой:\n<code>/bug что случилось и как повторить</code>\n\nОтчёт придёт разработчику лично.',
+    bugThanks: '✅ Спасибо! Отчёт отправлен разработчику.',
+    bugLimit: '⏳ Сегодня отчётов уже много — попробуй завтра.',
+    play: '▶️ Играть',
+    howTo: '📖 Как играть',
+    bug: '🐞 Сообщить о баге',
   },
   en: {
-    welcome: 'Commander, the Aether Crystal has awakened! Gather the Valkyrie Legion and free the sovereigns of Aeris.',
-    play: 'Play',
+    welcome: [
+      '⚔️ <b>IDLE RPG · Valkyrie Legion</b>',
+      '',
+      'Commander, the Aether Crystal has awakened! Gather the valkyries and free the sovereigns of Aeris.',
+      '',
+      '✨ <b>What awaits you</b>',
+      '• 50 heroines: 8 classes and 5 elements',
+      '• Battles run on their own — loot piles up even while you are away',
+      '• Gear, enhancing, gems and constellations',
+      '• Tower, dungeons, labyrinth, arena and expeditions',
+      '• Skins: Summer and Boudoir collections, battle pass',
+      '',
+      '🎁 Lira is already in your squad — tap <b>“Play”</b>!',
+    ].join('\n'),
+    help: [
+      '📖 <b>How to play</b>',
+      '',
+      '1️⃣ Your squad fights by itself — collect loot from the <b>chest</b> on the Battle tab.',
+      '2️⃣ When waves are easy, tap <b>“Challenge boss”</b> to unlock new stages.',
+      '3️⃣ Equip the best gear in one tap, level up and star up your heroines.',
+      '4️⃣ Quests give <b>battle pass</b> XP with seasonal skins.',
+      '5️⃣ Stuck? Farm the Tower, dungeons and expeditions.',
+      '',
+      '🐞 Found a bug? Send <code>/bug what happened</code> or use the button in game settings.',
+    ].join('\n'),
+    bugAsk: '🐞 Describe the problem in one command:\n<code>/bug what happened and how to repeat it</code>\n\nThe report goes straight to the developer.',
+    bugThanks: '✅ Thanks! The report was sent to the developer.',
+    bugLimit: '⏳ Too many reports today — try again tomorrow.',
+    play: '▶️ Play',
+    howTo: '📖 How to play',
+    bug: '🐞 Report a bug',
   },
 };
 
@@ -26,28 +84,81 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   readonly bot: Bot | null = env.botToken ? new Bot(env.botToken) : null;
   private started = false;
 
+  /** Кэш file_id приветственной картинки (Telegram не перекачивает её каждый раз). */
+  private welcomePhoto: string | null = null;
+  /** Обработчик /bug — подключает BugService. */
+  onBugCommand: ((from: { id: number; username?: string; first_name?: string }, text: string) => Promise<{ ok: boolean; error?: { code: string } }>) | null = null;
+
   constructor() {
     if (!this.bot) return;
     this.bot.command('start', (ctx) => this.onStart(ctx));
     this.bot.command('play', (ctx) => this.onStart(ctx));
+    this.bot.command('help', (ctx) => this.onHelp(ctx));
+    this.bot.command('bug', (ctx) => this.onBug(ctx));
+    this.bot.callbackQuery('help', async (ctx) => {
+      await ctx.answerCallbackQuery();
+      await this.onHelp(ctx);
+    });
+    this.bot.callbackQuery('bug', async (ctx) => {
+      await ctx.answerCallbackQuery();
+      await ctx.reply(TEXT[langOf(ctx.from?.language_code)].bugAsk, { parse_mode: 'HTML' });
+    });
     this.bot.catch((err) => this.log.error(`bot error: ${String(err.error)}`));
   }
 
-  playKeyboard(lang: 'ru' | 'en', startParam?: string): InlineKeyboard | undefined {
+  playKeyboard(lang: 'ru' | 'en', startParam?: string, extras = false): InlineKeyboard | undefined {
+    let kb: InlineKeyboard | undefined;
     if (env.webAppUrl) {
       const url = startParam ? `${env.webAppUrl}${env.webAppUrl.includes('?') ? '&' : '?'}tgWebAppStartParam=${encodeURIComponent(startParam)}` : env.webAppUrl;
-      return new InlineKeyboard().webApp(TEXT[lang].play, url);
+      kb = new InlineKeyboard().webApp(TEXT[lang].play, url);
+    } else if (env.botUsername && env.appName) {
+      kb = new InlineKeyboard().url(TEXT[lang].play, `https://t.me/${env.botUsername}/${env.appName}${startParam ? `?startapp=${startParam}` : ''}`);
     }
-    if (env.botUsername && env.appName) {
-      return new InlineKeyboard().url(TEXT[lang].play, `https://t.me/${env.botUsername}/${env.appName}${startParam ? `?startapp=${startParam}` : ''}`);
+    if (extras) (kb ?? (kb = new InlineKeyboard())).row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].bug, 'bug');
+    return kb;
+  }
+
+  /** Публичный адрес картинки приветствия (лежит рядом с клиентом). */
+  private welcomeImageUrl(): string | null {
+    try {
+      return env.webAppUrl ? new URL('/welcome.png', env.webAppUrl).toString() : null;
+    } catch {
+      return null;
     }
-    return undefined;
   }
 
   private async onStart(ctx: Context) {
     const lang = langOf(ctx.from?.language_code);
     const payload = typeof ctx.match === 'string' ? ctx.match.trim() : '';
-    await ctx.reply(TEXT[lang].welcome, { reply_markup: this.playKeyboard(lang, payload || undefined) });
+    const reply_markup = this.playKeyboard(lang, payload || undefined, true);
+    const photo = this.welcomePhoto ?? this.welcomeImageUrl();
+    if (photo) {
+      try {
+        const m = await ctx.replyWithPhoto(photo, { caption: TEXT[lang].welcome, parse_mode: 'HTML', reply_markup });
+        this.welcomePhoto = m.photo?.[m.photo.length - 1]?.file_id ?? this.welcomePhoto;
+        return;
+      } catch (e) {
+        this.log.warn(`welcome photo failed: ${String(e)}`);
+        this.welcomePhoto = null;
+      }
+    }
+    await ctx.reply(TEXT[lang].welcome, { parse_mode: 'HTML', reply_markup });
+  }
+
+  private async onHelp(ctx: Context) {
+    const lang = langOf(ctx.from?.language_code);
+    await ctx.reply(TEXT[lang].help, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
+  }
+
+  private async onBug(ctx: Context) {
+    const lang = langOf(ctx.from?.language_code);
+    const text = typeof ctx.match === 'string' ? ctx.match.trim() : '';
+    if (!text || !ctx.from || !this.onBugCommand) {
+      await ctx.reply(TEXT[lang].bugAsk, { parse_mode: 'HTML' });
+      return;
+    }
+    const r = await this.onBugCommand(ctx.from, text);
+    await ctx.reply(r.ok ? TEXT[lang].bugThanks : r.error?.code === 'rateLimit' ? TEXT[lang].bugLimit : TEXT[lang].bugAsk, { parse_mode: 'HTML' });
   }
 
   async onApplicationBootstrap() {
@@ -86,20 +197,43 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.setCommands();
     let menuButton = false;
     if (env.webAppUrl) {
-      await this.bot.api.setChatMenuButton({ menu_button: { type: 'web_app', text: TEXT.ru.play, web_app: { url: env.webAppUrl } } });
+      await this.bot.api.setChatMenuButton({ menu_button: { type: 'web_app', text: 'Играть', web_app: { url: env.webAppUrl } } });
       menuButton = true;
     }
     return { webhook, menuButton };
   }
 
   private async setCommands() {
-    await this.bot!.api.setMyCommands([
-      { command: 'start', description: 'Idle RPG' },
+    const api = this.bot!.api;
+    await api.setMyCommands([
+      { command: 'start', description: 'Play Idle RPG' },
+      { command: 'help', description: 'How to play' },
+      { command: 'bug', description: 'Report a bug: /bug text' },
     ]);
+    await api.setMyCommands(
+      [
+        { command: 'start', description: 'Играть в Idle RPG' },
+        { command: 'help', description: 'Как играть' },
+        { command: 'bug', description: 'Сообщить о баге: /bug текст' },
+      ],
+      { language_code: 'ru' },
+    );
   }
 
   async onModuleDestroy() {
     if (this.started) await this.bot?.stop();
+  }
+
+  /** Сообщение с HTML-разметкой без кнопок (баг-репорты разработчику). */
+  async sendHtml(chatId: string, html: string): Promise<boolean> {
+    if (!this.bot) return false;
+    try {
+      await this.bot.api.sendMessage(chatId, html, { parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
+      return true;
+    } catch (e) {
+      this.log.warn(`sendHtml to ${chatId} failed: ${String(e)}`);
+      return false;
+    }
   }
 
   async send(chatId: string, text: string, lang: 'ru' | 'en' = 'ru'): Promise<boolean> {

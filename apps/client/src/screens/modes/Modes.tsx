@@ -283,7 +283,11 @@ function Expeditions() {
   const now = useNow();
   const board = s.modes.expeditionBoard.day === s.day.key ? s.modes.expeditionBoard.quests : null;
   const slots = expeditionSlots({ cfg, s });
-  if (!board) void useGame.getState().act('expedition.board', {}, { silent: true });
+  // доска заданий на новый день запрашивается один раз — не во время рендера
+  const needBoard = !board;
+  useEffect(() => {
+    if (needBoard) void useGame.getState().act('expedition.board', {}, { silent: true });
+  }, [needBoard, s.day.key]);
 
   return (
     <div className={css.col}>
