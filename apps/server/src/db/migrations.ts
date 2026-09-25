@@ -134,4 +134,22 @@ CREATE TABLE IF NOT EXISTS bot_users (
 );
 `,
   },
+  {
+    id: 5,
+    sql: `
+-- блокнот идей разработчика (/idea в боте) и ожидание ответа бота
+CREATE TABLE IF NOT EXISTS ideas (
+  id         BIGSERIAL PRIMARY KEY,
+  tg_id      TEXT NOT NULL,
+  text       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ideas_owner ON ideas (tg_id, id DESC);
+CREATE TABLE IF NOT EXISTS bot_pending (
+  tg_id TEXT PRIMARY KEY,
+  kind  TEXT NOT NULL,
+  until TIMESTAMPTZ NOT NULL
+);
+`,
+  },
 ];

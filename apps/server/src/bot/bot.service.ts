@@ -1,7 +1,8 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
-import { Bot, InlineKeyboard, type Context } from 'grammy';
+import { Bot, InlineKeyboard, InputFile, type Context } from 'grammy';
 import { VECTOR_ART } from '@idle/shared';
 import { DbService } from '../db/db.service';
+import { IdeasService, type Idea } from './ideas.service';
 import { env } from '../env';
 
 const TEXT = {
@@ -41,6 +42,23 @@ const TEXT = {
     bug: '🐞 Сообщить о баге',
     langAsk: '🌐 <b>Язык бота</b>\n\nВыбери, на каком языке мне писать.',
     langSet: '✅ Готово! Теперь я пишу на русском.\n\nЯзык самой игры меняется в «Настройках» игры.',
+    ideaAsk: '💡 <b>Новая идея</b>\n\nОпиши её одним сообщением — я сохраню. Передумал — /cancel.',
+    ideaSaved: (id: number) => `✅ Идея <b>#${id}</b> сохранена.\nВсе идеи: /ideas`,
+    ideaEmpty: '💡 Идей пока нет. Добавь первую: /idea',
+    ideasTitle: (n: number) => `💡 <b>Идеи</b> (${n})`,
+    ideasMore: (shown: number, n: number) => `Показаны последние ${shown} из ${n} — полный список в «Выгрузить все».`,
+    ideasHint: 'Удалить — кнопкой с номером идеи.',
+    ideaDeleted: (id: number) => `Идея #${id} удалена`,
+    ideaExport: '📄 Выгрузить все',
+    ideaClear: '🧹 Удалить все',
+    ideaClearAsk: (n: number) => `Удалить все идеи (${n})? Вернуть их будет нельзя.`,
+    ideaClearYes: 'Да, удалить все',
+    ideaCleared: (n: number) => `🧹 Удалено идей: ${n}.`,
+    ideaBack: '← К списку',
+    ideaOwnerOnly: '💡 Блокнот идей доступен только разработчику игры.',
+    cancelled: 'Хорошо, отменил.',
+    nothingToCancel: 'Отменять нечего.',
+    ideaHelp: '💡 Идеи: <code>/idea</code> — записать, <code>/ideas</code> — список, удаление и выгрузка.',
     style: '🎨 Графика',
     styleAsk: (cur: string) =>
       [
@@ -92,6 +110,23 @@ const TEXT = {
     bug: '🐞 Report a bug',
     langAsk: '🌐 <b>Bot language</b>\n\nChoose the language I should write in.',
     langSet: '✅ Done! I will write in English now.\n\nThe game language itself is changed in the game Settings.',
+    ideaAsk: '💡 <b>New idea</b>\n\nDescribe it in one message and I will save it. Changed your mind — /cancel.',
+    ideaSaved: (id: number) => `✅ Idea <b>#${id}</b> saved.\nAll ideas: /ideas`,
+    ideaEmpty: '💡 No ideas yet. Add the first one: /idea',
+    ideasTitle: (n: number) => `💡 <b>Ideas</b> (${n})`,
+    ideasMore: (shown: number, n: number) => `Showing the latest ${shown} of ${n} — use “Export all” for the full list.`,
+    ideasHint: 'Delete with the button showing the idea number.',
+    ideaDeleted: (id: number) => `Idea #${id} deleted`,
+    ideaExport: '📄 Export all',
+    ideaClear: '🧹 Delete all',
+    ideaClearAsk: (n: number) => `Delete all ideas (${n})? This cannot be undone.`,
+    ideaClearYes: 'Yes, delete all',
+    ideaCleared: (n: number) => `🧹 Ideas deleted: ${n}.`,
+    ideaBack: '← Back to list',
+    ideaOwnerOnly: '💡 The idea notebook is available to the game developer only.',
+    cancelled: 'Okay, cancelled.',
+    nothingToCancel: 'Nothing to cancel.',
+    ideaHelp: '💡 Ideas: <code>/idea</code> — write one down, <code>/ideas</code> — list, delete and export.',
     style: '🎨 Art style',
     styleAsk: (cur: string) =>
       [
@@ -111,6 +146,10 @@ const TEXT = {
 
 const ALLOWED_UPDATES = ['message', 'callback_query'] as const;
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export type Lang = 'ru' | 'en';
 
 export function langOf(code?: string): Lang {
@@ -124,7 +163,21 @@ const CLEAR_DEPTH = 300;
 const LANG_BUTTON = '🌐 Язык · Language';
 const LANG_NAMES: Record<Lang, string> = { ru: '🇷🇺 Русский', en: '🇬🇧 English' };
 
-function commandsFor(lang: Lang) {
+function commandsFor(lang: Lang, owner = false) {
+  const ideas =
+    lang === 'ru'
+      ? [
+          { command: 'idea', description: 'Записать идею' },
+          { command: 'ideas', description: 'Мои идеи: список, удаление, выгрузка' },
+        ]
+      : [
+          { command: 'idea', description: 'Write down an idea' },
+          { command: 'ideas', description: 'My ideas: list, delete, export' },
+        ];
+  return [...(owner ? ideas : []), ...baseCommands(lang)];
+}
+
+function baseCommands(lang: Lang) {
   return lang === 'ru'
     ? [
         { command: 'start', description: 'Играть в Idle RPG' },
@@ -158,7 +211,10 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   onStyle: ((uid: string, style?: string) => Promise<string | null>) | null = null;
   onBugCommand: ((from: { id: number; username?: string; first_name?: string }, text: string) => Promise<{ ok: boolean; error?: { code: string } }>) | null = null;
 
-  constructor(@Inject(DbService) private readonly db: DbService) {
+  constructor(
+    @Inject(DbService) private readonly db: DbService,
+    @Inject(IdeasService) private readonly ideas: IdeasService,
+  ) {
     if (!this.bot) return;
     this.bot.command('start', (ctx) => this.onStart(ctx));
     this.bot.command('play', (ctx) => this.onStart(ctx));
@@ -166,6 +222,14 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     this.bot.command('bug', (ctx) => this.onBug(ctx));
     this.bot.command('lang', (ctx) => this.onLangCommand(ctx));
     this.bot.command('clear', (ctx) => this.onClear(ctx));
+    this.bot.command('idea', (ctx) => this.onIdea(ctx));
+    this.bot.command('ideas', (ctx) => this.onIdeas(ctx));
+    this.bot.command('cancel', (ctx) => this.onCancel(ctx));
+    this.bot.callbackQuery(/^idea:del:(\d+)$/, (ctx) => this.onIdeaDelete(ctx, Number(ctx.match[1])));
+    this.bot.callbackQuery('idea:export', (ctx) => this.onIdeaExport(ctx));
+    this.bot.callbackQuery('idea:list', (ctx) => this.onIdeas(ctx, true));
+    this.bot.callbackQuery('idea:clear', (ctx) => this.onIdeaClear(ctx, false));
+    this.bot.callbackQuery('idea:clear:yes', (ctx) => this.onIdeaClear(ctx, true));
     this.bot.callbackQuery('lang', async (ctx) => {
       await ctx.answerCallbackQuery();
       await this.onLangCommand(ctx);
@@ -188,6 +252,8 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
       await ctx.answerCallbackQuery();
       await ctx.reply(TEXT[await this.langFor(ctx.from)].bugAsk, { parse_mode: 'HTML' });
     });
+    // обычный текст: описание идеи после /idea (или ответ на просьбу бота)
+    this.bot.on('message:text', (ctx) => this.onText(ctx));
     this.bot.catch((err) => this.log.error(`bot error: ${String(err.error)}`));
   }
 
@@ -240,7 +306,8 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async onHelp(ctx: Context) {
     const lang = await this.langFor(ctx.from);
-    await ctx.reply(TEXT[lang].help, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
+    const extra = this.ideas.isOwner(ctx.from?.id) ? '\n' + TEXT[lang].ideaHelp : '';
+    await ctx.reply(TEXT[lang].help + extra, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
   }
 
   private async onBug(ctx: Context) {
@@ -343,6 +410,128 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     const api = this.bot!.api;
     await api.setMyCommands(commandsFor('en'));
     await api.setMyCommands(commandsFor('ru'), { language_code: 'ru' });
+    // разработчику — ещё и блокнот идей (меню его личного чата)
+    for (const id of env.devUserIds.filter((x) => /^\d+$/.test(x))) {
+      const row = await this.db.one<{ lang: string }>('SELECT lang FROM bot_users WHERE tg_id = $1', [id]).catch(() => null);
+      const lang: Lang = row?.lang === 'en' ? 'en' : 'ru';
+      await api.setMyCommands(commandsFor(lang, true), { scope: { type: 'chat', chat_id: Number(id) } }).catch((e) => this.log.warn(`dev commands for ${id}: ${String(e)}`));
+    }
+  }
+
+  // ——— блокнот идей (только разработчик) ———
+
+  private async onIdea(ctx: Context) {
+    const lang = await this.langFor(ctx.from);
+    if (!ctx.from || !this.ideas.isOwner(ctx.from.id)) {
+      await ctx.reply(TEXT[lang].ideaOwnerOnly);
+      return;
+    }
+    const text = typeof ctx.match === 'string' ? ctx.match.trim() : '';
+    if (text) {
+      await this.saveIdea(ctx, lang, text);
+      return;
+    }
+    await this.ideas.await(String(ctx.from.id));
+    await ctx.reply(TEXT[lang].ideaAsk, { parse_mode: 'HTML', reply_markup: { force_reply: true, input_field_placeholder: lang === 'ru' ? 'Моя идея…' : 'My idea…' } });
+  }
+
+  private async saveIdea(ctx: Context, lang: Lang, text: string) {
+    const idea = await this.ideas.add(String(ctx.from!.id), text);
+    if (idea) await ctx.reply(TEXT[lang].ideaSaved(idea.id), { parse_mode: 'HTML' });
+  }
+
+  private async onText(ctx: Context) {
+    const msg = ctx.message;
+    if (!msg?.text || !ctx.from || msg.text.startsWith('/') || !this.ideas.isOwner(ctx.from.id)) return;
+    // ответ на просьбу «опиши идею» засчитывается, даже если ожидание истекло
+    const reply = msg.reply_to_message;
+    const answered = !!reply && reply.from?.id === ctx.me.id && (reply.text ?? '').startsWith('💡');
+    const waited = await this.ideas.take(String(ctx.from.id));
+    if (!waited && !answered) return;
+    await this.saveIdea(ctx, await this.langFor(ctx.from), msg.text);
+  }
+
+  private async onCancel(ctx: Context) {
+    const lang = await this.langFor(ctx.from);
+    const had = ctx.from ? await this.ideas.cancel(String(ctx.from.id)) : false;
+    await ctx.reply(had ? TEXT[lang].cancelled : TEXT[lang].nothingToCancel, { reply_markup: { remove_keyboard: true } });
+  }
+
+  /** Список идей: последние (до ~3500 символов) и кнопки удаления по номерам. */
+  private ideasView(lang: Lang, list: Idea[]): { text: string; kb: InlineKeyboard } {
+    const T = TEXT[lang];
+    if (!list.length) return { text: T.ideaEmpty, kb: new InlineKeyboard() };
+    const parts: string[] = [];
+    let size = 0;
+    const shown: Idea[] = [];
+    for (const i of list) {
+      const body = escapeHtml(i.text.length > 220 ? i.text.slice(0, 220) + '…' : i.text);
+      const line = `<b>#${i.id}</b> · ${new Date(i.created_at).toISOString().slice(5, 10).split('-').reverse().join('.')}\n${body}`;
+      if (size + line.length > 3300 || shown.length >= 25) break;
+      parts.push(line);
+      size += line.length + 2;
+      shown.push(i);
+    }
+    const head = [T.ideasTitle(list.length), T.ideasHint];
+    if (shown.length < list.length) head.push(T.ideasMore(shown.length, list.length));
+    const kb = new InlineKeyboard();
+    shown.forEach((i, n) => {
+      kb.text(`🗑 #${i.id}`, `idea:del:${i.id}`);
+      if (n % 4 === 3) kb.row();
+    });
+    kb.row().text(T.ideaExport, 'idea:export').text(T.ideaClear, 'idea:clear');
+    return { text: head.join('\n') + '\n\n' + parts.join('\n\n'), kb };
+  }
+
+  private async onIdeas(ctx: Context, edit = false) {
+    const lang = await this.langFor(ctx.from);
+    if (!ctx.from || !this.ideas.isOwner(ctx.from.id)) {
+      if (edit) await ctx.answerCallbackQuery();
+      await ctx.reply(TEXT[lang].ideaOwnerOnly);
+      return;
+    }
+    const view = this.ideasView(lang, await this.ideas.list(String(ctx.from.id)));
+    if (edit) {
+      await ctx.answerCallbackQuery();
+      await ctx.editMessageText(view.text, { parse_mode: 'HTML', reply_markup: view.kb }).catch(() => undefined);
+    } else await ctx.reply(view.text, { parse_mode: 'HTML', reply_markup: view.kb });
+  }
+
+  private async onIdeaDelete(ctx: Context, id: number) {
+    const lang = await this.langFor(ctx.from);
+    if (!ctx.from || !this.ideas.isOwner(ctx.from.id)) return void (await ctx.answerCallbackQuery());
+    const ok = await this.ideas.remove(id, String(ctx.from.id));
+    await ctx.answerCallbackQuery({ text: ok ? TEXT[lang].ideaDeleted(id) : '—' });
+    const view = this.ideasView(lang, await this.ideas.list(String(ctx.from.id)));
+    await ctx.editMessageText(view.text, { parse_mode: 'HTML', reply_markup: view.kb }).catch(() => undefined);
+  }
+
+  private async onIdeaExport(ctx: Context) {
+    const lang = await this.langFor(ctx.from);
+    if (!ctx.from || !this.ideas.isOwner(ctx.from.id)) return void (await ctx.answerCallbackQuery());
+    await ctx.answerCallbackQuery();
+    const list = await this.ideas.list(String(ctx.from.id));
+    if (!list.length) {
+      await ctx.reply(TEXT[lang].ideaEmpty);
+      return;
+    }
+    const file = new InputFile(Buffer.from(IdeasService.markdown(list), 'utf8'), `ideas-${new Date().toISOString().slice(0, 10)}.md`);
+    await ctx.replyWithDocument(file, { caption: TEXT[lang].ideasTitle(list.length), parse_mode: 'HTML' });
+  }
+
+  private async onIdeaClear(ctx: Context, confirmed: boolean) {
+    const lang = await this.langFor(ctx.from);
+    if (!ctx.from || !this.ideas.isOwner(ctx.from.id)) return void (await ctx.answerCallbackQuery());
+    await ctx.answerCallbackQuery();
+    const T = TEXT[lang];
+    if (!confirmed) {
+      const n = (await this.ideas.list(String(ctx.from.id))).length;
+      const kb = new InlineKeyboard().text(T.ideaClearYes, 'idea:clear:yes').text(T.ideaBack, 'idea:list');
+      await ctx.editMessageText(T.ideaClearAsk(n), { reply_markup: kb }).catch(() => undefined);
+      return;
+    }
+    const n = await this.ideas.clear(String(ctx.from.id));
+    await ctx.editMessageText(T.ideaCleared(n)).catch(() => undefined);
   }
 
   // ——— очистка чата ———
@@ -395,7 +584,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
       .catch((e) => this.log.warn(`bot lang not saved: ${String(e)}`));
     await ctx.answerCallbackQuery({ text: LANG_NAMES[lang] });
     // меню команд этого чата — на выбранном языке
-    if (ctx.chat) await this.bot!.api.setMyCommands(commandsFor(lang), { scope: { type: 'chat', chat_id: ctx.chat.id } }).catch(() => undefined);
+    if (ctx.chat) await this.bot!.api.setMyCommands(commandsFor(lang, this.ideas.isOwner(ctx.from.id)), { scope: { type: 'chat', chat_id: ctx.chat.id } }).catch(() => undefined);
     try {
       await ctx.editMessageText(TEXT[lang].langSet, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang, undefined, true) });
     } catch {

@@ -75,13 +75,46 @@ describe.skipIf(!url)('PlayerService + PostgreSQL', () => {
 
   it('язык бота: выбор через /lang важнее языка Telegram', async () => {
     const { BotService } = await import('../src/bot/bot.service');
-    const bot = new BotService(db);
+    const { IdeasService } = await import('../src/bot/ideas.service');
+    const bot = new BotService(db, new IdeasService(db));
     await db.query("DELETE FROM bot_users WHERE tg_id = '777'");
     expect(await bot.langFor({ id: 777, language_code: 'ru' })).toBe('ru');
     expect(await bot.langFor({ id: 777, language_code: 'de' })).toBe('en');
     await db.query("INSERT INTO bot_users (tg_id, lang) VALUES ('777', 'en')");
     expect(await bot.langFor({ id: 777, language_code: 'ru' })).toBe('en');
     await db.query("DELETE FROM bot_users WHERE tg_id = '777'");
+  });
+
+  it('блокнот идей: только разработчик, ожидание после /idea, список, удаление, выгрузка', async () => {
+    const { IdeasService } = await import('../src/bot/ideas.service');
+    const ideas = new IdeasService(db);
+    await db.query("DELETE FROM ideas WHERE tg_id IN ('dev1', 'u1')");
+    await db.query("DELETE FROM bot_pending WHERE tg_id = 'dev1'");
+    expect(ideas.isOwner('dev1')).toBe(true);
+    expect(ideas.isOwner('u1')).toBe(false);
+    // /idea без текста: бот ждёт следующее сообщение (один раз)
+    expect(await ideas.take('dev1')).toBe(false);
+    await ideas.await('dev1');
+    expect(await ideas.take('dev1')).toBe(true);
+    expect(await ideas.take('dev1')).toBe(false);
+    const a = await ideas.add('dev1', '  Добавить рыбалку  ');
+    const b = await ideas.add('dev1', 'Гильдии <с> & рейдами');
+    expect(a!.text).toBe('Добавить рыбалку');
+    expect(await ideas.add('dev1', '   ')).toBeNull();
+    const list = await ideas.list('dev1');
+    expect(list.map((x) => x.id)).toEqual([b!.id, a!.id]);
+    expect(IdeasService.markdown(list)).toContain(`## #${a!.id}`);
+    // чужую идею удалить нельзя, свою — можно; админ-API удаляет любую
+    expect(await ideas.remove(a!.id, 'u1')).toBe(false);
+    expect(await ideas.remove(a!.id, 'dev1')).toBe(true);
+    expect(await ideas.remove(b!.id)).toBe(true);
+    expect(await ideas.list('dev1')).toEqual([]);
+    await ideas.add('dev1', 'x');
+    await ideas.add('dev1', 'y');
+    expect(await ideas.clear('dev1')).toBe(2);
+    await ideas.await('dev1');
+    expect(await ideas.cancel('dev1')).toBe(true);
+    expect(await ideas.take('dev1')).toBe(false);
   });
 
   it('состояние и ledger сохраняются в БД', async () => {

@@ -1,6 +1,7 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Header, Headers, HttpCode, Inject, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { BalanceService } from '../balance/balance.service';
 import { BotService } from '../bot/bot.service';
+import { IdeasService } from '../bot/ideas.service';
 import { DbService } from '../db/db.service';
 import { env } from '../env';
 import { PlayerService } from '../game/player.service';
@@ -16,7 +17,39 @@ export class AdminController {
     @Inject(PlayerService) private readonly players: PlayerService,
     @Inject(BotService) private readonly bots: BotService,
     @Inject(BalanceService) private readonly balance: BalanceService,
+    @Inject(IdeasService) private readonly ideas: IdeasService,
   ) {}
+
+  // ——— блокнот идей из бота (/idea): чтение и правка из диалога с разработчиком ———
+
+  /** Все идеи: JSON или Markdown (?format=md). */
+  @Get('ideas')
+  @Header('Cache-Control', 'no-store')
+  async ideasList(@Headers('x-admin-token') token: string, @Query('format') format = 'json') {
+    this.check(token);
+    const list = await this.ideas.list();
+    return format === 'md' ? { markdown: IdeasService.markdown(list) } : { ideas: list };
+  }
+
+  /** Добавить идею от имени разработчика (первый из DEV_USER_IDS). */
+  @Post('ideas')
+  @HttpCode(200)
+  async ideasAdd(@Headers('x-admin-token') token: string, @Body() body: { text: string }) {
+    this.check(token);
+    const owner = env.devUserIds[0];
+    if (!owner) throw new NotFoundException('DEV_USER_IDS is empty');
+    const idea = await this.ideas.add(owner, String(body?.text ?? ''));
+    if (!idea) throw new NotFoundException('empty text');
+    return { idea };
+  }
+
+  @Delete('ideas/:id')
+  async ideasDelete(@Headers('x-admin-token') token: string, @Param('id') id: string) {
+    this.check(token);
+    const ok = await this.ideas.remove(Number(id));
+    if (!ok) throw new NotFoundException();
+    return { ok };
+  }
 
   private check(token?: string) {
     if (!env.adminToken || token !== env.adminToken) throw new ForbiddenException();
