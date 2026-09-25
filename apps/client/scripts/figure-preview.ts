@@ -13,8 +13,8 @@ const only = process.argv[5]?.split(',');
 const poses: Pose[] = (process.argv[6] ?? 'open:idle')
   .split(',')
   .map((p) => {
-    const [eyes, arms] = p.split(':') as [Pose['eyes'], Pose['arms']];
-    return { eyes, arms };
+    const [eyes, arms, flap] = p.split(':') as [Pose['eyes'], Pose['arms'], string?];
+    return { eyes, arms, flap: flap === 'flap' };
   });
 const sprites: Bitmap[] = [];
 if (which === 'summer' || which === 'lingerie') {

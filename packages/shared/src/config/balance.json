@@ -322,7 +322,12 @@
         120,
         8
       ]
-    ]
+    ],
+    "riftAttempts": 3,
+    "riftHpMult": 15,
+    "riftTimeLimit": 45,
+    "spireFloors": 120,
+    "hordeHealEvery": 5
   },
   "inventory": {
     "start": 100,
@@ -340,7 +345,10 @@
       "ascension": 81,
       "hard": 201,
       "nightmare": 401,
-      "abyss": 601
+      "abyss": 601,
+      "horde": 35,
+      "rift": 50,
+      "spires": 70
     },
     "level": {
       "events": 10,

@@ -1,4 +1,5 @@
 import {
+  RIFT_ROTATION,
   CLASSES,
   EQUIP_SLOTS,
   HEROINE_MAP,
@@ -336,7 +337,11 @@ function NotOwned({ id }: { id: string }) {
       <BackHeader title={tl(def.name)} />
       <Panel>
         <div className={css.col} style={{ alignItems: 'center', textAlign: 'center' }}>
-          <img className={cx('pixel', css.dim)} src={heroUrl(id)} width={128} height={128} alt="" />
+          {def.herald ? (
+            <HeroImg className="pixel" id={id} width={150} height={150} style={{ opacity: 0.8 }} />
+          ) : (
+            <img className={cx('pixel', css.dim)} src={heroUrl(id)} width={128} height={128} alt="" />
+          )}
           <div className={css.title}>{tl(def.name)}</div>
           <div className={css.muted}>{tl(def.title)}</div>
           <p style={{ lineHeight: 1.45 }}>{tl(def.bio)}</p>
@@ -344,9 +349,15 @@ function NotOwned({ id }: { id: string }) {
           <Button disabled={have < need} onClick={() => void useGame.getState().act('hero.recruit', { id })}>
             {t('heroes.recruit', { n: need })}
           </Button>
-          <div className={css.tiny}>{t('summon.freeNote')}</div>
+          <div className={css.tiny}>
+            {def.herald
+              ? t('hero.heraldSources', { day: riftDayName(RIFT_ROTATION.indexOf(def.element)), el: elementName(def.element) })
+              : t('summon.freeNote')}
+          </div>
         </div>
       </Panel>
     </div>
   );
 }
+
+const riftDayName = (i: number) => (document.documentElement.lang === 'en' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] : ['пн', 'вт', 'ср', 'чт', 'пт'])[i];

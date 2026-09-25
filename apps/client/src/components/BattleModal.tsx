@@ -14,11 +14,13 @@ interface Props {
   act: number;
   title: string;
   result?: ReactNode;
+  /** Свой заголовок итога вместо «Победа/Поражение» (например, урон по Колоссу). */
+  outcome?: ReactNode;
   onClose: () => void;
 }
 
 /** Бой режима (подземелье, Башня, арена, лабиринт…) в отдельной сцене. */
-function BattleModal({ events, win, act, title, result, onClose }: Props) {
+function BattleModal({ events, win, act, title, result, outcome, onClose }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const [done, setDone] = useState(false);
   const ctrl = useRef(new AbortController());
@@ -49,7 +51,7 @@ function BattleModal({ events, win, act, title, result, onClose }: Props) {
       {done ? (
         <div className={css.col} style={{ marginTop: 8 }}>
           <div className={css.title} style={{ textAlign: 'center', color: win ? 'var(--accent-2)' : '#ff8070' }}>
-            {win ? t('common.victory') : t('common.defeat')}
+            {outcome ?? (win ? t('common.victory') : t('common.defeat'))}
           </div>
           {result}
           <Button block onClick={onClose}>

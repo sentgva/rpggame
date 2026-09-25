@@ -1,7 +1,7 @@
 import { ITEM_RARITY_NAMES } from '@idle/shared';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Button, Panel, Toggle, css, openSheet } from '../../components/ui';
+import { Button, Panel, Slider, Toggle, css, openSheet } from '../../components/ui';
 import { collectDiag } from '../../net/diag';
 import { t, tl } from '../../i18n';
 import { useGame, useGameState } from '../../store/game';
@@ -39,10 +39,10 @@ export function Settings() {
           </div>
         </Row>
         <Row label={t('settings.music')}>
-          <input type="range" min={0} max={1} step={0.1} value={st.music} onChange={(e) => set({ music: Number(e.target.value) })} />
+          <Slider value={st.music} onChange={(v) => set({ music: v })} />
         </Row>
         <Row label={t('settings.sfx')}>
-          <input type="range" min={0} max={1} step={0.1} value={st.sfx} onChange={(e) => set({ sfx: Number(e.target.value) })} />
+          <Slider value={st.sfx} onChange={(v) => set({ sfx: v })} />
         </Row>
         <Row label={t('settings.haptics')}>
           <Toggle value={st.haptics} onChange={(v) => set({ haptics: v })} />

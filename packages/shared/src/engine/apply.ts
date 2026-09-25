@@ -9,6 +9,7 @@ import { heroActions } from './actions/heroes';
 import { itemActions } from './actions/items';
 import { metaActions } from './actions/meta';
 import { modeActions } from './actions/modes';
+import { endgameActions } from './actions/endgame';
 import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
@@ -28,6 +29,7 @@ export const HANDLERS: Record<string, Handler> = {
   ...economyActions,
   ...metaActions,
   ...modeActions,
+  ...endgameActions,
   ...devActions,
   ...serverActions,
 };

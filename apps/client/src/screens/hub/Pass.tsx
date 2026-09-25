@@ -51,7 +51,7 @@ export function Pass() {
       </Panel>
 
       <Panel title={t('pass.skins')}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
           {skins.map((id, i) => {
             const sk = SKIN_MAP[id];
             const level = PASS_SKIN_LEVELS[i];
@@ -61,6 +61,7 @@ export function Pass() {
               <div
                 key={id}
                 style={{
+                  minWidth: 0,
                   textAlign: 'center',
                   borderRadius: 6,
                   padding: '4px 2px',
@@ -68,7 +69,7 @@ export function Pass() {
                   border: `2px solid ${lvl >= level ? 'var(--accent)' : 'var(--line)'}`,
                 }}
               >
-                <HeroImg className="pixel" id={sk.hero} skin={id} style={{ width: '100%', maxWidth: 76, aspectRatio: '1' }} />
+                <HeroImg className="pixel" id={sk.hero} skin={id} style={{ display: 'block', width: '100%', maxWidth: 76, aspectRatio: '1', margin: '0 auto' }} />
                 <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tl(sk.name)}</div>
                 <div className={css.tiny} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {tl(HEROINE_MAP[sk.hero].name)}
@@ -83,7 +84,7 @@ export function Pass() {
         </div>
       </Panel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
         {Array.from({ length: PASS_LEVELS }, (_, i) => i + 1).map((level) => {
           const r = passReward(level, season);
           const claimed = s.shop.passClaimed.includes(level);

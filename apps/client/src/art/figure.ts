@@ -33,6 +33,8 @@ export type Arms = 'idle' | 'idle2' | 'attack';
 export interface Pose {
   eyes?: Eyes;
   arms?: Arms;
+  /** Второй кадр «особой» анимации: крылья подняты, хвост качнулся (Вестницы и Колоссы). */
+  flap?: boolean;
 }
 type P = [number, number];
 
@@ -1050,6 +1052,72 @@ function wearOutfit(c: Canvas, wear: NonNullable<Look['wear']>, withLegs: boolea
       }
       break;
     }
+    case 'dancer': {
+      // наряд танцовщицы: чашечки с монетками, ожерелье, низкий пояс с бахромой, узкая
+      // передняя лента, браслеты на руках и ногах — всё в золоте
+      c.hl(21, 26, 16, 'T');
+      c.set(23, 17, 'G', '+');
+      c.set(24, 17, 'G', '+');
+      bust(c, 'B', 'micro');
+      for (let x = 17; x <= 30; x++) if (x < 23 || x > 24) if (x % 2 === 0) c.set(x, 23, 'T', '+');
+      c.set(23, 22, 'G', '+');
+      // цепочка на животе
+      c.path(
+        [
+          [19, 26],
+          [24, 28],
+          [29, 26],
+        ],
+        'T',
+        '+',
+      );
+      stringBottom(c, 'B');
+      c.hl(17, 30, 29, 'T');
+      for (let x = 17; x <= 30; x++) if (x % 2) c.set(x, 30, 'T', '+');
+      c.rect(23, 31, 24, 44, 'B', '-');
+      c.set(23, 44, 'T', '+');
+      c.set(24, 44, 'T', '+');
+      for (const side of ['L', 'R'] as const) {
+        const A = arms[side];
+        const bx = Math.round(A.elbow[0] + (A.hand[0] - A.elbow[0]) * 0.6);
+        const by = Math.round(A.elbow[1] + (A.hand[1] - A.elbow[1]) * 0.6);
+        c.set(bx, by, 'T', '+');
+        c.set(bx - 1, by, 'T');
+        const ux = Math.round((A.shoulder[0] + A.elbow[0]) / 2);
+        const uy = Math.round((A.shoulder[1] + A.elbow[1]) / 2);
+        c.set(ux, uy, 'T', '+');
+      }
+      if (withLegs) legs(c, 44, 44, 'T', '+');
+      break;
+    }
+    case 'regalia': {
+      // регалии Вестницы: золотой горжет, наплечники-крылья, металлические чашки,
+      // пластина-стринги, латные перчатки и ботфорты
+      c.hl(20, 27, 16, 'T');
+      c.hl(21, 26, 17, 'T', '-');
+      c.ellipse(15, 18, 3.2, 2.2, 'B');
+      c.ellipse(32, 18, 3.2, 2.2, 'B');
+      c.hl(12, 16, 16, 'T', '+');
+      c.hl(31, 35, 16, 'T', '+');
+      bust(c, 'B', 'micro');
+      c.set(20, 19, 'T', '+');
+      c.set(27, 19, 'T', '+');
+      c.set(23, 21, 'G', '+');
+      c.set(24, 21, 'G', '+');
+      stringBottom(c, 'B', '0', 'T');
+      c.rect(22, 29, 25, 31, 'B');
+      c.hl(22, 25, 29, 'T', '+');
+      c.set(23, 30, 'G', '+');
+      bothArms(c, 'fore', 'K');
+      bothArms(c, 'hand', 'K');
+      if (withLegs) {
+        legs(c, 37, 46, 'K');
+        legs(c, 37, 37, 'T', '+');
+        c.rect(19, 39, 20, 40, 'T');
+        c.rect(26, 39, 27, 40, 'T');
+      }
+      break;
+    }
     case 'lace4': {
       // портупея: микро-чашки, ремешки, чокер с кольцом, подвязки на бёдрах, каблуки
       c.hl(22, 25, 16, 'B');
@@ -1123,30 +1191,38 @@ function lowerExtra(c: Canvas, extra: Look['extra']): boolean {
 
 // ——— спина и перёд ———
 
-function extraBack(c: Canvas, extra: Look['extra']) {
+function extraBack(c: Canvas, extra: Look['extra'], flap = false) {
+  // взмах: чем дальше точка крыла от спины, тем выше она поднимается
+  const lift = (x0: number, pts: P[]): P[] => (flap ? pts.map(([x, y]) => [x, y - Math.round(Math.abs(x - x0) / 3.5)] as P) : pts);
   switch (extra) {
     case 'wings':
       for (const s of [-1, 1]) {
         const x0 = 24 + s * 6;
         c.poly(
-          [
+          lift(x0, [
             [x0, 18],
             [x0 + s * 12, 8],
             [x0 + s * 17, 10],
             [x0 + s * 15, 20],
             [x0 + s * 11, 28],
             [x0 + s * 4, 26],
-          ],
+          ]),
           'Q',
         );
-        for (let k = 0; k < 4; k++) c.line(x0 + s * (5 + k * 3), 13 + k * 2, x0 + s * (3 + k * 3), 25 - k, 'Q', '-');
+        for (let k = 0; k < 4; k++) {
+          const [[ax, ay], [bx, by]] = lift(x0, [
+            [x0 + s * (5 + k * 3), 13 + k * 2],
+            [x0 + s * (3 + k * 3), 25 - k],
+          ]);
+          c.line(ax, ay, bx, by, 'Q', '-');
+        }
       }
       break;
     case 'darkWings':
       for (const s of [-1, 1]) {
         const x0 = 24 + s * 6;
         c.poly(
-          [
+          lift(x0, [
             [x0, 18],
             [x0 + s * 10, 6],
             [x0 + s * 18, 7],
@@ -1155,32 +1231,53 @@ function extraBack(c: Canvas, extra: Look['extra']) {
             [x0 + s * 13, 22],
             [x0 + s * 12, 28],
             [x0 + s * 7, 25],
-          ],
+          ]),
           'D',
         );
-        c.line(x0 + s, 18, x0 + s * 16, 9, 'D', '+');
-        c.line(x0 + s * 2, 20, x0 + s * 15, 19, 'D', '+');
+        const [[a1x, a1y], [b1x, b1y], [a2x, a2y], [b2x, b2y]] = lift(x0, [
+          [x0 + s, 18],
+          [x0 + s * 16, 9],
+          [x0 + s * 2, 20],
+          [x0 + s * 15, 19],
+        ]);
+        c.line(a1x, a1y, b1x, b1y, 'D', '+');
+        c.line(a2x, a2y, b2x, b2y, 'D', '+');
       }
       break;
     case 'tail':
+      // хвост покачивается: во втором кадре кончик уходит ниже и дальше
       c.path(
-        [
-          [30, 29],
-          [35, 31],
-          [38, 28],
-          [40, 23],
-          [42, 21],
-        ],
+        flap
+          ? [
+              [30, 29],
+              [35, 32],
+              [39, 31],
+              [42, 27],
+              [44, 26],
+            ]
+          : [
+              [30, 29],
+              [35, 31],
+              [38, 28],
+              [40, 23],
+              [42, 21],
+            ],
         'A',
         '0',
         2,
       );
       c.poly(
-        [
-          [41, 18],
-          [45, 20],
-          [42, 23],
-        ],
+        flap
+          ? [
+              [43, 22],
+              [47, 25],
+              [43, 28],
+            ]
+          : [
+              [41, 18],
+              [45, 20],
+              [42, 23],
+            ],
         'A',
       );
       break;
@@ -1765,7 +1862,7 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
   const handR = arms.R.hand;
   const handL = arms.L.hand;
 
-  extraBack(c, L.extra);
+  extraBack(c, L.extra, !!pose.flap);
   accessoryBack(c, L.acc);
   drawHairBack(c, L.style);
   const replaced = L.extra === 'snake' || L.extra === 'fishTail';

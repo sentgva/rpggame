@@ -137,3 +137,51 @@ export const ARENA_BOT_NAMES = [
 export function abyssStage(level: number): number {
   return 270 + level;
 }
+
+// ——— Разлом Колосса (мировой босс) ———
+/** Колосс дня: пн — пламя, вт — глубины, ср — чаща, чт — заря, пт — бездна; в выходные — по кругу. */
+export const RIFT_ROTATION: Element[] = ['fire', 'water', 'nature', 'light', 'dark'];
+
+export const RIFT_COLOSSUS: Record<Element, string> = {
+  fire: 'colossus_pyra',
+  water: 'colossus_tidea',
+  nature: 'colossus_verda',
+  light: 'colossus_sola',
+  dark: 'colossus_umbra',
+};
+
+/** Пороги ярусов награды: доля HP Колосса, снятая за бой (ярус 10 — убийство или 40%). */
+export const RIFT_TIERS = [0.01, 0.02, 0.035, 0.05, 0.07, 0.1, 0.14, 0.2, 0.28, 0.4];
+
+export function riftElement(now: number): Element {
+  const day = new Date(now).getUTCDay(); // 0 — воскресенье
+  if (day >= 1 && day <= 5) return RIFT_ROTATION[day - 1];
+  const week = Math.floor(now / (7 * 86400000));
+  return RIFT_ROTATION[(week * 2 + (day === 6 ? 0 : 1)) % RIFT_ROTATION.length];
+}
+
+export function riftTier(dmg: number, hp: number, killed = false): number {
+  if (killed) return RIFT_TIERS.length;
+  let t = 0;
+  for (const th of RIFT_TIERS) if (dmg >= hp * th) t++;
+  return t;
+}
+
+// ——— Стихийные шпили ———
+/** Какие шпили открыты: в будни — по одному, в выходные — все. */
+export function spireOpen(el: Element, now: number): boolean {
+  const day = new Date(now).getUTCDay();
+  if (day === 0 || day === 6) return true;
+  return RIFT_ROTATION[day - 1] === el;
+}
+
+/** Уровень силы врагов шпиля: отряд одной стихии слабее полного, поэтому растёт мягче Башни. */
+export function spireStage(floor: number): number {
+  return Math.round(4 + floor * 1.6);
+}
+
+// ——— Нашествие ———
+/** Уровень силы волны: от чуть ниже текущего фарма и выше с каждой волной. */
+export function hordeStage(farm: number, wave: number): number {
+  return Math.max(1, farm - 12) + Math.round(wave * 2.2);
+}

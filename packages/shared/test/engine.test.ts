@@ -32,6 +32,19 @@ import {
   passSkins,
   passReward,
   seasonKey,
+  HERALDS,
+  HERALD_BY_ELEMENT,
+  COLOSSI,
+  SUMMON_POOL,
+  ELEMENTS,
+  riftElement,
+  riftTier,
+  spireOpen,
+  riftState,
+  riftBoss,
+  hordeState,
+  spireParty,
+  HEROINE_MAP,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -322,5 +335,85 @@ describe('облики и боевой пропуск', () => {
     expect(s.shop.passBonus).toBe(2);
     expect(s.cur.crystals).toBeGreaterThan(before + PASS_SKIN_DUPE_CRYSTALS);
     expect(() => applyAction(s, { type: 'pass.claimAll' }, { cfg, now: T0 })).toThrow(GameError);
+  });
+});
+
+describe('Вестницы, Колоссы и новые режимы', () => {
+  // T0 — пятница 25.09.2026: Колосс Бездны и тёмный шпиль
+  function strong() {
+    let s = fresh();
+    // отряд, уверенно проходящий свой этап (как у живого игрока), а не голые dev-героини
+    s = applyAction(s, { type: 'dev.hero', id: 'all', lvl: 30 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.progress', unlockAll: true, diff: 0, idx: 20 }, { cfg, now: T0, dev: true }).state;
+    return s;
+  }
+
+  it('5 Вестниц (по стихии) не выпадают в призыве; 5 Колоссов', () => {
+    expect(HERALDS).toHaveLength(5);
+    expect(new Set(HERALDS.map((h) => h.element)).size).toBe(5);
+    for (const el of ELEMENTS) expect(HERALD_BY_ELEMENT[el]).toBeTruthy();
+    const pool = Object.values(SUMMON_POOL).flat();
+    for (const h of HERALDS) expect(pool).not.toContain(h.id);
+    expect(COLOSSI).toHaveLength(5);
+  });
+
+  it('расписание: будни по стихиям, выходные — все шпили', () => {
+    expect(riftElement(Date.UTC(2026, 8, 21, 12))).toBe('fire'); // пн
+    expect(riftElement(T0)).toBe('dark'); // пт
+    expect(spireOpen('dark', T0)).toBe(true);
+    expect(spireOpen('fire', T0)).toBe(false);
+    for (const el of ELEMENTS) expect(spireOpen(el, Date.UTC(2026, 8, 26, 12))).toBe(true); // сб
+    expect(riftTier(0, 100)).toBe(0);
+    expect(riftTier(5, 100)).toBe(4);
+    expect(riftTier(1, 100, true)).toBe(10);
+  });
+
+  it('Разлом: 3 попытки в день, награда по урону, осколки Вестницы дня, быстрая зачистка', () => {
+    let s = strong();
+    const boss = riftBoss({ cfg, s, now: T0 });
+    expect(boss.element).toBe('dark');
+    const r1 = applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 });
+    s = r1.state;
+    const res = r1.result as { dmg: number; tier: number };
+    expect(res.dmg).toBeGreaterThan(0);
+    expect(res.tier).toBeGreaterThan(0);
+    expect(s.shards.nocturna ?? 0).toBe(res.tier);
+    s = applyAction(s, { type: 'rift.sweep' }, { cfg, now: T0 + 1000 }).state;
+    expect(riftState({ s, now: T0 }).used).toBe(cfg.modes.riftAttempts);
+    expect(s.shards.nocturna).toBe(res.tier * cfg.modes.riftAttempts);
+    expect(() => applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 + 2000 })).toThrow(GameError);
+    // на следующий день попытки снова есть
+    expect(riftState({ s, now: T0 + 86400000 }).used).toBe(0);
+  });
+
+  it('Шпиль: только героини своей стихии, закрытый шпиль не пускает, веха даёт осколки', () => {
+    let s = strong();
+    const party = spireParty({ cfg, s, now: T0 }, 'dark').filter(Boolean) as string[];
+    expect(party.length).toBeGreaterThan(0);
+    for (const id of party) expect(HEROINE_MAP[id].element).toBe('dark');
+    expect(() => applyAction(s, { type: 'spire.fight', element: 'fire' }, { cfg, now: T0 })).toThrow(GameError);
+    s.modes.spires = { dark: 9 };
+    const r = applyAction(s, { type: 'spire.fight', element: 'dark' }, { cfg, now: T0 });
+    if ((r.result as { win: boolean }).win) {
+      expect(r.state.modes.spires?.dark).toBe(10);
+      expect(r.state.shards.nocturna).toBe(10);
+    }
+  });
+
+  it('Нашествие: один забег в день, здоровье переносится, отступление', () => {
+    let s = strong();
+    s = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    expect(hordeState({ s, now: T0 }).active).toBe(true);
+    const r = applyAction(s, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
+    s = r.state;
+    const h = hordeState({ s, now: T0 });
+    if ((r.result as { win: boolean }).win) {
+      expect(h.wave).toBe(1);
+      expect(Object.values(h.hp).every((v) => v <= 1)).toBe(true);
+      s = applyAction(s, { type: 'horde.retreat' }, { cfg, now: T0 + 2000 }).state;
+    }
+    expect(hordeState({ s, now: T0 }).active).toBe(false);
+    expect(() => applyAction(s, { type: 'horde.start' }, { cfg, now: T0 + 3000 })).toThrow(GameError);
+    expect(() => applyAction(s, { type: 'horde.start' }, { cfg, now: T0 + 86400000 })).not.toThrow();
   });
 });

@@ -120,7 +120,7 @@ function Login() {
   };
   return (
     <Panel title={t('quests.loginStreak', { n: login.streak })}>
-      <div className={css.grid4} style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+      <div className={css.grid4} style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>
         {LOGIN_REWARDS.map((r) => {
           const past = r.day < today || (r.day === today && !canClaim);
           const current = r.day === today && canClaim;
@@ -161,7 +161,7 @@ function Login() {
 }
 
 function pickSsr(claim: (hero: string) => Promise<void>) {
-  const list = HEROINES.filter((h) => !h.boss && h.rarity === 'SSR');
+  const list = HEROINES.filter((h) => !h.boss && !h.herald && h.rarity === 'SSR');
   openSheet(t('quests.ssrChoice'), (close) => (
     <div className={css.grid4}>
       {list.map((h) => (

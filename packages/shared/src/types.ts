@@ -221,6 +221,27 @@ export interface Expedition {
   end: number;
 }
 
+export interface RiftState {
+  day: string;
+  used: number;
+  /** лучший ярус награды за сегодня (для быстрой зачистки) */
+  bestTierToday: number;
+  bestDmgToday: number;
+  week: string;
+  bestDmgWeek: number;
+  bestDmgEver: number;
+}
+
+export interface HordeState {
+  day: string;
+  wave: number;
+  hp: Record<string, number>;
+  active: boolean;
+  best: number;
+  week: string;
+  bestWeek: number;
+}
+
 export interface LabyrinthRun {
   week: string;
   floor: number;
@@ -322,6 +343,12 @@ export interface PlayerState {
     lab?: LabyrinthRun;
     labBest: number;
     arena: { rating: number; wins: number; losses: number; opponents: ArenaOpponent[]; refreshDay: string };
+    /** Разлом Колосса: попытки за день, лучший урон дня/недели. */
+    rift?: RiftState;
+    /** Стихийные шпили: пройденный этаж по стихиям. */
+    spires?: Partial<Record<Element, number>>;
+    /** Нашествие: забег на выживание (один в день). */
+    horde?: HordeState;
   };
   quests: {
     dayKey: string;

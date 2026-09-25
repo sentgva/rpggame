@@ -1,4 +1,5 @@
 import {
+  ELEMENT_COLORS,
   BASE_ITEM_MAP,
   ELEMENT_NAMES,
   HERO_RARITY_COLORS,
@@ -190,8 +191,11 @@ export function HeroCard({
   const h = useGame((g) => g.state?.heroines[id]);
   return (
     <div
-      className={cx(s.hero, s[`hero${def.rarity}`])}
-      style={selected ? { outline: '2px solid var(--accent-2)', outlineOffset: 1 } : undefined}
+      className={cx(s.hero, s[`hero${def.rarity}`], def.herald && s.heroHerald)}
+      style={{
+        ...(def.herald ? { ['--aura' as string]: ELEMENT_COLORS[def.element] } : null),
+        ...(selected ? { outline: '2px solid var(--accent-2)', outlineOffset: 1 } : null),
+      }}
       onClick={() => {
         haptic.select();
         onClick?.();
@@ -200,6 +204,7 @@ export function HeroCard({
       <span className={s.rarityTag} style={{ color: HERO_RARITY_COLORS[def.rarity] }}>
         {def.rarity}
       </span>
+      {def.herald && <span className={s.heraldTag}>{t('hero.herald')}</span>}
       <img className={s.elemTag} src={iconUrl(def.element)} alt="" />
       <HeroImg className={cx(s.heroSprite, !owned && s.dim)} id={id} skin={h?.skin} still={!owned} />
       <div className={s.heroName}>{tl(def.name)}</div>
@@ -390,6 +395,27 @@ export function confirmDialog(text: string, onYes: () => void, yesLabel?: string
       </div>
     </Sheet>
   ));
+}
+
+/** Ползунок 0…1 в стиле игры (громкость и т. п.). */
+export function Slider({ value, onChange, step = 0.1 }: { value: number; onChange: (v: number) => void; step?: number }) {
+  const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  return (
+    <span className={s.sliderWrap}>
+      <input
+        type="range"
+        className={s.slider}
+        min={0}
+        max={1}
+        step={step}
+        value={value}
+        style={{ ['--p' as string]: `${pct}%` }}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={() => haptic.select()}
+      />
+      <span className={s.sliderVal}>{pct}%</span>
+    </span>
+  );
 }
 
 export function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {

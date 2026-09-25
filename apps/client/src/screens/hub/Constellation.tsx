@@ -23,7 +23,7 @@ export function Constellation() {
       <BackHeader title={t('cons.title')} right={<Cost cur="starDust" amount={s.cur.starDust} />} />
       <Panel>
         <div className={css.tiny}>{t('cons.desc')}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6, marginTop: 8 }}>
           {CONSTELLATIONS.map((c, i) => {
             const n = Math.max(0, Math.min(20, s.constellation - i * 20));
             return (

@@ -20,7 +20,7 @@ export type Accessory =
   | 'bow';
 
 /** Сменный наряд облика: купальники (swim*) и бельё (lace*) вместо классового костюма. */
-export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4';
+export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia';
 
 export interface Look {
   hair: string;
@@ -50,6 +50,11 @@ export interface HeroineDef {
   look: Look;
   /** Владычица-босс: не выпадает в призыве, получается осколками с Кошмара. */
   boss?: boolean;
+  /**
+   * Вестница Эфира: крупнее остальных, со своей анимацией (парит, аура, взмахи крыльев/хвоста).
+   * Не выпадает в призыве — осколки дают Разлом Колосса, Стихийные шпили и Нашествие.
+   */
+  herald?: boolean;
 }
 
 const SK = { fair: '#F4D3B8', light: '#EBC09C', tan: '#C98E62', dark: '#8A5A3C', pale: '#E8DCE8', blue: '#9FC4E0', green: '#A9D19A', ash: '#B8B0C8' };
@@ -342,11 +347,58 @@ export const HEROINES: HeroineDef[] = [
     { hair: '#1A1024', style: 'long', skin: SK.ash, eyes: '#E040FF', outfit: '#120A1A', trim: '#E040FF', acc: 'halo', accColor: '#6A1E8A', extra: 'darkWings' }, true),
 ];
 
+/** Вестницы Эфира — по одной на стихию. */
+HEROINES.push(
+  {
+    ...h('flamma', 'Фламма', 'Flamma', 'berserker', 'fire', 'UR',
+      { ru: 'Вестница Пламени', en: 'Herald of Flame' },
+      { ru: 'Танцовщица пепельных храмов. Её пляска разжигает Кристалл Эфира — и сердца тех, кто на неё смотрит.', en: 'A dancer of the ashen temples. Her dance kindles the Aether Crystal — and the hearts of all who watch.' },
+      { ru: 'Смотри внимательно, Командор. Второй раз я так не станцую.', en: 'Watch closely, Commander. I won\'t dance like this twice.' },
+      { hair: '#FF6A2A', style: 'wild', skin: SK.tan, eyes: '#FFD24A', outfit: '#C0301E', trim: '#F2C84A', acc: 'horns', accColor: '#2A1616', extra: 'tail', wear: 'dancer' }),
+    herald: true,
+  },
+  {
+    ...h('maristella', 'Маристелла', 'Maristella', 'bard', 'water', 'UR',
+      { ru: 'Вестница Прилива', en: 'Herald of the Tide' },
+      { ru: 'Сирена, что поёт волнам колыбельную. Прилив приходит, когда она зовёт, и уходит, когда она смеётся.', en: 'A siren who sings lullabies to the waves. The tide comes when she calls and leaves when she laughs.' },
+      { ru: 'Слышишь? Это море поёт со мной.', en: 'Hear that? The sea is singing with me.' },
+      { hair: '#4AD0F0', style: 'long', skin: SK.fair, eyes: '#2A8AE0', outfit: '#1E6AB0', trim: '#E6F6FF', acc: 'tiara', accColor: '#9FE0FF', extra: 'none', wear: 'dancer' }),
+    herald: true,
+  },
+  {
+    ...h('sylphide', 'Сильфида', 'Sylphide', 'archer', 'nature', 'UR',
+      { ru: 'Вестница Ветров', en: 'Herald of the Winds' },
+      { ru: 'Фея-лучница с крыльями из утреннего света. Её стрелы летят быстрее ветра, а наряда на ней меньше, чем листьев на ветке.', en: 'A fairy archer with wings of morning light. Her arrows outpace the wind, and she wears less than a branch has leaves.' },
+      { ru: 'Лови ветер — если сможешь!', en: 'Catch the wind — if you can!' },
+      { hair: '#9AE05A', style: 'twintails', skin: SK.fair, eyes: '#3FBF5A', outfit: '#2F8A34', trim: '#F2E6A0', acc: 'flower', accColor: '#F4B8CC', extra: 'wings', wear: 'swim' }),
+    herald: true,
+  },
+  {
+    ...h('aurelia', 'Аурелия', 'Aurelia', 'guardian', 'light', 'UR',
+      { ru: 'Вестница Рассвета', en: 'Herald of Dawn' },
+      { ru: 'Золотая валькирия небесного трона. Её латы — скорее украшение, чем защита: свет хранит её лучше стали.', en: 'The golden valkyrie of the celestial throne. Her armor is more jewelry than protection: light guards her better than steel.' },
+      { ru: 'Рассвет приходит ко всем. Даже к тебе.', en: 'Dawn comes for everyone. Even for you.' },
+      { hair: '#FFE08A', style: 'long', skin: SK.fair, eyes: '#F2A020', outfit: '#E6B23A', trim: '#FFFFFF', acc: 'halo', accColor: '#FFE8A0', extra: 'wings', wear: 'regalia' }),
+    herald: true,
+  },
+  {
+    ...h('nocturna', 'Ноктюрна', 'Nocturna', 'assassin', 'dark', 'UR',
+      { ru: 'Вестница Сумрака', en: 'Herald of Dusk' },
+      { ru: 'Суккуба-убийца, связанная ремнями и клятвами. Приходит в полночь и уходит, забрав самое ценное — обычно чью-то голову.', en: 'A succubus assassin bound by straps and oaths. She comes at midnight and leaves with what is most precious — usually a head.' },
+      { ru: 'Не бойся темноты, милый. Бойся меня в ней.', en: 'Don\'t fear the dark, darling. Fear me in it.' },
+      { hair: '#2A1438', style: 'long', skin: SK.pale, eyes: '#FF3A8A', outfit: '#1A0E1E', trim: '#E03A8A', acc: 'horns', accColor: '#3A1E3A', extra: 'darkWings', wear: 'regalia' }),
+    herald: true,
+  },
+);
+
+export const HERALDS = HEROINES.filter((x) => x.herald);
+export const HERALD_BY_ELEMENT: Record<Element, string> = Object.fromEntries(HERALDS.map((x) => [x.element, x.id])) as Record<Element, string>;
+
 export const HEROINE_MAP: Record<string, HeroineDef> = Object.fromEntries(HEROINES.map((x) => [x.id, x]));
 
 /** Пул призыва — только обычные героини (владычицы — через Кошмар). */
 export const SUMMON_POOL: Record<HeroRarity, string[]> = { R: [], SR: [], SSR: [], UR: [] };
-for (const x of HEROINES) if (!x.boss) SUMMON_POOL[x.rarity].push(x.id);
+for (const x of HEROINES) if (!x.boss && !x.herald) SUMMON_POOL[x.rarity].push(x.id);
 
 /** Стартовые героини: Лира выдаётся в обучении. */
 export const STARTER_HEROINES = ['lira', 'coral', 'seyra', 'hanna'];

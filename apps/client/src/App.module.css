@@ -110,7 +110,7 @@
 .nav {
   flex: none;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   height: calc(var(--nav-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   background: linear-gradient(180deg, #221820, #140e12);

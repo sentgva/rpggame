@@ -33,6 +33,7 @@ import { useNow } from '../BattleTab';
 import { BackHeader, RewardList, showReward } from '../common';
 import { stageText } from '../MapTab';
 import { Shop } from '../hub/Shop';
+import { Horde, Rift, Spires } from './Endgame';
 
 export const MODES = [
   { id: 'expeditions', icon: 'expedition', title: 'mode.expeditions', desc: 'mode.expeditionsDesc', feature: 'expeditions' },
@@ -40,6 +41,9 @@ export const MODES = [
   { id: 'tower', icon: 'tower', title: 'mode.tower', desc: 'mode.towerDesc', feature: 'tower' },
   { id: 'labyrinth', icon: 'labyrinth', title: 'mode.labyrinth', desc: 'mode.labyrinthDesc', feature: 'labyrinth' },
   { id: 'arena', icon: 'arena', title: 'mode.arena', desc: 'mode.arenaDesc', feature: 'arena' },
+  { id: 'horde', icon: 'horde', title: 'mode.horde', desc: 'mode.hordeDesc', feature: 'horde' },
+  { id: 'rift', icon: 'rift', title: 'mode.rift', desc: 'mode.riftDesc', feature: 'rift' },
+  { id: 'spires', icon: 'spire', title: 'mode.spires', desc: 'mode.spiresDesc', feature: 'spires' },
   { id: 'abyss', icon: 'abyss', title: 'mode.abyss', desc: 'mode.abyssDesc', feature: 'abyss' },
 ];
 
@@ -57,6 +61,12 @@ export function ModeScreen({ id }: { id: string }) {
       return <Expeditions />;
     case 'labyrinth':
       return <Labyrinth />;
+    case 'rift':
+      return <Rift />;
+    case 'spires':
+      return <Spires />;
+    case 'horde':
+      return <Horde />;
     case 'shopArena':
       return <Shop initial="arena" />;
     case 'shopLab':

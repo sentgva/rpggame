@@ -9,18 +9,21 @@ export interface LifeAnim {
   kind: 'blink' | 'double' | 'wink';
   /** может ли подмигивать (героини — да, враги — нет) */
   canWink: boolean;
+  /** особая анимация Вестниц и Колоссов: взмахи крыльев / покачивание хвоста */
+  special: boolean;
 }
 
 export interface LifeFrame {
   arms: Arms;
   eyes: Eyes;
+  flap?: boolean;
 }
 
 /** Период дыхания совпадает с покачиванием юнитов в бою (sin(t/380)). */
 export const BREATH_RATE = 380;
 
-export function newLife(now: number, canWink: boolean): LifeAnim {
-  return { phase: Math.random() * Math.PI * 2, blinkAt: now + 600 + Math.random() * 3600, kind: 'blink', canWink };
+export function newLife(now: number, canWink: boolean, special = false): LifeAnim {
+  return { phase: Math.random() * Math.PI * 2, blinkAt: now + 600 + Math.random() * 3600, kind: 'blink', canWink, special };
 }
 
 function schedule(a: LifeAnim, now: number) {
@@ -58,9 +61,11 @@ export function lifeFrame(a: LifeAnim, now: number): LifeFrame {
       else schedule(a, now);
     }
   }
-  return { arms, eyes };
+  // взмах крыльев примерно раз в 0,7 с
+  const flap = a.special && Math.sin(now / 110 + a.phase) > 0;
+  return { arms, eyes, flap };
 }
 
 export function frameKey(f: LifeFrame): string {
-  return f.arms + ':' + f.eyes;
+  return f.arms + ':' + f.eyes + (f.flap ? ':f' : '');
 }

@@ -153,3 +153,18 @@ canvas.pixel,
     filter: hue-rotate(360deg);
   }
 }
+
+/* аура Вестниц Эфира (--aura — цвет стихии) */
+@keyframes herald-aura {
+  from {
+    filter: drop-shadow(0 0 2px var(--aura, #ffe8a0));
+  }
+  to {
+    filter: drop-shadow(0 0 7px var(--aura, #ffe8a0)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.6));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  img {
+    animation: none !important;
+  }
+}

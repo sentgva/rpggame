@@ -1,4 +1,4 @@
-import { SKILL_MAP, type BattleEvent, type UnitSnap } from '@idle/shared';
+import { ENEMY_MAP, HEROINE_MAP, SKILL_MAP, type BattleEvent, type UnitSnap } from '@idle/shared';
 import {
   Application,
   Container,
@@ -36,6 +36,7 @@ const VFX_COLOR: Record<string, number> = {
   heal: 0x7ae07a,
   shield: 0x6fd0ff,
 };
+const AURA_COLOR: Record<string, number> = { fire: 0xffa040, water: 0x7fe0ff, nature: 0x9af06a, light: 0xfff0a0, dark: 0xe060ff };
 const DOT_COLOR: Record<string, number> = { burn: 0xff9a4a, poison: 0x9ae07a, bleed: 0xff5a5a, thorns: 0xd0c0a0 };
 const MELEE_VFX = new Set(['slash']);
 
@@ -70,6 +71,11 @@ class UnitView {
   /** до какого момента держать позу удара / зажмуриться от попадания */
   attackUntil = 0;
   hurtUntil = 0;
+  /** Вестница или Колосс: крупнее, парит, окружена аурой своей стихии */
+  special: boolean;
+  aura = new Graphics();
+  auraParts: { x: number; y: number; vy: number; life: number; size: number }[] = [];
+  auraAcc = 0;
 
   constructor(
     public snap: UnitSnap,
@@ -81,9 +87,12 @@ class UnitView {
     this.hp = snap.hp;
     this.maxHp = snap.maxHp;
     this.energy = snap.energy;
-    this.life = newLife(now, snap.side === 0 && !snap.mirror);
+    const herald = !!HEROINE_MAP[snap.ref]?.herald;
+    const colossus = !!ENEMY_MAP[snap.ref]?.colossus;
+    this.special = herald || colossus;
+    this.life = newLife(now, snap.side === 0 && !snap.mirror, this.special);
     this.bobPhase = this.life.phase;
-    const big = snap.kind === 'boss' ? 2 : snap.kind === 'mini' ? 1.35 : snap.kind === 'summon' ? 0.8 : 1;
+    const big = colossus ? 2.5 : herald ? 1.2 : snap.kind === 'boss' ? 2 : snap.kind === 'mini' ? 1.35 : snap.kind === 'summon' ? 0.8 : 1;
     this.scale = scale * big;
     const canvas = unitCanvas(snap.ref, { mirror: snap.mirror, skin });
     this.sprite = new Sprite(Texture.from(canvas));
@@ -99,7 +108,7 @@ class UnitView {
     this.flash.alpha = 0;
     this.shadow.ellipse(0, 0, 11 * this.scale, 3 * this.scale).fill({ color: 0x000000, alpha: 0.35 });
     this.body.addChild(this.sprite, this.flash);
-    this.root.addChild(this.shadow, this.body, this.statusG, this.bars);
+    this.root.addChild(this.shadow, this.aura, this.body, this.statusG, this.bars);
     this.barW = Math.max(30, 20 * scale * (big > 1 ? 1.4 : 1));
     this.drawBars();
   }
@@ -116,6 +125,32 @@ class UnitView {
     const canvas = unitCanvas(this.snap.ref, { mirror: this.snap.mirror, skin: this.skin }, f);
     this.sprite.texture = Texture.from(canvas);
     this.flash.texture = Texture.from(silhouette(canvas));
+  }
+
+  /** Искры ауры поднимаются вокруг Вестниц и Колоссов. */
+  updateAura(dt: number) {
+    if (!this.special) return;
+    const g = this.aura;
+    g.clear();
+    if (!this.alive) {
+      this.auraParts.length = 0;
+      return;
+    }
+    const h = (this.spriteH - 4) * this.pix * this.scale;
+    const w = 11 * this.scale;
+    this.auraAcc += dt;
+    while (this.auraAcc > 70) {
+      this.auraAcc -= 70;
+      if (this.auraParts.length < 22)
+        this.auraParts.push({ x: (Math.random() * 2 - 1) * w, y: -Math.random() * h * 0.9, vy: -(18 + Math.random() * 26) * Math.max(1, this.scale * 0.5), life: 1, size: Math.random() < 0.3 ? 3 : 2 });
+    }
+    const color = AURA_COLOR[this.snap.el] ?? 0xffffff;
+    for (const p of this.auraParts) {
+      p.y += (p.vy * dt) / 1000;
+      p.life -= dt / 900;
+      if (p.life > 0) g.rect(Math.round(p.x), Math.round(p.y + this.sprite.y), p.size, p.size).fill({ color, alpha: Math.min(1, p.life * 1.4) * 0.85 });
+    }
+    this.auraParts = this.auraParts.filter((p) => p.life > 0);
   }
 
   /** Живая анимация: дыхание рук, моргание, поза удара, зажмуривание от боли. */
@@ -412,6 +447,9 @@ export class BattleRenderer {
     }
     u.baseX = x * this.W;
     u.baseY = y * this.H;
+    // крупные юниты (Вестницы, Колоссы с крыльями) не должны уходить за край сцены
+    const half = u.sprite.width * 0.42;
+    u.baseX = Math.max(half, Math.min(this.W - half, u.baseX));
     u.root.position.set(u.baseX, u.baseY);
     u.root.zIndex = Math.round(u.baseY);
   }
@@ -816,8 +854,16 @@ export class BattleRenderer {
     }
     // дыхание юнитов
     for (const u of this.units.values()) {
-      if (u.alive) u.sprite.y = Math.sin(this.time / 380 + u.bobPhase) * 1.2;
+      if (u.alive) {
+        if (u.special) {
+          // Вестницы и Колоссы парят над землёй, тень «дышит» вместе с ними
+          const lift = Math.sin(this.time / 520 + u.bobPhase);
+          u.sprite.y = -5 * u.pix * Math.min(2, u.scale) + lift * 2.4;
+          u.shadow.scale.set(0.8 - lift * 0.08, 0.8 - lift * 0.08);
+        } else u.sprite.y = Math.sin(this.time / 380 + u.bobPhase) * 1.2;
+      }
       u.flash.y = u.sprite.y;
+      u.updateAura(dt);
       // облик сменили во время боя — перерисовываем кадры сразу, не дожидаясь новой волны
       if (u.snap.side === 0 || u.snap.mirror) {
         const sk = this.skinOf(u.snap.ref);

@@ -179,7 +179,7 @@ function PullReveal({ pulls, onClose }: { pulls: SummonPull[]; onClose: () => vo
           <div className={st.stageHint}>{t('summon.tap')}</div>
         </div>
       ) : (
-        <div className={st.grid} style={{ gridTemplateColumns: big ? '160px' : 'repeat(5, 1fr)', justifyContent: 'center' }}>
+        <div className={st.grid} style={{ gridTemplateColumns: big ? '160px' : 'repeat(5, minmax(0, 1fr))', justifyContent: 'center' }}>
           {pulls.map((p, i) => (
             <PullCard key={i} p={p} i={i} big={big} flipped={flipped[i]} charging={charging === i} onFlip={() => flip(i)} />
           ))}

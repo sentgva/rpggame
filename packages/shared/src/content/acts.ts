@@ -17,6 +17,8 @@ export interface EnemyDef {
   /** id героини, если босс становится играбельным. */
   hero?: string;
   title?: L10n;
+  /** Колосс Разлома: гигантский босс мирового режима, крупнее обычных боссов, со своей анимацией. */
+  colossus?: boolean;
 }
 
 export type BossMechanic =
@@ -216,6 +218,12 @@ export const ENEMIES: EnemyDef[] = [
   mb('a10_mb1', 10, 'Вестница Хаоса', 'Herald of Chaos', 'caster', 'dark', 'mb.storm', L('#4A1A6A', 'long', SKIN.void, '#1A0A24', '#E040FF', 'halo', 'darkWings', '#6A1E8A', '#E040FF')),
   mb('a10_mb2', 10, 'Искажённая валькирия', 'Twisted Valkyrie', 'brute', 'dark', 'mb.enrage', L('#F2F0E6', 'braid', SKIN.void, '#2A2A3A', '#E040FF', 'helmet', 'darkWings', '#2A2A3A', '#E040FF')),
   mb('a10_mb3', 10, 'Страж Трона', 'Throne Guardian', 'tank', 'light', 'mb.stomp', L('#FFE8A0', 'long', SKIN.gold, '#6A5A3A', '#E040FF', 'crown', 'wings', '#E0A13A', '#E040FF')),
+  // ——— Колоссы Разлома (мировой босс) ———
+  { id: 'colossus_pyra', act: 6, name: { ru: 'Пира, Колосс Пламени', en: 'Pyra, Colossus of Flame' }, title: { ru: 'Колосс Пламени', en: 'Colossus of Flame' }, role: 'brute', element: 'fire', kind: 'boss', colossus: true, mechanic: 'fireField', skills: ['enemy.brute', 'mb.enrage'], look: { ...L('#FF5A1E', 'wild', SKIN.red, '#8A1E14', '#FFC24A', 'horns', 'tail', '#2A1010', '#FFE040'), wear: 'dancer' } },
+  { id: 'colossus_tidea', act: 4, name: { ru: 'Тидея, Колосс Глубин', en: 'Tidea, Colossus of the Deep' }, title: { ru: 'Колосс Глубин', en: 'Colossus of the Deep' }, role: 'caster', element: 'water', kind: 'boss', colossus: true, mechanic: 'freeze', skills: ['enemy.caster', 'mb.storm'], look: { ...L('#3AE0E0', 'long', SKIN.blue, '#0E4A7A', '#E6F6FF', 'crown', 'fishTail', '#9FE0FF', '#7AF0FF'), wear: 'swim3' } },
+  { id: 'colossus_verda', act: 1, name: { ru: 'Верда, Колосс Чащи', en: 'Verda, Colossus of the Thicket' }, title: { ru: 'Колосс Чащи', en: 'Colossus of the Thicket' }, role: 'tank', element: 'nature', kind: 'boss', colossus: true, mechanic: 'vines', skills: ['enemy.tank', 'mb.heal'], look: { ...L('#4ABF3A', 'wild', SKIN.green, '#C0306A', '#F2D46B', 'flower', 'vines', '#F4B8CC', '#F2D46B'), wear: 'swim' } },
+  { id: 'colossus_sola', act: 7, name: { ru: 'Сола, Колосс Зари', en: 'Sola, Colossus of Daybreak' }, title: { ru: 'Колосс Зари', en: 'Colossus of Daybreak' }, role: 'caster', element: 'light', kind: 'boss', colossus: true, mechanic: 'skyborne', skills: ['enemy.caster', 'mb.storm'], look: { ...L('#FFF0B0', 'long', SKIN.gold, '#E6B23A', '#FFFFFF', 'halo', 'wings', '#FFE8A0', '#FFB020'), wear: 'regalia' } },
+  { id: 'colossus_umbra', act: 10, name: { ru: 'Умбра, Колосс Бездны', en: 'Umbra, Colossus of the Abyss' }, title: { ru: 'Колосс Бездны', en: 'Colossus of the Abyss' }, role: 'rogue', element: 'dark', kind: 'boss', colossus: true, mechanic: 'bloodThirst', skills: ['enemy.rogue', 'mb.enrage'], look: { ...L('#3A1A5A', 'long', SKIN.void, '#120A1A', '#E040FF', 'horns', 'darkWings', '#2A1438', '#FF40C0'), wear: 'lace4' } },
 ];
 
 /** Боссы актов — владычицы. Внешность берётся из играбельной версии. */
@@ -239,6 +247,9 @@ export const SUMMONS: EnemyDef[] = [
   { id: 'tentacle', act: 4, name: { ru: 'Щупальце', en: 'Tentacle' }, role: 'brute', element: 'water', kind: 'summon', skills: [], look: L('#6A1E4A', 'wild', SKIN.red, '#3A0E2A', '#E07A6A', 'none', 'tail') },
   { id: 'drone', act: 8, name: { ru: 'Дрон', en: 'Drone' }, role: 'ranged', element: 'light', kind: 'summon', skills: [], look: L('#8A8A9A', 'short', SKIN.grey, '#6A6A7A', '#40E0FF', 'helmet', 'gears', '#8A8A9A', '#40E0FF') },
 ];
+
+/** Колоссы по стихиям (ротация Разлома по дням недели). */
+export const COLOSSI = ENEMIES.filter((x) => x.colossus);
 
 export const ENEMY_MAP: Record<string, EnemyDef> = Object.fromEntries(
   [...ENEMIES, ...ACT_BOSSES, ...SUMMONS].map((x) => [x.id, x]),

@@ -105,7 +105,7 @@ export function SkillTree({ heroId }: { heroId: string }) {
       >
         <EquippedSkills heroId={heroId} />
       </Panel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
         {[0, 1, 2].map((b) => {
           const pts = branchPoints(h, cls, b);
           return (

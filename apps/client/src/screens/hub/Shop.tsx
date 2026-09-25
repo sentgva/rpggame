@@ -112,7 +112,7 @@ function SkinNote({ id, inSkinShop }: { id: string; inSkinShop: boolean }) {
 
 async function buyOffer(o: ShopOffer) {
   if (o.give.shardsRarity) {
-    const list = HEROINES.filter((h) => !h.boss && h.rarity === o.give.shardsRarity);
+    const list = HEROINES.filter((h) => !h.boss && !h.herald && h.rarity === o.give.shardsRarity);
     openSheet(t('shop.pickHero'), (close) => (
       <div className={css.grid4}>
         {list.map((h) => (

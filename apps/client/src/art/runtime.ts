@@ -48,7 +48,7 @@ export function enemySpec(enemyId: string, opts: Partial<SpriteSpec> = {}): Figu
 }
 
 function specKey(kind: string, id: string, spec: Partial<SpriteSpec> & { skin?: string }, pose: Pose = {}): string {
-  return `${kind}:${id}:${spec.skin ?? ''}:${spec.shadow ? 1 : 0}:${spec.tint ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}`;
+  return `${kind}:${id}:${spec.skin ?? ''}:${spec.shadow ? 1 : 0}:${spec.tint ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
 }
 
 /** Кадр героини: поза рук и состояние глаз (кадры рисуются лениво и кэшируются). */
@@ -81,13 +81,13 @@ export function unitCanvas(ref: string, opts: { mirror?: boolean; skin?: string 
 }
 
 export function heroUrl(heroId: string, skin?: string, pose: Pose = {}): string {
-  const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}`;
+  const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
   let u = urlCache.get(key);
   if (!u) {
     u = heroCanvas(heroId, skin, {}, pose).toDataURL();
     urlCache.set(key, u);
     // заранее декодируем, чтобы смена кадра в <img> не мигала
-    if (pose.arms || pose.eyes) {
+    if (pose.arms || pose.eyes || pose.flap) {
       const img = new Image();
       img.src = u;
       img.decode?.().catch(() => {});
@@ -96,11 +96,11 @@ export function heroUrl(heroId: string, skin?: string, pose: Pose = {}): string 
   return u;
 }
 
-export function enemyUrl(enemyId: string): string {
-  const key = `url:e:${enemyId}`;
+export function enemyUrl(enemyId: string, pose: Pose = {}): string {
+  const key = `url:e:${enemyId}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
   let u = urlCache.get(key);
   if (!u) {
-    u = enemyCanvas(enemyId).toDataURL();
+    u = enemyCanvas(enemyId, {}, pose).toDataURL();
     urlCache.set(key, u);
   }
   return u;
