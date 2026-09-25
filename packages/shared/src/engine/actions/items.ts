@@ -1,4 +1,4 @@
-import { ACTS, BASE_ITEM_MAP, ENDGAME_SETS, GEM_TYPES, HEROINE_MAP, RECIPES, SET_SLOTS, canWear, gemKey, parseGem } from '../../content';
+import { ACTS, BASE_ITEM_MAP, ENDGAME_SETS, GEM_TYPES, HEROINE_MAP, RECIPES, SET_MAP, SET_SLOTS, canWear, gemKey, parseGem } from '../../content';
 import type { EquipSlot, Item, ItemSlot } from '../../types';
 import { EQUIP_SLOTS, equipSlotToItemSlot } from '../../types';
 import type { Action } from '../apply';
@@ -282,6 +282,8 @@ export const itemActions = {
       crafted = rollLoot(ctx, { lvl: n, forceRarity: 4, slot });
     } else if (recipe.kind === 'setLegendary') {
       const set = vStr(a.set, 'set');
+      // сеты режимов не куются — только добыча в режиме
+      assert(SET_MAP[set] && !SET_MAP[set].mode, 'badParam', { name: 'set' });
       const act = ACTS.find((x) => x.sets.includes(set));
       const unlocked = act ? s.progress.maxGlobalEver >= act.id * 20 : s.progress.maxGlobalEver >= 600;
       assert(unlocked || s.dev.unlockAll, 'locked', { feature: 'set' });
@@ -298,6 +300,7 @@ export const itemActions = {
         assert(it && it.rarity === 5 && !idx[u] && !it.lock, 'needMythic');
       }
       const set = a.set ? vStr(a.set, 'set') : ENDGAME_SETS[ctx.rng.int(ENDGAME_SETS.length)];
+      assert(SET_MAP[set] && !SET_MAP[set].mode, 'badParam', { name: 'set' });
       const setSlot = slot && SET_SLOTS.includes(slot) ? slot : SET_SLOTS[ctx.rng.int(SET_SLOTS.length)];
       spend(ctx, cost);
       for (const u of uids) delete s.items[u];

@@ -4,6 +4,14 @@ import {
   HERALDS,
   HERALD_BY_ELEMENT,
   HEROINE_MAP,
+  HORDE_BLESSINGS,
+  HORDE_BLESSING_MAP,
+  HORDE_BLESS_EVERY,
+  HORDE_SKIN_WAVES,
+  RIFT_TACTICS,
+  RIFT_TACTIC_MAP,
+  SPIRE_SKINS,
+  SPIRE_SKIN_FLOOR,
   RIFT_COLOSSUS,
   RIFT_TIERS,
   hordeStage,
@@ -13,18 +21,25 @@ import {
   spireStage,
 } from '../../content';
 import { Rng, hashStr, mixSeed } from '../../rng';
-import type { Element, HordeState, RiftState } from '../../types';
+import type { Element, HordeState, RiftState, Stats } from '../../types';
 import { ELEMENTS } from '../../types';
 import type { Action } from '../apply';
 import type { UnitInit } from '../battle';
-import { assert, farmLevel, give, goldPerMin, requireUnlocked, scaleReward, track, trackMax, vOneOf, type Ctx } from '../core';
+import { assert, farmLevel, give, goldPerMin, grantModeSetPiece, requireUnlocked, scaleReward, track, trackMax, vInt, vOneOf, type Ctx } from '../core';
 import { dayKey, weekKey } from '../state';
-import { activeParty, buildHeroine } from '../stats';
+import { activeParty, addStats, buildHeroine } from '../stats';
 import { customEnemies, heroUnits } from '../units';
 import { currentParty, runBattle, stripRaw } from './battle';
 import { onExpedition } from './heroes';
 
 type Cur = Record<string, number>;
+
+/** Выдать облик-награду режима (если его ещё нет). */
+function grantSkin(ctx: Ctx, id: string | undefined): string | undefined {
+  if (!id || ctx.s.skins.includes(id)) return undefined;
+  ctx.s.skins.push(id);
+  return id;
+}
 
 function addShards(ctx: Ctx, hero: string, n: number, out: Record<string, number>) {
   ctx.s.shards[hero] = (ctx.s.shards[hero] ?? 0) + n;
@@ -32,6 +47,9 @@ function addShards(ctx: Ctx, hero: string, n: number, out: Record<string, number
 }
 
 // ——— Разлом Колосса ———
+
+/** С какого яруса урона Разлом даёт часть «Доспеха Колосса». */
+export const RIFT_SET_TIER = 4;
 
 export function riftState(ctx: Pick<Ctx, 's' | 'now'>): RiftState {
   const today = dayKey(ctx.now);
@@ -139,26 +157,47 @@ function hordeEnemies(ctx: Ctx, wave: number): UnitInit[] {
   return customEnemies(cfg, hordeStage(farmLevel(cfg, s), wave), list);
 }
 
-export function hordeWaveReward(ctx: Pick<Ctx, 'cfg' | 's'>, wave: number) {
+/** Суммарный бонус благословений забега. */
+export function hordeBonus(h: Pick<HordeState, 'blessings'>): { stats: Stats; rewardPct: number } {
+  const stats: Stats = {};
+  let rewardPct = 0;
+  for (const id of h.blessings ?? []) {
+    const b = HORDE_BLESSING_MAP[id];
+    if (!b) continue;
+    addStats(stats, b.stats);
+    rewardPct += b.rewardPct ?? 0;
+  }
+  return { stats, rewardPct };
+}
+
+export function hordeWaveReward(ctx: Pick<Ctx, 'cfg' | 's'>, wave: number, rewardPct = 0) {
   const { cfg, s } = ctx;
-  const cur: Cur = { gold: Math.floor(goldPerMin(cfg, s) * 2), dust: 8 + wave };
+  const k = 1 + rewardPct;
+  const cur: Cur = { gold: Math.floor(goldPerMin(cfg, s) * 2 * k), dust: Math.floor((8 + wave) * k) };
   if (wave % 5 === 0) cur.crystals = 10 + wave;
   return { cur, heraldShards: wave % 10 === 0 ? 5 : 0 };
 }
 
 export const endgameActions = {
-  'rift.fight': (ctx: Ctx) => {
+  /** Атака на Колосса; tactic — тактика отряда на этот бой (RIFT_TACTICS). */
+  'rift.fight': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'rift');
     const r = riftState(ctx);
     assert(r.used < cfg.modes.riftAttempts, 'noAttempts');
+    const tactic = a.tactic === undefined ? 'none' : vOneOf(a.tactic, RIFT_TACTICS.map((x) => x.id), 'tactic');
     const boss = riftBoss(ctx);
-    const b = runBattle(ctx, boss.units, heroUnits(cfg, s, currentParty(ctx)), cfg.modes.riftTimeLimit);
+    const b = runBattle(ctx, boss.units, heroUnits(cfg, s, currentParty(ctx), { extra: RIFT_TACTIC_MAP[tactic].stats }), cfg.modes.riftTimeLimit);
     // урон отряда по всем врагам (Колосс + призванные им)
     const ours = new Set(b.raw.units.filter((u) => u.side === 0).map((u) => u.uid));
     const dmg = Math.round(Object.entries(b.dmgDone ?? {}).reduce((sum, [uid, v]) => (ours.has(Number(uid)) ? sum + v : sum), 0));
     const tier = riftTier(dmg, boss.hp, b.win);
-    const reward = grantRift(ctx, tier, boss.level, boss.element);
+    const reward: ReturnType<typeof grantRift> & { items?: string[] } = grantRift(ctx, tier, boss.level, boss.element);
+    // Доспех Колосса: с 4-го яруса — легендарная часть, за победу над Колоссом — мифическая
+    if (tier >= RIFT_SET_TIER) {
+      const uid = grantModeSetPiece(ctx, 'rift', tier >= 10 ? 5 : 4);
+      if (uid) reward.items = [uid];
+    }
     r.used++;
     r.bestTierToday = Math.max(r.bestTierToday, tier);
     r.bestDmgToday = Math.max(r.bestDmgToday, dmg);
@@ -166,8 +205,8 @@ export const endgameActions = {
     r.bestDmgEver = Math.max(r.bestDmgEver, dmg);
     s.modes.rift = r;
     track(ctx, 'riftFight', 1);
-    ctx.events.push({ name: 'rift', props: { boss: boss.id, dmg, tier } });
-    return { battle: stripRaw(b), win: b.win, dmg, hp: boss.hp, tier, reward, boss: boss.id };
+    ctx.events.push({ name: 'rift', props: { boss: boss.id, dmg, tier, tactic } });
+    return { battle: stripRaw(b), win: b.win, dmg, hp: boss.hp, tier, reward, boss: boss.id, tactic };
   },
 
   /** Быстрая зачистка: оставшиеся попытки дня с лучшим ярусом, уже достигнутым сегодня. */
@@ -212,7 +251,11 @@ export const endgameActions = {
       give(ctx, cur);
       const shards: Record<string, number> = {};
       if (r.shards && r.hero) addShards(ctx, r.hero, r.shards, shards);
-      reward = { cur, shards };
+      // рубеж шпиля: облик «Маскарада» стихии (выдаётся и тем, кто прошёл рубеж раньше)
+      const skin = floor >= SPIRE_SKIN_FLOOR ? grantSkin(ctx, SPIRE_SKINS[el]) : undefined;
+      // Стихийная призма: часть сета на каждом 10-м этаже
+      const uid = floor % 10 === 0 ? grantModeSetPiece(ctx, 'spires') : null;
+      reward = { cur, shards, skins: skin ? [skin] : undefined, items: uid ? [uid] : undefined };
       track(ctx, 'spireWin', 1);
       trackMax(ctx, 'spireBest', floor);
     }
@@ -227,7 +270,7 @@ export const endgameActions = {
     assert(h.day !== today, 'usedToday');
     const party = activeParty(s);
     assert(party.length > 0, 'emptyParty');
-    s.modes.horde = { ...h, day: today, wave: 0, hp: Object.fromEntries(party.map((id) => [id, 1])), active: true };
+    s.modes.horde = { ...h, day: today, wave: 0, hp: Object.fromEntries(party.map((id) => [id, 1])), active: true, blessings: [], offer: undefined };
     return { horde: s.modes.horde };
   },
 
@@ -236,9 +279,11 @@ export const endgameActions = {
     requireUnlocked(ctx, 'horde');
     const h = hordeState(ctx);
     assert(h.active, 'noRun');
+    assert(!h.offer, 'pickFirst');
     const wave = h.wave + 1;
+    const bonus = hordeBonus(h);
     const slots = currentParty(ctx).map((id) => (id && h.hp[id] !== undefined ? id : null));
-    const b = runBattle(ctx, hordeEnemies(ctx, wave), heroUnits(cfg, s, slots, { hp: h.hp }), cfg.battle.bossTimeLimit);
+    const b = runBattle(ctx, hordeEnemies(ctx, wave), heroUnits(cfg, s, slots, { hp: h.hp, extra: bonus.stats }), cfg.battle.bossTimeLimit);
     const hp = { ...h.hp };
     for (const [id, v] of Object.entries(b.heroHp ?? {})) hp[id] = v;
     let reward = null;
@@ -247,26 +292,53 @@ export const endgameActions = {
       next.wave = wave;
       next.best = Math.max(h.best, wave);
       next.bestWeek = Math.max(h.bestWeek, wave);
-      const r = hordeWaveReward(ctx, wave);
+      const r = hordeWaveReward(ctx, wave, bonus.rewardPct);
       const cur = scaleReward(cfg, s, r.cur) as Cur;
       give(ctx, cur);
       const shards: Record<string, number> = {};
       if (r.heraldShards) addShards(ctx, HERALDS[ctx.rng.int(HERALDS.length)].id, r.heraldShards, shards);
       // передышка: каждые N волн выжившие восстанавливают треть здоровья
       if (wave % cfg.modes.hordeHealEvery === 0) for (const id of Object.keys(hp)) if (hp[id] > 0) hp[id] = Math.min(1, hp[id] + 0.33);
-      reward = { cur, shards };
+      const skins = Object.entries(HORDE_SKIN_WAVES)
+        .filter(([w]) => wave >= Number(w))
+        .map(([, id]) => grantSkin(ctx, id))
+        .filter((x): x is string => !!x);
+      // Знамя Орды: часть сета каждые 10 волн
+      const uid = wave % 10 === 0 ? grantModeSetPiece(ctx, 'horde') : null;
+      reward = { cur, shards, skins: skins.length ? skins : undefined, items: uid ? [uid] : undefined };
       trackMax(ctx, 'hordeBest', wave);
       track(ctx, 'hordeWave', 1);
     } else next.active = false;
     if (!Object.values(hp).some((v) => v > 0)) next.active = false;
+    // каждые N волн — выбор благословения на остаток забега
+    if (b.win && next.active && wave % HORDE_BLESS_EVERY === 0) {
+      const ids = HORDE_BLESSINGS.map((x) => x.id);
+      ctx.rng.shuffle(ids);
+      next.offer = ids.slice(0, 3);
+    }
     s.modes.horde = next;
     return { battle: stripRaw(b), win: b.win, wave, reward, horde: next };
+  },
+
+  /** Выбор благословения из предложенных трёх. */
+  'horde.bless': (ctx: Ctx, a: Action) => {
+    const h = hordeState(ctx);
+    assert(h.active && h.offer?.length, 'noRun');
+    const id = h.offer![vInt(a.index, 0, h.offer!.length - 1, 'index')];
+    const bl = HORDE_BLESSING_MAP[id];
+    const hp = { ...h.hp };
+    if (bl.heal || bl.revive) {
+      for (const k of Object.keys(hp)) hp[k] = hp[k] > 0 ? Math.min(1, hp[k] + (bl.heal ?? 0)) : (bl.revive ?? 0);
+    }
+    const blessings = bl.stats || bl.rewardPct ? [...(h.blessings ?? []), id] : (h.blessings ?? []);
+    ctx.s.modes.horde = { ...h, hp, blessings, offer: undefined };
+    return { horde: ctx.s.modes.horde, blessing: id };
   },
 
   'horde.retreat': (ctx: Ctx) => {
     const h = hordeState(ctx);
     assert(h.active, 'noRun');
-    ctx.s.modes.horde = { ...h, active: false };
+    ctx.s.modes.horde = { ...h, active: false, offer: undefined };
     return { horde: ctx.s.modes.horde };
   },
 };

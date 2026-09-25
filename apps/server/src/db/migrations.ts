@@ -123,4 +123,15 @@ CREATE TABLE IF NOT EXISTS bug_reports (
 CREATE INDEX IF NOT EXISTS bug_reports_at ON bug_reports (created_at DESC);
 `,
   },
+  {
+    id: 4,
+    sql: `
+-- язык бота, выбранный командой /lang (важнее языка Telegram)
+CREATE TABLE IF NOT EXISTS bot_users (
+  tg_id      TEXT PRIMARY KEY,
+  lang       TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+`,
+  },
 ];

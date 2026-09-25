@@ -25,7 +25,7 @@ import {
   type Ctx,
   farmLevel,
 } from '../core';
-import { weekKey } from '../state';
+import { createPlayer, weekKey } from '../state';
 
 const HOUR = 3600000;
 
@@ -202,6 +202,23 @@ export const economyActions = {
     if (p.autoSmelt !== undefined) st.autoSmelt = vInt(p.autoSmelt, -1, 4, 'autoSmelt');
     if (p.speed !== undefined) st.speed = p.speed === 2 ? 2 : 1;
     if (p.artStyle !== undefined) st.artStyle = vOneOf(p.artStyle, ART_STYLES, 'artStyle');
+    return {};
+  },
+
+  /**
+   * Полный сброс прогресса: игра начинается с нуля (героини, предметы, валюты, этапы, режимы).
+   * Сохраняются только настройки и имя. Нужна явная строка подтверждения — от случайного нажатия.
+   */
+  'account.reset': (ctx: Ctx, a: Action) => {
+    assert(a.confirm === 'RESET', 'badParam', { name: 'confirm' });
+    const { s } = ctx;
+    const fresh = createPlayer(ctx.cfg, s.id, s.name, ctx.now, s.settings.lang);
+    fresh.settings = { ...fresh.settings, ...s.settings };
+    // аккаунт, побывавший в режиме разработчика, остаётся помеченным
+    fresh.dev.used = s.dev.used;
+    for (const k of Object.keys(s) as (keyof typeof s)[]) if (!(k in fresh)) delete s[k];
+    Object.assign(s, fresh);
+    ctx.events.push({ name: 'account_reset', props: {} });
     return {};
   },
 

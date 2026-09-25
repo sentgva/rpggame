@@ -3,6 +3,14 @@ import {
   ENEMY_MAP,
   HERALD_BY_ELEMENT,
   HEROINE_MAP,
+  HORDE_BLESSING_MAP,
+  HORDE_BLESS_EVERY,
+  HORDE_SKIN_WAVES,
+  RIFT_TACTICS,
+  SKIN_MAP,
+  SPIRE_SKINS,
+  SPIRE_SKIN_FLOOR,
+  hordeBonus,
   MECHANIC_TEXT,
   RIFT_ROTATION,
   RIFT_TIERS,
@@ -46,7 +54,26 @@ async function playMode(type: string, params: Record<string, unknown>, title: st
 
 // ——— Разлом Колосса ———
 
+/** Последняя выбранная тактика — удобство игрока, хранится в браузере. */
+function savedTactic(): string {
+  try {
+    return localStorage.getItem('riftTactic') ?? 'none';
+  } catch {
+    return 'none';
+  }
+}
+
 export function Rift() {
+  const [tactic, setTactic] = useState(savedTactic);
+  const pickTactic = (id: string) => {
+    setTactic(id);
+    try {
+      localStorage.setItem('riftTactic', id);
+    } catch {
+      /* приватный режим — просто не запоминаем */
+    }
+  };
+  const tac = RIFT_TACTICS.find((x) => x.id === tactic) ?? RIFT_TACTICS[0];
   const s = useGameState();
   const cfg = useCfg();
   const now = useGame.getState().now();
@@ -90,19 +117,32 @@ export function Rift() {
         <div className={css.tiny} style={{ marginTop: 4 }}>
           {t('mode.riftRules', { hp: formatNum(boss.hp) })}
         </div>
+        <div className={css.tiny} style={{ marginTop: 8 }}>
+          {t('mode.riftTactic')}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4, marginTop: 4 }}>
+          {RIFT_TACTICS.map((x) => (
+            <button key={x.id} className={cx(css.chip, tactic === x.id && css.chipOn)} style={{ width: '100%', justifyContent: 'center', padding: '4px 2px', fontSize: 12 }} onClick={() => pickTactic(x.id)}>
+              {tl(x.name)}
+            </button>
+          ))}
+        </div>
+        <div className={css.tiny} style={{ marginTop: 4, minHeight: 16 }}>
+          {tl(tac.desc)}
+        </div>
         <div className={css.row} style={{ marginTop: 8 }}>
           <Button
             block
             size="big"
             disabled={left <= 0}
             onClick={() =>
-              void playMode('rift.fight', {}, tl(def.name), act, (res) => ({
+              void playMode('rift.fight', { tactic: tac.id }, tl(def.name), act, (res) => ({
                 outcome: (
                   <span style={{ color }}>
                     {t('mode.riftTier', { n: res.tier })} · {formatNum(res.dmg)} ({((100 * res.dmg) / res.hp).toFixed(1)}%)
                   </span>
                 ),
-                result: <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards }} />,
+                result: <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, items: res.reward.items }} />,
               }))
             }
           >
@@ -219,7 +259,7 @@ export function Spires() {
           disabled={!open || !party.length || floor > cfg.modes.spireFloors}
           onClick={() =>
             void playMode('spire.fight', { element: sel }, `${elementName(sel)} · ${t('mode.spireFloor', { n: floor })}`, 1, (res) => ({
-              result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards }} /> : undefined,
+              result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items }} /> : undefined,
             }))
           }
         >
@@ -228,6 +268,7 @@ export function Spires() {
         <div className={css.tiny} style={{ marginTop: 6 }}>
           {t('mode.spireRules', { name: tl(HEROINE_MAP[herald].name) })}
         </div>
+        <SkinGoal id={SPIRE_SKINS[sel]} text={t('mode.spireSkin', { n: SPIRE_SKIN_FLOOR })} />
       </Panel>
     </div>
   );
@@ -242,13 +283,17 @@ export function Horde() {
   const h = hordeState({ s, now });
   const usedToday = h.day === dayKey(now);
   const next = h.wave + 1;
-  const rw = hordeWaveReward({ cfg, s }, next);
+  const bonus = hordeBonus(h);
+  const rw = hordeWaveReward({ cfg, s }, next, bonus.rewardPct);
+  const offer = h.active ? h.offer : undefined;
+  const blessingCounts = (h.blessings ?? []).reduce<Record<string, number>>((m, id) => ((m[id] = (m[id] ?? 0) + 1), m), {});
   const act = ((next - 1) % 10) + 1;
   const fight = () =>
     void playMode('horde.fight', {}, t('mode.hordeWave', { n: next }), act, (res) => ({
       outcome: res.win ? t('mode.hordeCleared', { n: res.wave }) : t('mode.hordeFallen', { n: res.wave - 1 }),
-      result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards }} /> : undefined,
+      result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items }} /> : undefined,
     }));
+  const bless = (i: number) => void useGame.getState().act('horde.bless', { index: i });
   return (
     <div className={css.col}>
       <BackHeader title={t('mode.horde')} right={<span className={css.tiny}>{t('mode.hordeBest', { n: h.best, w: h.bestWeek })}</span>} />
@@ -275,6 +320,16 @@ export function Horde() {
             ))}
           </div>
         )}
+        {h.active && Object.keys(blessingCounts).length > 0 && (
+          <div className={css.row} style={{ gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+            {Object.entries(blessingCounts).map(([id, n]) => (
+              <span key={id} className={css.chip} title={tl(HORDE_BLESSING_MAP[id]?.desc)}>
+                ✦ {tl(HORDE_BLESSING_MAP[id]?.name)}
+                {n > 1 ? ` ×${n}` : ''}
+              </span>
+            ))}
+          </div>
+        )}
         <div className={css.tiny} style={{ margin: '8px 0 4px' }}>
           {t('mode.hordeNextReward')}
         </div>
@@ -285,7 +340,7 @@ export function Horde() {
         <div className={css.row} style={{ marginTop: 10 }}>
           {h.active ? (
             <>
-              <Button block size="big" onClick={fight}>
+              <Button block size="big" disabled={!!offer} onClick={fight}>
                 {t('mode.hordeNext')}
               </Button>
               <Button kind="secondary" style={{ flex: 'none', whiteSpace: 'nowrap' }} onClick={() => void useGame.getState().act('horde.retreat')}>
@@ -299,9 +354,49 @@ export function Horde() {
           )}
         </div>
       </Panel>
+      {offer && (
+        <Panel title={t('mode.hordeBlessTitle')}>
+          <div className={css.tiny} style={{ marginBottom: 6 }}>
+            {t('mode.hordeBlessDesc')}
+          </div>
+          <div className={css.col} style={{ gap: 6 }}>
+            {offer.map((id, i) => {
+              const b = HORDE_BLESSING_MAP[id];
+              return (
+                <button key={id + i} className={css.listItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2, width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => bless(i)}>
+                  <b style={{ color: '#f2c86a' }}>✦ {tl(b.name)}</b>
+                  <span className={css.tiny}>{tl(b.desc)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
+      )}
       <Panel>
         <div className={css.tiny}>{t('mode.hordeRules', { n: cfg.modes.hordeHealEvery })}</div>
+        <div className={css.tiny} style={{ marginTop: 4 }}>
+          {t('mode.hordeBlessRule', { n: HORDE_BLESS_EVERY })}
+        </div>
+        {Object.entries(HORDE_SKIN_WAVES).map(([w, id]) => (
+          <SkinGoal key={id} id={id} text={t('mode.hordeSkin', { n: w })} />
+        ))}
       </Panel>
+    </div>
+  );
+}
+
+/** Облик-награда за рубеж режима: получен или ещё впереди. */
+function SkinGoal({ id, text }: { id: string; text: string }) {
+  const owned = useGameState().skins.includes(id);
+  const sk = SKIN_MAP[id];
+  if (!sk) return null;
+  return (
+    <div className={css.row} style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
+      <HeroImg id={sk.hero} skin={id} still={!owned} className="pixel" width={40} height={40} style={{ opacity: owned ? 1 : 0.75 }} />
+      <div className={css.grow}>
+        <b style={{ fontSize: 13 }}>{tl(sk.name)}</b>
+        <div className={css.tiny}>{owned ? t('mode.skinOwned') : text}</div>
+      </div>
     </div>
   );
 }

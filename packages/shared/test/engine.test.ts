@@ -45,7 +45,19 @@ import {
   hordeState,
   spireParty,
   HEROINE_MAP,
+  HORDE_SKIN_WAVES,
+  SPIRE_SKINS,
   artStyleOf,
+  hordeBonus,
+  hordeWaveReward,
+  ENDGAME_SETS,
+  MODE_SET,
+  DAILY_QUESTS,
+  DUNGEONS,
+  dungeonOfDay,
+  dungeonReward,
+  towerMod,
+  towerReward,
   VECTOR_ART,
 } from '../src';
 
@@ -148,6 +160,26 @@ describe('действия', () => {
     expect(artStyleOf(undefined)).toBe(VECTOR_ART ? 'vector' : 'pixel');
     expect(artStyleOf('vector')).toBe(VECTOR_ART ? 'vector' : 'pixel');
     expect(artStyleOf('pixel')).toBe('pixel');
+  });
+
+  it('полный сброс: игра с нуля, настройки сохраняются, без подтверждения — ошибка', () => {
+    let s = fresh();
+    s = applyAction(s, { type: 'settings', patch: { lang: 'en', music: 0.2 } }, { cfg, now: T0 }).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'add', amount: 1e6 }, { cfg, now: T0 + 1000, dev: true }).state;
+    s = applyAction(s, { type: 'dev.hero', id: 'all', lvl: 20 }, { cfg, now: T0 + 2000, dev: true }).state;
+    expect(() => applyAction(s, { type: 'account.reset' }, { cfg, now: T0 + 3000 })).toThrow(GameError);
+    const r = applyAction(s, { type: 'account.reset', confirm: 'RESET' }, { cfg, now: T0 + 3000 }).state;
+    const base = createPlayer(cfg, '42', 'Tester', T0 + 3000);
+    expect(Object.keys(r.heroines).sort()).toEqual(Object.keys(base.heroines).sort());
+    expect(r.cur.gold).toBe(base.cur.gold);
+    expect(r.progress).toEqual(base.progress);
+    expect(r.tutorial).toBe(0);
+    expect(r.settings.lang).toBe('en');
+    expect(r.settings.music).toBe(0.2);
+    expect(r.dev.used).toBe(true);
+    // клиент и сервер получают одно и то же
+    const srv = applyAction(s, { type: 'account.reset', confirm: 'RESET' }, { cfg, now: T0 + 3000, server: true }).state;
+    expect(stateHash(srv)).toBe(stateHash(r));
   });
 
   it('dev-действия запрещены без флага разработчика', () => {
@@ -301,9 +333,10 @@ describe('ГПСЧ', () => {
 describe('облики и боевой пропуск', () => {
   const setSkins = SKINS.filter((x) => x.set);
 
-  it('коллекции: 20 летних и 20 бельевых, эксклюзивов мало, все продаются за кристаллы', () => {
+  it('коллекции: 20 летних, 20 бельевых и 15 маскарадных, эксклюзивов мало, все продаются за кристаллы', () => {
     expect(setSkins.filter((x) => x.set === 'summer')).toHaveLength(20);
     expect(setSkins.filter((x) => x.set === 'lingerie')).toHaveLength(20);
+    expect(setSkins.filter((x) => x.set === 'masquerade')).toHaveLength(15);
     const exclusive = setSkins.filter((x) => x.source === 'shop');
     expect(exclusive.length).toBeGreaterThan(0);
     expect(exclusive.length).toBeLessThanOrEqual(10);
@@ -316,7 +349,10 @@ describe('облики и боевой пропуск', () => {
       if (sk.source === 'arena' || sk.source === 'labyrinth' || sk.source === 'event')
         expect(SHOP_OFFERS.some((o) => o.shop === sk.source && o.give.skin === sk.id)).toBe(true);
       if (sk.source === 'tower') expect(Object.values(TOWER_SKIN_FLOORS)).toContain(sk.id);
+      if (sk.source === 'spire') expect(Object.values(SPIRE_SKINS)).toContain(sk.id);
+      if (sk.source === 'horde') expect(Object.values(HORDE_SKIN_WAVES)).toContain(sk.id);
     }
+    for (const id of [...Object.values(SPIRE_SKINS), ...Object.values(HORDE_SKIN_WAVES)]) expect(SKIN_MAP[id]?.source).toMatch(/spire|horde/);
     for (const id of Object.values(TOWER_SKIN_FLOORS)) expect(SKIN_MAP[id]).toBeTruthy();
     // облики пропуска попадают в ротацию сезонов
     const rotated = new Set<string>();
@@ -429,5 +465,140 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     expect(hordeState({ s, now: T0 }).active).toBe(false);
     expect(() => applyAction(s, { type: 'horde.start' }, { cfg, now: T0 + 3000 })).toThrow(GameError);
     expect(() => applyAction(s, { type: 'horde.start' }, { cfg, now: T0 + 86400000 })).not.toThrow();
+  });
+
+  it('Нашествие: после каждой 3-й волны — выбор благословения, без выбора дальше нельзя', () => {
+    let s = strong();
+    s = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    // подставляем состояние после 3-й волны с предложением
+    s.modes.horde = { ...s.modes.horde!, wave: 3, offer: ['fury', 'mend', 'greed'] };
+    expect(() => applyAction(s, { type: 'horde.fight' }, { cfg, now: T0 + 1000 })).toThrow(GameError);
+    const hurt = { ...s.modes.horde!.hp };
+    const ids = Object.keys(hurt);
+    hurt[ids[0]] = 0;
+    hurt[ids[1]] = 0.4;
+    s.modes.horde = { ...s.modes.horde!, hp: hurt };
+    // «Передышка» — мгновенно: лечит живых и поднимает павших, в список благословений не попадает
+    const m = applyAction(s, { type: 'horde.bless', index: 1 }, { cfg, now: T0 + 1000 }).state;
+    expect(m.modes.horde!.hp[ids[0]]).toBeCloseTo(0.3);
+    expect(m.modes.horde!.hp[ids[1]]).toBeCloseTo(0.9);
+    expect(m.modes.horde!.blessings).toEqual([]);
+    expect(m.modes.horde!.offer).toBeUndefined();
+    // «Ярость» копится в бонусах забега и действует в бою
+    const f = applyAction(s, { type: 'horde.bless', index: 0 }, { cfg, now: T0 + 1000 }).state;
+    expect(hordeBonus(f.modes.horde!).stats.atkPct).toBeCloseTo(0.2);
+    expect(() => applyAction(f, { type: 'horde.fight' }, { cfg, now: T0 + 2000 })).not.toThrow();
+    // «Жадность» увеличивает золото за волну
+    const g = applyAction(s, { type: 'horde.bless', index: 2 }, { cfg, now: T0 + 1000 }).state;
+    expect(hordeBonus(g.modes.horde!).rewardPct).toBeCloseTo(0.5);
+    expect(hordeWaveReward({ cfg, s: g }, 4, 0.5).cur.gold).toBeGreaterThan(hordeWaveReward({ cfg, s: g }, 4).cur.gold);
+  });
+
+  it('Нашествие: благословение предлагается ровно после 3-й волны', () => {
+    let s = strong();
+    s = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    s.modes.horde = { ...s.modes.horde!, wave: 2 };
+    const r = applyAction(s, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
+    if ((r.result as { win: boolean }).win && r.state.modes.horde!.active) expect(r.state.modes.horde!.offer).toHaveLength(3);
+  });
+
+  it('Башня: модификатор этажа и «Испытание» с двойной наградой', () => {
+    let s = strong();
+    s.modes.tower = 20;
+    expect(towerMod(21)).toBeTruthy();
+    expect(towerMod(30)).toBeNull();
+    expect(towerReward(21, true).crystals).toBe(towerReward(21).crystals * 2);
+    const easy = applyAction(s, { type: 'tower.fight' }, { cfg, now: T0 });
+    const hard = applyAction(s, { type: 'tower.fight', hard: true }, { cfg, now: T0 });
+    expect((hard.result as { hard: boolean }).hard).toBe(true);
+    expect((easy.result as { mod: string }).mod).toBe(towerMod(21)!.id);
+    if ((hard.result as { win: boolean }).win) expect(hard.state.cur.crystals - s.cur.crystals).toBe(towerReward(21, true).crystals);
+  });
+
+  it('Разлом: тактика меняет бой, неизвестная тактика — ошибка', () => {
+    const s = strong();
+    const plain = applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 }).result as { dmg: number; tactic: string };
+    const assault = applyAction(s, { type: 'rift.fight', tactic: 'assault' }, { cfg, now: T0 }).result as { dmg: number; tactic: string };
+    expect(plain.tactic).toBe('none');
+    expect(assault.tactic).toBe('assault');
+    expect(assault.dmg).not.toBe(plain.dmg);
+    expect(() => applyAction(s, { type: 'rift.fight', tactic: 'cheat' }, { cfg, now: T0 })).toThrow(GameError);
+  });
+
+  it('Облики «Маскарада» за рубежи: 25-й этаж шпиля и рекорды Нашествия', () => {
+    let s = strong();
+    s.modes.spires = { dark: 24 };
+    for (let i = 0; i < 3 && !s.skins.includes(SPIRE_SKINS.dark); i++) {
+      const r = applyAction(s, { type: 'spire.fight', element: 'dark' }, { cfg, now: T0 + i });
+      if ((r.result as { win: boolean }).win) {
+        s = r.state;
+        expect(s.skins).toContain(SPIRE_SKINS.dark);
+      }
+    }
+    let h = strong();
+    h = applyAction(h, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    h.modes.horde = { ...h.modes.horde!, wave: 40 };
+    const r = applyAction(h, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
+    if ((r.result as { win: boolean }).win) {
+      expect(r.state.skins).toEqual(expect.arrayContaining([HORDE_SKIN_WAVES[20], HORDE_SKIN_WAVES[40]]));
+      expect(r.state.skins).not.toContain(HORDE_SKIN_WAVES[60]);
+    }
+  });
+
+  it('Сеты режимов: не куются, выпадают в Разломе и Нашествии', () => {
+    let s = strong();
+    s = applyAction(s, { type: 'dev.cur', cur: 'forgeMats', op: 'add', amount: 10000 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'add', amount: 1e12 }, { cfg, now: T0, dev: true }).state;
+    expect(() => applyAction(s, { type: 'forge.craft', recipe: 'setLegendary', set: 'colossus' }, { cfg, now: T0 })).toThrow(GameError);
+    expect(() => applyAction(s, { type: 'forge.craft', recipe: 'setLegendary', set: 'nope' }, { cfg, now: T0 })).toThrow(GameError);
+    expect(ENDGAME_SETS).not.toContain('colossus');
+    expect(MODE_SET).toEqual({ rift: 'colossus', horde: 'warband', spires: 'prism', tower: 'harlequin' });
+    // Разлом: ярус 4+ — часть «Доспеха Колосса»
+    const r = applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 });
+    const res = r.result as { tier: number; reward: { items?: string[] } };
+    if (res.tier >= 4) {
+      expect(res.reward.items).toHaveLength(1);
+      expect(r.state.items[res.reward.items![0]].set).toBe('colossus');
+    } else expect(res.reward.items).toBeUndefined();
+    // Нашествие: 10-я волна — часть «Знамени Орды»
+    let h = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    h.modes.horde = { ...h.modes.horde!, wave: 9 };
+    const w = applyAction(h, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
+    const wr = w.result as { win: boolean; reward: { items?: string[] } | null };
+    if (wr.win) expect(w.state.items[wr.reward!.items![0]].set).toBe('warband');
+  });
+
+  it('Подземелье дня: награда ×1.5', () => {
+    const s = strong();
+    const id = dungeonOfDay(T0);
+    const base = dungeonReward({ cfg, s }, id, 5) as { cur?: Record<string, number>; gems?: { count: number } };
+    const hot = dungeonReward({ cfg, s, now: T0 }, id, 5) as { cur?: Record<string, number>; gems?: { count: number } };
+    const other = DUNGEONS.find((d) => d.id !== id)!.id;
+    const v = (x: typeof base) => (x.cur ? Object.values(x.cur)[0] : x.gems!.count);
+    expect(v(hot)).toBeGreaterThan(v(base));
+    expect(dungeonReward({ cfg, s, now: T0 }, other, 5)).toEqual(dungeonReward({ cfg, s }, other, 5));
+  });
+
+  it('Удобство: «Забрать всё» в заданиях и экспедициях, «Зачистить все» подземелья', () => {
+    const s = strong();
+    for (const qd of DAILY_QUESTS.slice(0, 3)) s.quests.daily[qd.counter] = qd.target;
+    const q = applyAction(s, { type: 'quest.claimAll' }, { cfg, now: T0 + 20000 });
+    expect((q.result as { n: number }).n).toBeGreaterThanOrEqual(3);
+    for (const qd of DAILY_QUESTS.slice(0, 3)) expect(q.state.quests.dailyClaimed).toContain(qd.id);
+    expect(() => applyAction(q.state, { type: 'quest.claimAll' }, { cfg, now: T0 + 20000 })).toThrow(GameError);
+    // подземелья: пройденный уровень есть — все ключи уходят за раз
+    s.modes.dungeons = { gold: 3, xp: 2 };
+    const d = applyAction(s, { type: 'dungeon.sweepAll' }, { cfg, now: T0 });
+    expect((d.result as { times: number }).times).toBe(cfg.modes.dungeonKeys * 2);
+    expect(() => applyAction(d.state, { type: 'dungeon.sweepAll' }, { cfg, now: T0 })).toThrow(GameError);
+  });
+
+  it('5 новых героинь в призыве, у каждой есть облик «Маскарада»', () => {
+    const pool = Object.values(SUMMON_POOL).flat();
+    for (const id of ['zarina', 'yuki', 'melusine', 'roxana', 'tamamo']) {
+      expect(HEROINE_MAP[id]).toBeTruthy();
+      expect(pool).toContain(id);
+      expect(SKIN_MAP[`${id}_masq`]).toBeTruthy();
+    }
   });
 });

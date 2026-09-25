@@ -1,5 +1,5 @@
 import type { Config } from '../config';
-import { ACTS, CLASSES, ENEMY_MAP, HEROINE_MAP, ROLE_STATS, SKILL_MAP, STAGES_PER_DIFF, type EnemyDef, type StageRef } from '../content';
+import { ACTS, CLASSES, ENEMY_MAP, HEROINE_MAP, ROLE_STATS, SKILL_MAP, STAGES_PER_DIFF, type EnemyDef, type EnemyMod, type StageRef } from '../content';
 import { Rng, mixSeed } from '../rng';
 import type { ClassId, FinalStats, PlayerState, SpecialEffect, Stats } from '../types';
 import type { SkillRef, UnitInit, UnitKind } from './battle';
@@ -44,6 +44,21 @@ export function heroUnits(cfg: Config, s: PlayerState, slots: (string | null)[],
     });
   });
   return out;
+}
+
+/** Модификатор режима к врагам: множители здоровья, атаки, защиты и скорости. */
+export function modEnemies(units: UnitInit[], m?: EnemyMod): UnitInit[] {
+  if (!m) return units;
+  return units.map((u) => ({
+    ...u,
+    stats: {
+      ...u.stats,
+      hp: Math.round(u.stats.hp * (m.hp ?? 1)),
+      atk: Math.round(u.stats.atk * (m.atk ?? 1)),
+      def: Math.round(u.stats.def * (m.def ?? 1)),
+      spd: Math.round(u.stats.spd * (m.spd ?? 1)),
+    },
+  }));
 }
 
 export function diffOfGlobal(n: number): number {

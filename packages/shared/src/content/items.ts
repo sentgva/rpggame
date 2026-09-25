@@ -239,6 +239,8 @@ export interface SetDef {
   fx4?: SpecialEffect;
   bonus6?: Stats;
   fx6: SpecialEffect;
+  /** Сет режима: только добыча в своём режиме (не куётся и не выпадает в кампании). */
+  mode?: 'rift' | 'horde' | 'spires' | 'tower';
 }
 export const SET_SLOTS: ItemSlot[] = ['helmet', 'armor', 'gloves', 'boots', 'belt', 'cloak'];
 
@@ -279,9 +281,16 @@ export const SETS: SetDef[] = [
   S('aether', 'Эфирное облачение', 'Aether Vestments', 11, { energyRegen: 0.25 }, { dmgUlt: 0.35 }, { id: 'ultTeamHeal', v: 1.5 }),
   S('valhalla', 'Вальхалла', 'Valhalla', 11, { atkPct: 0.2 }, { lifesteal: 0.12 }, { id: 'lastStand', v: 0.4 }),
   S('nightmare', 'Кошмар', 'Nightmare', 11, { dmgSkill: 0.25 }, { dmgDot: 0.35 }, { id: 'echo', n: 3 }),
+  // ——— сеты режимов: добываются только в своём режиме ———
+  { ...S('colossus', 'Доспех Колосса', 'Colossus Plate', 12, { hpPct: 0.18 }, { dmgBoss: 0.3 }, { id: 'auraDef', v: 0.15 }), mode: 'rift' },
+  { ...S('warband', 'Знамя Орды', 'Warband Banner', 12, { atkPct: 0.12 }, { lifesteal: 0.1 }, { id: 'killStack', v: 0.12, n: 6 }), mode: 'horde' },
+  { ...S('prism', 'Стихийная призма', 'Elemental Prism', 12, { resist: 0.12, energyRegen: 0.1 }, { dmgSkill: 0.2 }, { id: 'cleanseTurn', v: 0.35 }), mode: 'spires' },
+  { ...S('harlequin', 'Наряд арлекина', 'Harlequin Motley', 12, { eva: 0.1 }, { crit: 0.12 }, { id: 'auraCrit', v: 0.1 }), mode: 'tower' },
 ];
 export const SET_MAP: Record<string, SetDef> = Object.fromEntries(SETS.map((s) => [s.id, s]));
-export const ENDGAME_SETS = SETS.filter((s) => s.act > 10).map((s) => s.id);
+export const ENDGAME_SETS = SETS.filter((s) => s.act > 10 && !s.mode).map((s) => s.id);
+/** Сет, который добывается в режиме. */
+export const MODE_SET: Record<NonNullable<SetDef['mode']>, string> = Object.fromEntries(SETS.filter((s) => s.mode).map((s) => [s.mode!, s.id])) as Record<NonNullable<SetDef['mode']>, string>;
 
 // ——— Легендарные предметы с уникальными эффектами ———
 export interface UniqueDef {
@@ -322,6 +331,16 @@ export const LEGENDARIES: UniqueDef[] = [
   { id: 'venomRing', name: { ru: 'Кольцо яда', en: 'Ring of Venom' }, slot: 'ring', fx: { id: 'poisonOnHit', v: 0.3 } },
   { id: 'sparkRing', name: { ru: 'Кольцо искр', en: 'Ring of Sparks' }, slot: 'ring', fx: { id: 'critEnergy', n: 10 } },
   { id: 'firstBloodRing', name: { ru: 'Кольцо первой крови', en: 'Ring of First Blood' }, slot: 'ring', fx: { id: 'firstStrike', v: 0.5 } },
+  // ——— новые легендарки ———
+  { id: 'foxfireBow', name: { ru: 'Лук лисьего огня', en: 'Foxfire Bow' }, slot: 'weapon', type: 'bow', fx: { id: 'burnOnHit', v: 0.4 } },
+  { id: 'tidecaller', name: { ru: 'Посох Зова прилива', en: 'Tidecaller Staff' }, slot: 'weapon', type: 'staff', fx: { id: 'startEnergy', n: 40 } },
+  { id: 'snowfang', name: { ru: 'Снежные клыки', en: 'Snowfangs' }, slot: 'weapon', type: 'daggers', fx: { id: 'frozenVuln', v: 0.35 } },
+  { id: 'arenaAxe', name: { ru: 'Секира любимицы арены', en: "Crowd-Pleaser's Axe" }, slot: 'weapon', type: 'axe', fx: { id: 'killStack', v: 0.1, n: 5 } },
+  { id: 'gladiatorShield', name: { ru: 'Щит гладиатора', en: "Gladiator's Shield" }, slot: 'offhand', type: 'shield', fx: { id: 'tauntStart', n: 2 } },
+  { id: 'harlequinMask', name: { ru: 'Маска арлекина', en: 'Harlequin Mask' }, slot: 'helmet', fx: { id: 'auraCrit', v: 0.08 } },
+  { id: 'coinBelt', name: { ru: 'Пояс звенящих монет', en: 'Belt of Jingling Coins' }, slot: 'belt', fx: { id: 'auraSpd', n: 4 } },
+  { id: 'dragonHeart', name: { ru: 'Сердце морского дракона', en: 'Heart of the Sea Dragon' }, slot: 'amulet', fx: { id: 'cleanseTurn', v: 0.4 } },
+  { id: 'bulwarkCloak', name: { ru: 'Плащ несокрушимой', en: 'Cloak of the Unyielding' }, slot: 'cloak', fx: { id: 'auraDef', v: 0.1 } },
 ];
 export const LEGENDARY_MAP: Record<string, UniqueDef> = Object.fromEntries(LEGENDARIES.map((x) => [x.id, x]));
 

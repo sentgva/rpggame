@@ -17,6 +17,12 @@ import {
   dungeonStage,
   gemKey,
   towerStage,
+  DUNGEONS,
+  DUNGEON_DAY_BONUS,
+  TOWER_HARD,
+  TOWER_HARD_REWARD,
+  dungeonOfDay,
+  towerMod,
 } from '../../content';
 import { Rng, hashStr, mixSeed } from '../../rng';
 import type { ArenaOpponent, HeroineState, LabyrinthRun, SpecialEffect, Stats } from '../../types';
@@ -37,31 +43,34 @@ import {
   vStrArr,
   xpPerMin,
   type Ctx,
+  grantModeSetPiece,
 } from '../core';
 import { dayKey, weekKey } from '../state';
 import { activeParty, addStats, buildHeroine, partyPower } from '../stats';
-import { customEnemies, heroUnits } from '../units';
+import { customEnemies, heroUnits, modEnemies } from '../units';
 import { currentParty, runBattle, stripRaw } from './battle';
 import { onExpedition } from './heroes';
 
 // ——— подземелья ———
 
-export function dungeonReward(ctx: Pick<Ctx, 'cfg' | 's'>, id: string, level: number) {
+/** Награда уровня подземелья; с now учитывается бонус «подземелья дня». */
+export function dungeonReward(ctx: Pick<Ctx, 'cfg' | 's'> & { now?: number }, id: string, level: number) {
   const { cfg, s } = ctx;
   const n = dungeonStage(level);
   const def = DUNGEON_MAP[id];
+  const k = ctx.now !== undefined && dungeonOfDay(ctx.now) === id ? DUNGEON_DAY_BONUS : 1;
   switch (def.reward) {
     case 'gold':
-      return { cur: { gold: Math.floor(goldPerMin(cfg, s, n) * 90) } };
+      return { cur: { gold: Math.floor(goldPerMin(cfg, s, n) * 90 * k) } };
     case 'xp':
-      return { cur: { xp: Math.floor(xpPerMin(cfg, s, n) * 90) } };
+      return { cur: { xp: Math.floor(xpPerMin(cfg, s, n) * 90 * k) } };
     case 'dust':
-      return { cur: { dust: Math.floor(40 + 25 * Math.pow(level, 1.4)) } };
+      return { cur: { dust: Math.floor((40 + 25 * Math.pow(level, 1.4)) * k) } };
     case 'starDust':
-      return { cur: { starDust: Math.floor(15 + 12 * level) } };
+      return { cur: { starDust: Math.floor((15 + 12 * level) * k) } };
     default: {
       const lvl = Math.min(8, 1 + Math.floor((level - 1) / 3));
-      return { gems: { count: 2 + Math.floor(level / 5), lvl } };
+      return { gems: { count: Math.round((2 + Math.floor(level / 5)) * k), lvl } };
     }
   }
 }
@@ -109,11 +118,12 @@ function towerEnemies(ctx: Ctx, floor: number): UnitInit[] {
   return customEnemies(ctx.cfg, towerStage(floor), list);
 }
 
-export function towerReward(floor: number) {
+export function towerReward(floor: number, hard = false) {
   const boss = floor % 10 === 0;
+  const k = hard ? TOWER_HARD_REWARD : 1;
   return {
-    crystals: (2 + Math.floor(floor / 40)) * (boss ? 4 : 1),
-    starDust: Math.floor((5 + floor / 5) * (boss ? 3 : 1)),
+    crystals: (2 + Math.floor(floor / 40)) * (boss ? 4 : 1) * k,
+    starDust: Math.floor((5 + floor / 5) * (boss ? 3 : 1)) * k,
     skin: TOWER_SKIN_FLOORS[floor],
   };
 }
@@ -282,23 +292,57 @@ export const modeActions = {
     return { rewards };
   },
 
-  'tower.fight': (ctx: Ctx) => {
+  /** Этаж Башни: модификатор этажа и по желанию «Испытание» (враги сильнее, награда ×2). */
+  /** Зачистить все подземелья: оставшиеся ключи — на лучший пройденный уровень каждого. */
+  'dungeon.sweepAll': (ctx: Ctx) => {
+    const { s, cfg } = ctx;
+    requireUnlocked(ctx, 'dungeons');
+    const cur: Record<string, number> = {};
+    const gems: Record<string, number> = {};
+    let times = 0;
+    for (const d of DUNGEONS) {
+      const level = s.modes.dungeons[d.id] ?? 0;
+      const left = cfg.modes.dungeonKeys - (s.day.keys[d.id] ?? 0);
+      for (let i = 0; level > 0 && i < left; i++) {
+        s.day.keys[d.id] = (s.day.keys[d.id] ?? 0) + 1;
+        const r = grantDungeon(ctx, d.id, level);
+        for (const [k, v] of Object.entries(r.cur ?? {})) cur[k] = (cur[k] ?? 0) + ((v as number) ?? 0);
+        for (const [k, v] of Object.entries(r.gems ?? {})) gems[k] = (gems[k] ?? 0) + v;
+        track(ctx, 'dungeon', 1);
+        times++;
+      }
+    }
+    assert(times > 0, 'noKeys');
+    return { cur, gems, times };
+  },
+
+  'tower.fight': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'tower');
     const floor = s.modes.tower + 1;
     assert(floor <= cfg.modes.towerFloors, 'maxRank');
-    const b = runBattle(ctx, towerEnemies(ctx, floor), heroUnits(cfg, s, currentParty(ctx)), cfg.battle.bossTimeLimit);
+    const hard = a.hard === true;
+    const mod = towerMod(floor);
+    let enemies = modEnemies(towerEnemies(ctx, floor), mod?.enemy);
+    if (hard) enemies = modEnemies(enemies, TOWER_HARD);
+    const b = runBattle(ctx, enemies, heroUnits(cfg, s, currentParty(ctx), { extra: mod?.hero }), cfg.battle.bossTimeLimit);
     let reward = null;
     if (b.win) {
       s.modes.tower = floor;
-      const r = towerReward(floor);
+      const r = towerReward(floor, hard);
       give(ctx, { crystals: r.crystals, starDust: r.starDust });
       if (r.skin && !s.skins.includes(r.skin)) s.skins.push(r.skin);
-      reward = r;
+      reward = { ...r, items: undefined as string[] | undefined };
+      // Наряд арлекина: за «Испытание» на этаже стража
+      if (hard && floor % 10 === 0) {
+        const uid = grantModeSetPiece(ctx, 'tower');
+        if (uid) reward.items = [uid];
+      }
       track(ctx, 'towerWin', 1);
     }
-    ctx.events.push({ name: 'tower', props: { floor, win: b.win } });
-    return { battle: stripRaw(b), win: b.win, floor, reward };
+    if (b.win && hard) track(ctx, 'towerHard', 1);
+    ctx.events.push({ name: 'tower', props: { floor, win: b.win, hard, mod: mod?.id ?? null } });
+    return { battle: stripRaw(b), win: b.win, floor, reward, hard, mod: mod?.id ?? null };
   },
 
   'abyss.fight': (ctx: Ctx) => {
@@ -371,6 +415,20 @@ export const modeActions = {
     s.modes.expeditions = s.modes.expeditions.filter((x) => x.id !== id);
     track(ctx, 'expedition', 1);
     return { cur, shards };
+  },
+
+  /** Забрать все завершённые экспедиции разом. */
+  'expedition.claimAll': (ctx: Ctx) => {
+    const done = ctx.s.modes.expeditions.filter((x) => ctx.now >= x.end).map((x) => x.id);
+    assert(done.length > 0, 'notDone');
+    const cur: Record<string, number> = {};
+    const shards: Record<string, number> = {};
+    for (const id of done) {
+      const r = modeActions['expedition.claim'](ctx, { type: 'expedition.claim', id });
+      for (const [k, v] of Object.entries(r.cur)) cur[k] = (cur[k] ?? 0) + (v ?? 0);
+      for (const [k, v] of Object.entries(r.shards ?? {})) shards[k] = (shards[k] ?? 0) + v;
+    }
+    return { cur, shards, n: done.length };
   },
 
   'expedition.cancel': (ctx: Ctx, a: Action) => {

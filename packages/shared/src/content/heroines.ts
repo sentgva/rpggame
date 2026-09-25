@@ -17,10 +17,12 @@ export type Accessory =
   | 'bandana'
   | 'catEars'
   | 'sunHat'
-  | 'bow';
+  | 'bow'
+  | 'bunnyEars'
+  | 'maidBand';
 
-/** Сменный наряд облика: купальники (swim*) и бельё (lace*) вместо классового костюма. */
-export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia';
+/** Сменный наряд облика: купальники (swim*), бельё (lace*), маскарадные (bunny, maid) вместо классового костюма. */
+export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia' | 'bunny' | 'maid';
 
 export interface Look {
   hair: string;
@@ -34,7 +36,7 @@ export interface Look {
   accColor?: string;
   /** Крылья/хвосты для владычиц и монстродевушек. */
   extra?: 'wings' | 'darkWings' | 'tail' | 'snake' | 'fishTail' | 'scorpion' | 'vines' | 'gears' | 'none';
-  /** Сменный наряд (только у обликов). */
+  /** Сменный наряд вместо классового костюма (у обликов; у Зарины — родной наряд танцовщицы). */
   wear?: Wear;
 }
 
@@ -294,6 +296,33 @@ export const HEROINES: HeroineDef[] = [
     { ru: 'Я… я… повторю ещё раз.', en: "I'll… I'll… say it again." },
     { hair: '#4A3A6A', style: 'bob', skin: SK.pale, eyes: '#C04AE0', outfit: '#2A2238', trim: '#E6E0F0', acc: 'none' }),
 
+  // ——— Новенькие: гостьи из дальних земель ———
+  h('zarina', 'Зарина', 'Zarina', 'bard', 'fire', 'SSR',
+    { ru: 'Танцовщица оазиса', en: 'Oasis Dancer' },
+    { ru: 'Звезда караванных стоянок Пустыни миражей. Её танец с монетками зажигает в отряде боевой азарт, а браслеты звенят в такт ударам.', en: 'The star of caravan camps in the Desert of Mirages. Her coin dance fires up the squad, and her bracelets jingle in time with every strike.' },
+    { ru: 'Смотри на меня — и не отставай!', en: 'Watch me — and keep up!' },
+    { hair: '#1E1414', style: 'long', skin: SK.tan, eyes: '#E0A13A', outfit: '#B8322C', trim: '#E8C050', acc: 'veil', accColor: '#E890B0', wear: 'dancer' }),
+  h('yuki', 'Юки', 'Yuki', 'assassin', 'water', 'SR',
+    { ru: 'Снежная куноити', en: 'Snow Kunoichi' },
+    { ru: 'Ученица клана, выросшая на Ледяном пике. Ходит босиком по снегу и исчезает в метели прежде, чем враг успеет моргнуть.', en: 'A clan disciple raised on the Frozen Peak. She walks barefoot on snow and vanishes into the blizzard before the enemy can blink.' },
+    { ru: 'Холодно? Это ненадолго.', en: 'Cold? Not for long.' },
+    { hair: '#E6F2FF', style: 'ponytail', skin: SK.pale, eyes: '#6FB0F0', outfit: '#1E2A4A', trim: '#9FE0FF', acc: 'mask', accColor: '#E6F2FF' }),
+  h('melusine', 'Мелюзина', 'Melusine', 'sorceress', 'water', 'UR',
+    { ru: 'Дочь морского дракона', en: 'Daughter of the Sea Dragon' },
+    { ru: 'Наследница древнего дракона глубин. Рога и хвост она не прячет, а штормовая магия слушается её лучше, чем волны — луну.', en: 'Heiress of an ancient dragon of the deep. She never hides her horns and tail, and storm magic obeys her better than the tides obey the moon.' },
+    { ru: 'Буря — это просто моё настроение.', en: 'A storm is just my mood.' },
+    { hair: '#2EB0B0', style: 'wild', skin: SK.fair, eyes: '#F2D46B', outfit: '#1E3A5A', trim: '#6FE0D0', acc: 'horns', accColor: '#E6E0D0', extra: 'tail' }),
+  h('roxana', 'Роксана', 'Roxana', 'berserker', 'light', 'R',
+    { ru: 'Гладиаторша арены', en: 'Arena Gladiatrix' },
+    { ru: 'Любимица публики Небесного архипелага. Выходит на песок в одном шлеме и доспехах на честном слове — и уходит под овации.', en: 'The crowd favourite of the Sky Archipelago. She steps onto the sand in little more than a helmet — and leaves to a standing ovation.' },
+    { ru: 'Громче! Я вас не слышу!', en: "Louder! I can't hear you!" },
+    { hair: '#B8602A', style: 'wild', skin: SK.light, eyes: '#5AA0E0', outfit: '#8A4A2A', trim: '#E8C050', acc: 'helmet', accColor: '#E8C050' }),
+  h('tamamo', 'Тамамо', 'Tamamo', 'archer', 'fire', 'SSR',
+    { ru: 'Кицунэ', en: 'Kitsune' },
+    { ru: 'Лиса-оборотень с огненными стрелами. Хитрая, насмешливая и падкая на лесть — но за своих стоит горой.', en: 'A fox spirit with fiery arrows. Sly, teasing and weak to flattery — but fiercely loyal to her own.' },
+    { ru: 'Попался, хвостик мой!', en: "Gotcha, you're mine!" },
+    { hair: '#F08A24', style: 'long', skin: SK.fair, eyes: '#E0532A', outfit: '#F2ECE4', trim: '#E03A3A', acc: 'catEars', accColor: '#F08A24', extra: 'tail' }),
+
   // ——— Владычицы (боссы актов, играбельны с Кошмара) ———
   h('sylvana', 'Сильвана', 'Sylvana', 'priestess', 'nature', 'UR',
     { ru: 'Дриада-матриарх', en: 'Dryad Matriarch' },
@@ -403,17 +432,20 @@ for (const x of HEROINES) if (!x.boss && !x.herald) SUMMON_POOL[x.rarity].push(x
 /** Стартовые героини: Лира выдаётся в обучении. */
 export const STARTER_HEROINES = ['lira', 'coral', 'seyra', 'hanna'];
 
+export type SkinSet = 'summer' | 'lingerie' | 'masquerade';
+export const SKIN_SETS: SkinSet[] = ['summer', 'lingerie', 'masquerade'];
+
 /** Облики (скины): +3% к статам, альтернативная палитра. */
 export interface SkinDef {
   id: string;
   hero: string;
   name: L10n;
   look: Partial<Look>;
-  source: 'shop' | 'tower' | 'labyrinth' | 'pass' | 'event' | 'arena';
+  source: 'shop' | 'tower' | 'labyrinth' | 'pass' | 'event' | 'arena' | 'spire' | 'horde';
   /** Цена в магазине обликов (кристаллы). */
   crystals?: number;
-  /** Коллекция: летние купальники или бельё. */
-  set?: 'summer' | 'lingerie';
+  /** Коллекция: летние купальники, бельё или «Маскарад». */
+  set?: SkinSet;
 }
 
 export const SKINS: SkinDef[] = [
@@ -491,6 +523,25 @@ const LINGERIE: SetSkin[] = [
   ['liora', 'lace3', 'none', '#D49A1E', '#1E1A1A', 'Золотой час', 'Golden Hour'],
 ];
 
+/** Коллекция «Маскарад»: владычицы и новенькие в костюмах кролика, горничной и не только. */
+const MASQUERADE: SetSkin[] = [
+  ['sylvana', 'maid', 'maidBand', '#2F5A2A', '#F2E6D8', 'Лесная горничная', 'Forest Maid'],
+  ['nefertari', 'bunny', 'bunnyEars', '#1E1A1A', '#E0A13A', 'Золотой кролик', 'Golden Bunny', '#1E1A1A'],
+  ['skadi', 'bunny', 'bunnyEars', '#E6F2FF', '#3D7BE0', 'Снежный кролик', 'Snow Bunny', '#E6F2FF'],
+  ['thalassia', 'lace4', 'mask', '#1E3A4A', '#6FD0E0', 'Бал утопленниц', 'Drowned Ball', '#6FD0E0'],
+  ['carmilla', 'maid', 'maidBand', '#1E1420', '#E03A3A', 'Горничная графини', "Countess's Maid"],
+  ['ifrita', 'bunny', 'bunnyEars', '#B8322C', '#FFE040', 'Огненный кролик', 'Fire Bunny', '#B8322C'],
+  ['brunhilde', 'maid', 'maidBand', '#3A4A6A', '#E8C050', 'Горничная Вальхаллы', 'Valhalla Maid'],
+  ['aegis', 'dancer', 'veil', '#F2F0E6', '#E8C050', 'Танец зари', 'Dawn Dance', '#F2D46B'],
+  ['morrigan', 'lace3', 'mask', '#1E1A2A', '#9B4DE0', 'Вороний бал', "Raven's Ball", '#1E1A2A'],
+  ['nyx', 'bunny', 'bunnyEars', '#1E1A2A', '#9B4DE0', 'Лунный кролик', 'Moon Bunny', '#2A2036'],
+  ['zarina', 'bunny', 'bunnyEars', '#E03A6A', '#E8C050', 'Кролик-кабаре', 'Cabaret Bunny', '#E03A6A'],
+  ['yuki', 'maid', 'maidBand', '#1E2A4A', '#F2F0E6', 'Горничная-тень', 'Shadow Maid'],
+  ['melusine', 'lace4', 'mask', '#1E3A5A', '#F2D46B', 'Маска дракона', 'Dragon Mask', '#F2D46B'],
+  ['roxana', 'bunny', 'bunnyEars', '#E8C050', '#1E1A1A', 'Кролик арены', 'Arena Bunny', '#E8C050'],
+  ['tamamo', 'maid', 'maidBand', '#E03A3A', '#F2F0E6', 'Лисья горничная', 'Fox Maid'],
+];
+
 /**
  * Где добывается облик коллекции (кроме магазина за кристаллы, где продаются все).
  * 'shop' — эксклюзив магазина: только за кристаллы.
@@ -502,17 +553,25 @@ const SET_SOURCE: Record<string, SkinDef['source']> = {
   seyra_beach: 'labyrinth', flora_beach: 'labyrinth', liana_beach: 'labyrinth', melisandre_lace: 'labyrinth', ash_lace: 'labyrinth',
   nerissa_beach: 'event', echo_beach: 'event', belladonna_lace: 'event', undine_lace: 'event',
   coral_beach: 'tower', brianna_beach: 'tower', ophelia_lace: 'tower', elegy_lace: 'tower',
+  // «Маскарад»: рубежи Стихийных шпилей и Нашествия, арена, лабиринт, ивент и два эксклюзива магазина
+  ifrita_masq: 'spire', skadi_masq: 'spire', sylvana_masq: 'spire', brunhilde_masq: 'spire', carmilla_masq: 'spire',
+  roxana_masq: 'horde', morrigan_masq: 'horde', nefertari_masq: 'horde',
+  zarina_masq: 'shop', melusine_masq: 'shop', tamamo_masq: 'event',
+  yuki_masq: 'arena', aegis_masq: 'arena', thalassia_masq: 'labyrinth', nyx_masq: 'labyrinth',
 };
+
+const SET_SUFFIX: Record<SkinSet, string> = { summer: 'beach', lingerie: 'lace', masquerade: 'masq' };
 
 for (const [set, list] of [
   ['summer', SUMMER],
   ['lingerie', LINGERIE],
+  ['masquerade', MASQUERADE],
 ] as const)
   for (const [hero, wear, acc, outfit, trim, ru, en, accColor] of list) {
     const look: Partial<Look> = { wear, outfit, trim };
     if (acc) look.acc = acc;
     if (accColor) look.accColor = accColor;
-    const id = `${hero}_${set === 'summer' ? 'beach' : 'lace'}`;
+    const id = `${hero}_${SET_SUFFIX[set]}`;
     const rarity = HEROINES.find((x) => x.id === hero)!.rarity;
     const source = SET_SOURCE[id] ?? 'pass';
     // эксклюзивы магазина чуть дороже
@@ -521,3 +580,9 @@ for (const [set, list] of [
   }
 
 export const SKIN_MAP: Record<string, SkinDef> = Object.fromEntries(SKINS.map((s) => [s.id, s]));
+
+/** Облики за рубежи Стихийных шпилей: этаж → облик по стихии шпиля. */
+export const SPIRE_SKIN_FLOOR = 25;
+export const SPIRE_SKINS: Record<Element, string> = { fire: 'ifrita_masq', water: 'skadi_masq', nature: 'sylvana_masq', light: 'brunhilde_masq', dark: 'carmilla_masq' };
+/** Облики за рекорд Нашествия: волна → облик. */
+export const HORDE_SKIN_WAVES: Record<number, string> = { 20: 'roxana_masq', 40: 'morrigan_masq', 60: 'nefertari_masq' };

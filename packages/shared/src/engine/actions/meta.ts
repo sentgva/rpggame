@@ -122,6 +122,47 @@ export const metaActions = {
     return { reward };
   },
 
+  /** «Забрать всё»: все выполненные задания дня и недели, затем открывшиеся сундуки активности. */
+  'quest.claimAll': (ctx: Ctx) => {
+    const { s, cfg } = ctx;
+    const total: Record<string, number> = {};
+    const add = (r: Partial<Record<string, number>>) => {
+      for (const [k, v] of Object.entries(r)) total[k] = (total[k] ?? 0) + (v ?? 0);
+    };
+    let n = 0;
+    for (const [list, prog, claimed, daily] of [
+      [DAILY_QUESTS, s.quests.daily, s.quests.dailyClaimed, true],
+      [WEEKLY_QUESTS, s.quests.weekly, s.quests.weeklyClaimed, false],
+    ] as const) {
+      for (const q of list) {
+        if (claimed.includes(q.id) || (prog[q.counter] ?? 0) < q.target) continue;
+        claimed.push(q.id);
+        const reward = scaleReward(cfg, s, q.reward);
+        give(ctx, reward);
+        add(reward);
+        s.shop.passXp += q.activity;
+        if (daily) track(ctx, 'dailyDone', 1);
+        n++;
+      }
+    }
+    // сундуки — после заданий: активность только что выросла
+    for (const [kind, list, opened] of [
+      ['daily', DAILY_CHESTS, s.quests.dailyChests],
+      ['weekly', WEEKLY_CHESTS, s.quests.weeklyChests],
+    ] as const) {
+      list.forEach((c, i) => {
+        if (opened.includes(i) || activity(ctx, kind) < c.at) return;
+        opened.push(i);
+        const reward = scaleReward(cfg, s, c.reward);
+        give(ctx, reward);
+        add(reward);
+        n++;
+      });
+    }
+    assert(n > 0, 'notDone');
+    return { reward: total, n };
+  },
+
   'quest.chest': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     const kind = vOneOf(a.kind, ['daily', 'weekly'] as const, 'kind');

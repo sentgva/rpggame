@@ -5,6 +5,7 @@ import {
   HEROINES,
   HEROINE_MAP,
   HERO_RARITIES,
+  buildHeroine,
   partySlots,
   type ClassId,
   type Element,
@@ -18,6 +19,17 @@ import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
 import { HeroDetail } from './heroes/HeroDetail';
+
+type SortBy = 'level' | 'power' | 'rarity';
+const SORTS: SortBy[] = ['level', 'power', 'rarity'];
+function savedSort(): SortBy {
+  try {
+    const v = localStorage.getItem('heroSort') as SortBy | null;
+    return v && SORTS.includes(v) ? v : 'level';
+  } catch {
+    return 'level';
+  }
+}
 
 export default function HeroesTab() {
   const stack = useUi((u) => u.stacks.heroes);
@@ -33,6 +45,16 @@ function HeroesRoot() {
   const [fCls, setCls] = useState<ClassId | null>(null);
   const [fEl, setEl] = useState<Element | null>(null);
   const [fR, setR] = useState<HeroRarity | null>(null);
+  const [sort, setSort] = useState<SortBy>(savedSort);
+  const nextSort = () => {
+    const v = SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length];
+    setSort(v);
+    try {
+      localStorage.setItem('heroSort', v);
+    } catch {
+      /* без хранилища — просто не запоминаем */
+    }
+  };
   const preset = s.party.active;
   const slots = s.party.presets[preset];
   const maxSlots = partySlots(cfg, s);
@@ -42,10 +64,14 @@ function HeroesRoot() {
     const owned = all.filter((h) => s.heroines[h.id]);
     const rest = all.filter((h) => !s.heroines[h.id]);
     const rOrder: Record<string, number> = { UR: 0, SSR: 1, SR: 2, R: 3 };
-    owned.sort((a, b) => s.heroines[b.id].lvl - s.heroines[a.id].lvl || rOrder[a.rarity] - rOrder[b.rarity]);
+    if (sort === 'power') {
+      const pw = Object.fromEntries(owned.map((h) => [h.id, buildHeroine(cfg, s, s.heroines[h.id]).power]));
+      owned.sort((a, b) => pw[b.id] - pw[a.id]);
+    } else if (sort === 'rarity') owned.sort((a, b) => rOrder[a.rarity] - rOrder[b.rarity] || s.heroines[b.id].lvl - s.heroines[a.id].lvl);
+    else owned.sort((a, b) => s.heroines[b.id].lvl - s.heroines[a.id].lvl || rOrder[a.rarity] - rOrder[b.rarity]);
     rest.sort((a, b) => (s.shards[b.id] ?? 0) - (s.shards[a.id] ?? 0) || rOrder[a.rarity] - rOrder[b.rarity]);
     return { owned, rest };
-  }, [s.heroines, s.shards, fCls, fEl, fR]);
+  }, [s, cfg, fCls, fEl, fR, sort]);
 
   const assign = (heroId: string | null) => {
     if (slot === null) return;
@@ -150,7 +176,12 @@ function HeroesRoot() {
         ))}
       </div>
 
-      <div className={css.muted}>{t('heroes.collection', { n: Object.keys(s.heroines).length, total: HEROINES.length })}</div>
+      <div className={css.row} style={{ justifyContent: 'space-between' }}>
+        <div className={css.muted}>{t('heroes.collection', { n: Object.keys(s.heroines).length, total: HEROINES.length })}</div>
+        <button className={css.chip} onClick={nextSort}>
+          ⇅ {t(`heroes.sort.${sort}`)}
+        </button>
+      </div>
       <div className={css.grid3}>
         {list.owned.map((h) => {
           const inParty = slots.includes(h.id);

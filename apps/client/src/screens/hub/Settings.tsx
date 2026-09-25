@@ -1,6 +1,6 @@
 import { ITEM_RARITY_NAMES, VECTOR_ART, artStyleOf } from '@idle/shared';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Panel, Slider, Toggle, css, openSheet } from '../../components/ui';
 import { collectDiag } from '../../net/diag';
 import { t, tl } from '../../i18n';
@@ -119,6 +119,45 @@ export function Settings() {
           </Button>
         )}
       </Panel>
+      <Panel title={t('reset.title')}>
+        <div className={css.tiny}>{t('reset.desc')}</div>
+        <Button kind="danger" block style={{ marginTop: 6 }} onClick={() => openSheet(t('reset.title'), (close) => <ResetConfirm onDone={close} />)}>
+          {t('reset.button')}
+        </Button>
+      </Panel>
+    </div>
+  );
+}
+
+/** Подтверждение полного сброса: кнопка оживает через несколько секунд, чтобы не нажать случайно. */
+function ResetConfirm({ onDone }: { onDone: () => void }) {
+  const [wait, setWait] = useState(5);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const id = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(id);
+  }, [wait]);
+  const run = async () => {
+    setBusy(true);
+    const r = await useGame.getState().act('account.reset', { confirm: 'RESET' });
+    setBusy(false);
+    if (!r.ok) return;
+    onDone();
+    // всё с чистого листа: закрываем окна и возвращаемся в бой, где снова начнётся обучение
+    useUi.setState({ modals: [], tab: 'battle', stacks: { battle: [], heroes: [], gear: [], map: [], hub: [] }, gearHero: null });
+    useUi.getState().toast(t('reset.done'), 'good');
+  };
+  return (
+    <div className={css.col}>
+      <div style={{ fontSize: 14, lineHeight: 1.4 }}>{t('reset.warn')}</div>
+      <div className={css.tiny}>{t('reset.keep')}</div>
+      <Button kind="danger" block disabled={wait > 0 || busy} onClick={() => void run()}>
+        {wait > 0 ? t('reset.wait', { n: wait }) : t('reset.confirm')}
+      </Button>
+      <Button kind="secondary" block onClick={onDone}>
+        {t('common.cancel')}
+      </Button>
     </div>
   );
 }

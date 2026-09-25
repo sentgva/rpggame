@@ -163,6 +163,7 @@ export function ItemDetails({ uid, hero, onClose }: { uid: string; hero?: string
           <SetBonusLine n={2} active={setCount >= 2} stats={set.bonus2} />
           <SetBonusLine n={4} active={setCount >= 4} stats={set.bonus4} fx={set.fx4 ? fxText(set.fx4, getLang()) : undefined} />
           <SetBonusLine n={6} active={setCount >= 6} stats={set.bonus6} fx={fxText(set.fx6, getLang())} />
+          {set.mode && <div className={css.tiny} style={{ marginTop: 4 }}>{t(`gear.setFrom.${set.mode}`)}</div>}
         </div>
       )}
 

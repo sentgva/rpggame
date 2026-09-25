@@ -19,6 +19,12 @@ export const DUNGEONS: DungeonDef[] = [
 ];
 export const DUNGEON_MAP: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
 
+/** Подземелье дня: награда ×1.5 (подземелья сменяются по кругу каждый день, UTC). */
+export const DUNGEON_DAY_BONUS = 1.5;
+export function dungeonOfDay(now: number): string {
+  return DUNGEONS[Math.floor(now / 86400000) % DUNGEONS.length].id;
+}
+
 /** Уровень силы врагов подземелья (1 → 10, 20 → 257 ≈ Hard 10-20). */
 export function dungeonStage(level: number): number {
   return 13 * level - 3;
@@ -185,3 +191,85 @@ export function spireStage(floor: number): number {
 export function hordeStage(farm: number, wave: number): number {
   return Math.max(1, farm - 12) + Math.round(wave * 2.2);
 }
+
+// ——— Интерактивность режимов: решения игрока ———
+
+/** Множители характеристик врагов (1 — без изменений). */
+export interface EnemyMod {
+  hp?: number;
+  atk?: number;
+  def?: number;
+  spd?: number;
+}
+
+/** Нашествие: каждые N волн — выбор одного из трёх благословений на весь забег. */
+export const HORDE_BLESS_EVERY = 3;
+export interface HordeBlessing {
+  id: string;
+  name: L10n;
+  desc: L10n;
+  /** Бонус отряду до конца забега (складывается). */
+  stats?: Stats;
+  /** Мгновенно: лечение выживших (доля HP) и подъём павших (доля HP). */
+  heal?: number;
+  revive?: number;
+  /** Надбавка к золоту и пыли за волны. */
+  rewardPct?: number;
+}
+export const HORDE_BLESSINGS: HordeBlessing[] = [
+  { id: 'fury', name: { ru: 'Ярость', en: 'Fury' }, desc: { ru: '+20% к атаке отряда', en: '+20% squad attack' }, stats: { atkPct: 0.2 } },
+  { id: 'bulwark', name: { ru: 'Стена щитов', en: 'Shield Wall' }, desc: { ru: '+25% к здоровью', en: '+25% health' }, stats: { hpPct: 0.25 } },
+  { id: 'haste', name: { ru: 'Попутный ветер', en: 'Tailwind' }, desc: { ru: '+12 к скорости', en: '+12 speed' }, stats: { spd: 12 } },
+  { id: 'keen', name: { ru: 'Острый глаз', en: 'Keen Eye' }, desc: { ru: '+10% шанса и +25% урона крита', en: '+10% crit chance, +25% crit damage' }, stats: { crit: 0.1, critDmg: 0.25 } },
+  { id: 'leech', name: { ru: 'Жажда крови', en: 'Bloodthirst' }, desc: { ru: '+10% вампиризма', en: '+10% lifesteal' }, stats: { lifesteal: 0.1 } },
+  { id: 'arcane', name: { ru: 'Эфирный прилив', en: 'Aether Surge' }, desc: { ru: '+30% урона ультимейтов и +20% энергии', en: '+30% ultimate damage, +20% energy' }, stats: { dmgUlt: 0.3, energyRegen: 0.2 } },
+  { id: 'stone', name: { ru: 'Каменная кожа', en: 'Stoneskin' }, desc: { ru: '−12% получаемого урона', en: '−12% damage taken' }, stats: { dmgReduce: 0.12 } },
+  { id: 'pact', name: { ru: 'Кровавый пакт', en: 'Blood Pact' }, desc: { ru: '+40% к атаке, но −20% здоровья', en: '+40% attack, but −20% health' }, stats: { atkPct: 0.4, hpPct: -0.2 } },
+  { id: 'mend', name: { ru: 'Передышка', en: 'Respite' }, desc: { ru: 'Выжившие лечатся на 50%, павшие встают с 30% HP', en: 'Survivors heal 50%, the fallen rise with 30% HP' }, heal: 0.5, revive: 0.3 },
+  { id: 'greed', name: { ru: 'Жадность', en: 'Greed' }, desc: { ru: '+50% золота и пыли за волны', en: '+50% gold and dust per wave' }, rewardPct: 0.5 },
+];
+export const HORDE_BLESSING_MAP: Record<string, HordeBlessing> = Object.fromEntries(HORDE_BLESSINGS.map((b) => [b.id, b]));
+
+/** Башня: у каждого обычного этажа свой модификатор (у этажей со стражем — нет). */
+export interface TowerMod {
+  id: string;
+  name: L10n;
+  desc: L10n;
+  enemy?: EnemyMod;
+  hero?: Stats;
+}
+export const TOWER_MODS: TowerMod[] = [
+  { id: 'giants', name: { ru: 'Великаны', en: 'Giants' }, desc: { ru: 'Враги: +40% здоровья, −10% скорости', en: 'Enemies: +40% HP, −10% speed' }, enemy: { hp: 1.4, spd: 0.9 } },
+  { id: 'frenzy', name: { ru: 'Бешенство', en: 'Frenzy' }, desc: { ru: 'Враги: +20% атаки и +15% скорости', en: 'Enemies: +20% attack, +15% speed' }, enemy: { atk: 1.2, spd: 1.15 } },
+  { id: 'ironclad', name: { ru: 'Железная шкура', en: 'Ironclad' }, desc: { ru: 'Враги: +60% защиты', en: 'Enemies: +60% defense' }, enemy: { def: 1.6 } },
+  { id: 'glass', name: { ru: 'Стеклянные пушки', en: 'Glass Cannons' }, desc: { ru: 'Враги: −30% здоровья, но +35% атаки', en: 'Enemies: −30% HP, but +35% attack' }, enemy: { hp: 0.7, atk: 1.35 } },
+  { id: 'blessing', name: { ru: 'Благословение', en: 'Blessing' }, desc: { ru: 'Ваши героини: +25% лечения и +10% здоровья', en: 'Your heroines: +25% healing, +10% HP' }, hero: { healPower: 0.25, hpPct: 0.1 } },
+  { id: 'storm', name: { ru: 'Эфирная буря', en: 'Aether Storm' }, desc: { ru: 'Ваши героини: +40% урона ультимейтов и +25% энергии', en: 'Your heroines: +40% ultimate damage, +25% energy' }, hero: { dmgUlt: 0.4, energyRegen: 0.25 } },
+  { id: 'calm', name: { ru: 'Затишье', en: 'Calm' }, desc: { ru: 'Без особых условий', en: 'No special conditions' } },
+];
+export const TOWER_MOD_MAP: Record<string, TowerMod> = Object.fromEntries(TOWER_MODS.map((m) => [m.id, m]));
+
+export function towerMod(floor: number): TowerMod | null {
+  if (floor % 10 === 0) return null;
+  // перемешиваем, чтобы соседние этажи не повторялись по кругу
+  return TOWER_MODS[(floor * 5 + Math.floor(floor / 7)) % TOWER_MODS.length];
+}
+
+/** Испытание в Башне: враги сильнее, награда вдвое больше. */
+export const TOWER_HARD: EnemyMod = { hp: 1.6, atk: 1.3 };
+export const TOWER_HARD_REWARD = 2;
+
+/** Разлом: тактика перед атакой на Колосса. */
+export interface RiftTactic {
+  id: string;
+  name: L10n;
+  desc: L10n;
+  stats: Stats;
+}
+export const RIFT_TACTICS: RiftTactic[] = [
+  { id: 'none', name: { ru: 'Без тактики', en: 'No tactic' }, desc: { ru: 'Отряд как есть', en: 'The squad as is' }, stats: {} },
+  { id: 'assault', name: { ru: 'Натиск', en: 'Assault' }, desc: { ru: '+30% атаки, −20% здоровья', en: '+30% attack, −20% health' }, stats: { atkPct: 0.3, hpPct: -0.2 } },
+  { id: 'bastion', name: { ru: 'Бастион', en: 'Bastion' }, desc: { ru: '+35% здоровья, −12% урона по вам, −15% атаки', en: '+35% health, −12% damage taken, −15% attack' }, stats: { hpPct: 0.35, dmgReduce: 0.12, atkPct: -0.15 } },
+  { id: 'ritual', name: { ru: 'Ритуал', en: 'Ritual' }, desc: { ru: '+40% урона ультимейтов, +30% энергии, −10% атаки', en: '+40% ultimate damage, +30% energy, −10% attack' }, stats: { dmgUlt: 0.4, energyRegen: 0.3, atkPct: -0.1 } },
+];
+export const RIFT_TACTIC_MAP: Record<string, RiftTactic> = Object.fromEntries(RIFT_TACTICS.map((x) => [x.id, x]));

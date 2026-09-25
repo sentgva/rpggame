@@ -240,6 +240,10 @@ export interface HordeState {
   best: number;
   week: string;
   bestWeek: number;
+  /** Благословения забега (id из HORDE_BLESSINGS, могут повторяться). */
+  blessings?: string[];
+  /** Предложенный выбор благословения — до выбора следующая волна недоступна. */
+  offer?: string[];
 }
 
 export interface LabyrinthRun {

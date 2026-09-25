@@ -48,9 +48,23 @@ function QuestList({ kind }: { kind: 'daily' | 'weekly' }) {
   const opened = kind === 'daily' ? s.quests.dailyChests : s.quests.weeklyChests;
   const activity = list.filter((q) => claimed.includes(q.id)).reduce((a, q) => a + q.activity, 0);
   const maxAct = chests[chests.length - 1].at;
+  // сколько можно забрать разом: выполненные задания обеих вкладок и открывшиеся сундуки
+  const ready =
+    DAILY_QUESTS.filter((q) => !s.quests.dailyClaimed.includes(q.id) && (s.quests.daily[q.counter] ?? 0) >= q.target).length +
+    WEEKLY_QUESTS.filter((q) => !s.quests.weeklyClaimed.includes(q.id) && (s.quests.weekly[q.counter] ?? 0) >= q.target).length +
+    chests.filter((c, i) => activity >= c.at && !opened.includes(i)).length;
+  const claimAll = async () => {
+    const r = await useGame.getState().act('quest.claimAll');
+    if (r.ok) showReward(t('hub.quests'), { cur: r.result.reward });
+  };
 
   return (
     <>
+      {ready > 0 && (
+        <Button block pulse onClick={() => void claimAll()}>
+          {t('common.claimAll')} ({ready})
+        </Button>
+      )}
       <Panel title={t('quests.activity', { n: activity })}>
         <Bar value={activity} max={maxAct} height={10} />
         <div className={css.row} style={{ justifyContent: 'space-around', marginTop: 8 }}>

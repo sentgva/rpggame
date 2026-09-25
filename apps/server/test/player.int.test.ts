@@ -73,6 +73,17 @@ describe.skipIf(!url)('PlayerService + PostgreSQL', () => {
     expect((await players.getState('u1')).settings.artStyle).toBe('vector');
   });
 
+  it('язык бота: выбор через /lang важнее языка Telegram', async () => {
+    const { BotService } = await import('../src/bot/bot.service');
+    const bot = new BotService(db);
+    await db.query("DELETE FROM bot_users WHERE tg_id = '777'");
+    expect(await bot.langFor({ id: 777, language_code: 'ru' })).toBe('ru');
+    expect(await bot.langFor({ id: 777, language_code: 'de' })).toBe('en');
+    await db.query("INSERT INTO bot_users (tg_id, lang) VALUES ('777', 'en')");
+    expect(await bot.langFor({ id: 777, language_code: 'ru' })).toBe('en');
+    await db.query("DELETE FROM bot_users WHERE tg_id = '777'");
+  });
+
   it('состояние и ledger сохраняются в БД', async () => {
     await players.flush(true);
     const row = await db.one("SELECT state, max_stage FROM players WHERE id = 'u1'");

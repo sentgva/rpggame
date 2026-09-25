@@ -17,7 +17,7 @@ const poses: Pose[] = (process.argv[6] ?? 'open:idle')
     return { eyes, arms, flap: flap === 'flap' };
   });
 const sprites: Bitmap[] = [];
-if (which === 'summer' || which === 'lingerie') {
+if (which === 'summer' || which === 'lingerie' || which === 'masquerade') {
   for (const sk of SKINS) {
     if (sk.set !== which) continue;
     const h = HEROINE_MAP[sk.hero];

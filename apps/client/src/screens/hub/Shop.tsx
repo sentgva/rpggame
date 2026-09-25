@@ -32,7 +32,7 @@ export function Shop({ initial }: { initial?: ShopTab }) {
   );
 }
 
-type SkinFilter = 'all' | 'summer' | 'lingerie' | 'other';
+type SkinFilter = 'all' | 'summer' | 'lingerie' | 'masquerade' | 'other';
 
 function CurrencyShop({ shop }: { shop: ShopTab }) {
   const s = useGameState();
@@ -53,7 +53,7 @@ function CurrencyShop({ shop }: { shop: ShopTab }) {
         </div>
         {shop === 'skins' && (
           <div className={css.row} style={{ gap: 6, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {(['all', 'summer', 'lingerie', 'other'] as const).map((f) => (
+            {(['all', 'summer', 'lingerie', 'masquerade', 'other'] as const).map((f) => (
               <button key={f} className={cx(css.chip, filter === f && css.chipOn)} onClick={() => setFilter(f)}>
                 {t(`shop.set.${f}`)}
               </button>

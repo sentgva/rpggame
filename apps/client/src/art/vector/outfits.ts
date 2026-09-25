@@ -3,7 +3,8 @@ import { LEG_L, LEG_R, clipBelow, forearmPath, upperArmPath, type Pal } from './
 import type { ArmRig, Rig } from './rig';
 
 export type OutfitKind = 'knight' | 'barbarian' | 'ranger' | 'witch' | 'cleric' | 'reaper' | 'rogue' | 'minstrel';
-export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia';
+export type { Wear } from '@idle/shared';
+import type { Wear } from '@idle/shared';
 
 export interface Layers {
   /** за телом: полы мантии, шлейфы */
@@ -537,6 +538,11 @@ export function outfitLayers(kind: OutfitKind | Wear, sv: Svg, p: Pal, rig: Rig)
           }
         },
       };
+    // маскарадные наряды пиксельного стиля: в векторе — ближайшие по духу
+    case 'bunny':
+      return outfitLayers('lace3', sv, p, rig);
+    case 'maid':
+      return outfitLayers('lace', sv, p, rig);
     case 'regalia':
       return {
         legs: () => {

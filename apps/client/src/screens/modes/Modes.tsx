@@ -10,12 +10,14 @@ import {
   abyssStage,
   activeParty,
   arenaLeague,
+  dungeonOfDay,
   dungeonReward,
   dungeonStage,
   expeditionSlots,
   fxText,
   onExpedition,
   statText,
+  towerMod,
   towerReward,
   towerStage,
   stageForLevel,
@@ -91,6 +93,12 @@ function Tower() {
   const floor = s.modes.tower + 1;
   const rw = towerReward(floor);
   const act = ((floor - 1) % 10) + 1;
+  const mod = towerMod(floor);
+  const done = floor > cfg.modes.towerFloors;
+  const fight = (hard: boolean) =>
+    void fightAction('tower.fight', { hard }, `${t('mode.towerFloor', { n: floor })}${hard ? ' · ' + t('mode.towerHard') : ''}`, act, (res) => (
+      <RewardList r={{ cur: { crystals: res.reward.crystals, starDust: res.reward.starDust }, skin: res.reward.skin, items: res.reward.items }} />
+    ));
   return (
     <div className={css.col}>
       <BackHeader title={t('mode.tower')} />
@@ -113,9 +121,28 @@ function Tower() {
             </div>
           </div>
         </div>
-        <Button block size="big" disabled={floor > cfg.modes.towerFloors} onClick={() => void fightAction('tower.fight', {}, t('mode.towerFloor', { n: floor }), act, (res) => <RewardList r={{ cur: { crystals: res.reward.crystals, starDust: res.reward.starDust } }} />)}>
-          {t('common.fight')}
-        </Button>
+        <div className={css.listItem} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, marginBottom: 8 }}>
+          <span className={css.tiny}>{t('mode.towerMod')}</span>
+          {mod ? (
+            <>
+              <b style={{ color: mod.hero ? 'var(--good)' : mod.enemy ? '#f08a5a' : undefined }}>{tl(mod.name)}</b>
+              <span className={css.tiny}>{tl(mod.desc)}</span>
+            </>
+          ) : (
+            <b>{t('mode.towerGuardFloor')}</b>
+          )}
+        </div>
+        <div className={css.row}>
+          <Button block size="big" disabled={done} onClick={() => fight(false)}>
+            {t('common.fight')}
+          </Button>
+          <Button kind="danger" block disabled={done} onClick={() => fight(true)}>
+            {t('mode.towerHardBtn')}
+          </Button>
+        </div>
+        <div className={css.tiny} style={{ marginTop: 6 }}>
+          {t('mode.towerHardDesc')}
+        </div>
       </Panel>
     </div>
   );
@@ -126,18 +153,40 @@ function Dungeons() {
   const s = useGameState();
   const cfg = useCfg();
   const [sel, setSel] = useState<Record<string, number>>({});
+  const now = useGame.getState().now();
+  const today = dungeonOfDay(now);
+  // подземелье дня — первым в списке
+  const list = [...DUNGEONS].sort((a, b) => (b.id === today ? 1 : 0) - (a.id === today ? 1 : 0));
   return (
     <div className={css.col}>
       <BackHeader title={t('mode.dungeons')} />
-      {DUNGEONS.map((d) => {
+      {DUNGEONS.some((d) => (s.modes.dungeons[d.id] ?? 0) > 0 && (s.day.keys[d.id] ?? 0) < cfg.modes.dungeonKeys) && (
+        <Button
+          block
+          kind="secondary"
+          onClick={async () => {
+            const r = await useGame.getState().act('dungeon.sweepAll');
+            if (r.ok) showReward(t('mode.dungeons'), { cur: r.result.cur, gems: r.result.gems });
+          }}
+        >
+          {t('mode.sweepAll')}
+        </Button>
+      )}
+      {list.map((d) => {
         const cleared = s.modes.dungeons[d.id] ?? 0;
         const level = sel[d.id] ?? Math.min(cfg.modes.dungeonLevels, cleared + 1);
         const used = s.day.keys[d.id] ?? 0;
         const left = cfg.modes.dungeonKeys - used;
-        const r = dungeonReward({ cfg, s }, d.id, level);
+        const r = dungeonReward({ cfg, s, now }, d.id, level);
         const icon = d.reward === 'gems' ? 'gem' : d.reward;
+        const hot = d.id === today;
         return (
           <Panel key={d.id} title={tl(d.name)} right={<span className={css.tiny}>{t('mode.keys', { n: left, max: cfg.modes.dungeonKeys })}</span>}>
+            {hot && (
+              <div className={css.tiny} style={{ color: '#f2c86a', marginBottom: 6 }}>
+                {t('mode.dungeonDay')}
+              </div>
+            )}
             <div className={css.row}>
               <Icon name={icon} size={40} />
               <div className={css.grow}>
@@ -302,6 +351,18 @@ function Expeditions() {
   return (
     <div className={css.col}>
       <BackHeader title={t('mode.expeditions')} right={<span className={css.tiny}>{t('mode.expSlots', { n: s.modes.expeditions.length, max: slots })}</span>} />
+      {s.modes.expeditions.filter((e) => now >= e.end).length > 1 && (
+        <Button
+          block
+          pulse
+          onClick={async () => {
+            const r = await useGame.getState().act('expedition.claimAll');
+            if (r.ok) showReward(t('mode.expeditions'), { cur: r.result.cur, shards: r.result.shards });
+          }}
+        >
+          {t('common.claimAll')} ({s.modes.expeditions.filter((e) => now >= e.end).length})
+        </Button>
+      )}
       {s.modes.expeditions.map((e) => {
         const q = EXPEDITION_MAP[e.quest];
         const left = e.end - now;

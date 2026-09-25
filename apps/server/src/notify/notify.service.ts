@@ -42,8 +42,8 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
   async tick(): Promise<{ checked: number }> {
     if (!this.bots.bot || !env.notificationsEnabled) return { checked: 0 };
     const today = new Date().toISOString().slice(0, 10);
-    const rows = await this.db.query<{ id: string; state: PlayerState; notify_day: string | null; notify_count: number }>(
-      `SELECT id, state, notify_day, notify_count FROM players
+    const rows = await this.db.query<{ id: string; state: PlayerState; notify_day: string | null; notify_count: number; bot_lang: string | null }>(
+      `SELECT id, state, notify_day, notify_count, (SELECT lang FROM bot_users b WHERE b.tg_id = players.id) AS bot_lang FROM players
        WHERE (state->'settings'->>'notify')::boolean IS TRUE
          AND last_seen_at < now() - interval '1 hour'
          AND (notify_at IS NULL OR notify_at < now() - interval '12 hours')
@@ -54,7 +54,8 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
       const count = r.notify_day === today ? r.notify_count : 0;
       if (count >= 2) continue;
       if (!this.chestFull(r.state, now)) continue;
-      const lang = r.state.settings.lang;
+      // язык, выбранный в боте (/lang), важнее языка игры
+      const lang = r.bot_lang === 'ru' || r.bot_lang === 'en' ? r.bot_lang : r.state.settings.lang;
       const ok = await this.bots.send(r.id, TEXT[lang], lang);
       await this.db.query('UPDATE players SET notify_at = now(), notify_day = $2, notify_count = $3 WHERE id = $1', [r.id, today, ok ? count + 1 : count]);
       await new Promise((res) => setTimeout(res, 50));

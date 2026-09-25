@@ -1,6 +1,7 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Bot, InlineKeyboard, type Context } from 'grammy';
 import { VECTOR_ART } from '@idle/shared';
+import { DbService } from '../db/db.service';
 import { env } from '../env';
 
 const TEXT = {
@@ -11,11 +12,11 @@ const TEXT = {
       'Командор, Кристалл Эфира пробудился! Собери отряд валькирий и освободи владычиц Аэриса.',
       '',
       '✨ <b>Что ждёт в игре</b>',
-      '• 50 героинь: 8 классов и 5 стихий',
+      '• 60 героинь: 8 классов, 5 стихий и 5 Вестниц',
       '• Бой идёт сам — награды копятся, даже когда ты не в игре',
       '• Снаряжение, заточка, самоцветы и созвездия',
-      '• Башня, подземелья, лабиринт, арена и экспедиции',
-      '• Облики: летняя коллекция и «Будуар», боевой пропуск',
+      '• Башня с испытаниями, Разлом, Нашествие, шпили, лабиринт и арена',
+      '• Облики: «Лето», «Будуар» и «Маскарад», боевой пропуск',
       '',
       '🎁 Лира уже ждёт в отряде — жми <b>«Играть»</b>!',
     ].join('\n'),
@@ -29,6 +30,7 @@ const TEXT = {
       '5️⃣ Застрял — загляни в Башню, подземелья и экспедиции за ресурсами.',
       '',
       ...(VECTOR_ART ? ['🎨 Графика: <code>/style</code> — вектор или пиксели (или в настройках игры).'] : []),
+      '🌐 Язык бота: <code>/lang</code> · 🧹 очистить чат: <code>/clear</code>.',
       '🐞 Нашёл ошибку? Напиши <code>/bug что случилось</code> или нажми кнопку в настройках игры.',
     ].join('\n'),
     bugAsk: '🐞 Опиши проблему одной командой:\n<code>/bug что случилось и как повторить</code>\n\nОтчёт придёт разработчику лично.',
@@ -37,6 +39,8 @@ const TEXT = {
     play: '▶️ Играть',
     howTo: '📖 Как играть',
     bug: '🐞 Сообщить о баге',
+    langAsk: '🌐 <b>Язык бота</b>\n\nВыбери, на каком языке мне писать.',
+    langSet: '✅ Готово! Теперь я пишу на русском.\n\nЯзык самой игры меняется в «Настройках» игры.',
     style: '🎨 Графика',
     styleAsk: (cur: string) =>
       [
@@ -59,11 +63,11 @@ const TEXT = {
       'Commander, the Aether Crystal has awakened! Gather the valkyries and free the sovereigns of Aeris.',
       '',
       '✨ <b>What awaits you</b>',
-      '• 50 heroines: 8 classes and 5 elements',
+      '• 60 heroines: 8 classes, 5 elements and 5 Heralds',
       '• Battles run on their own — loot piles up even while you are away',
       '• Gear, enhancing, gems and constellations',
-      '• Tower, dungeons, labyrinth, arena and expeditions',
-      '• Skins: Summer and Boudoir collections, battle pass',
+      '• Tower challenges, Rift, Horde, Spires, labyrinth and arena',
+      '• Skins: Summer, Boudoir and Masquerade collections, battle pass',
       '',
       '🎁 Lira is already in your squad — tap <b>“Play”</b>!',
     ].join('\n'),
@@ -77,6 +81,7 @@ const TEXT = {
       '5️⃣ Stuck? Farm the Tower, dungeons and expeditions.',
       '',
       ...(VECTOR_ART ? ['🎨 Art style: <code>/style</code> — vector or pixel (also in game settings).'] : []),
+      '🌐 Bot language: <code>/lang</code> · 🧹 clear the chat: <code>/clear</code>.',
       '🐞 Found a bug? Send <code>/bug what happened</code> or use the button in game settings.',
     ].join('\n'),
     bugAsk: '🐞 Describe the problem in one command:\n<code>/bug what happened and how to repeat it</code>\n\nThe report goes straight to the developer.',
@@ -85,6 +90,8 @@ const TEXT = {
     play: '▶️ Play',
     howTo: '📖 How to play',
     bug: '🐞 Report a bug',
+    langAsk: '🌐 <b>Bot language</b>\n\nChoose the language I should write in.',
+    langSet: '✅ Done! I will write in English now.\n\nThe game language itself is changed in the game Settings.',
     style: '🎨 Art style',
     styleAsk: (cur: string) =>
       [
@@ -104,8 +111,37 @@ const TEXT = {
 
 const ALLOWED_UPDATES = ['message', 'callback_query'] as const;
 
-export function langOf(code?: string): 'ru' | 'en' {
+export type Lang = 'ru' | 'en';
+
+export function langOf(code?: string): Lang {
   return code && /^(ru|uk|be|kk)/.test(code) ? 'ru' : 'en';
+}
+
+/** Сколько последних сообщений чата пытается удалить /clear. */
+const CLEAR_DEPTH = 300;
+
+/** Кнопка выбора языка подписана на обоих языках — её найдёт любой. */
+const LANG_BUTTON = '🌐 Язык · Language';
+const LANG_NAMES: Record<Lang, string> = { ru: '🇷🇺 Русский', en: '🇬🇧 English' };
+
+function commandsFor(lang: Lang) {
+  return lang === 'ru'
+    ? [
+        { command: 'start', description: 'Играть в Idle RPG' },
+        { command: 'help', description: 'Как играть' },
+        { command: 'lang', description: 'Язык бота · Language' },
+        { command: 'clear', description: 'Очистить чат с ботом' },
+        ...(VECTOR_ART ? [{ command: 'style', description: 'Графика: вектор или пиксели' }] : []),
+        { command: 'bug', description: 'Сообщить о баге: /bug текст' },
+      ]
+    : [
+        { command: 'start', description: 'Play Idle RPG' },
+        { command: 'help', description: 'How to play' },
+        { command: 'lang', description: 'Bot language · Язык' },
+        { command: 'clear', description: 'Clear the chat with the bot' },
+        ...(VECTOR_ART ? [{ command: 'style', description: 'Art style: vector or pixel' }] : []),
+        { command: 'bug', description: 'Report a bug: /bug text' },
+      ];
 }
 
 /** Telegram-бот: вход в Mini App, уведомления, реферальные ссылки. */
@@ -122,12 +158,19 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   onStyle: ((uid: string, style?: string) => Promise<string | null>) | null = null;
   onBugCommand: ((from: { id: number; username?: string; first_name?: string }, text: string) => Promise<{ ok: boolean; error?: { code: string } }>) | null = null;
 
-  constructor() {
+  constructor(@Inject(DbService) private readonly db: DbService) {
     if (!this.bot) return;
     this.bot.command('start', (ctx) => this.onStart(ctx));
     this.bot.command('play', (ctx) => this.onStart(ctx));
     this.bot.command('help', (ctx) => this.onHelp(ctx));
     this.bot.command('bug', (ctx) => this.onBug(ctx));
+    this.bot.command('lang', (ctx) => this.onLangCommand(ctx));
+    this.bot.command('clear', (ctx) => this.onClear(ctx));
+    this.bot.callbackQuery('lang', async (ctx) => {
+      await ctx.answerCallbackQuery();
+      await this.onLangCommand(ctx);
+    });
+    this.bot.callbackQuery(/^lang:(ru|en)$/, (ctx) => this.onLangPick(ctx, ctx.match[1] as Lang));
     // переключатель графики — только пока векторный стиль включён (VECTOR_ART)
     if (VECTOR_ART) {
       this.bot.command('style', (ctx) => this.onStyleCommand(ctx));
@@ -143,7 +186,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     });
     this.bot.callbackQuery('bug', async (ctx) => {
       await ctx.answerCallbackQuery();
-      await ctx.reply(TEXT[langOf(ctx.from?.language_code)].bugAsk, { parse_mode: 'HTML' });
+      await ctx.reply(TEXT[await this.langFor(ctx.from)].bugAsk, { parse_mode: 'HTML' });
     });
     this.bot.catch((err) => this.log.error(`bot error: ${String(err.error)}`));
   }
@@ -158,8 +201,9 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     }
     if (extras) {
       kb ??= new InlineKeyboard();
-      if (VECTOR_ART) kb.row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].style, 'style').row().text(TEXT[lang].bug, 'bug');
-      else kb.row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].bug, 'bug');
+      kb.row().text(TEXT[lang].howTo, 'help').text(LANG_BUTTON, 'lang');
+      if (VECTOR_ART) kb.row().text(TEXT[lang].style, 'style').text(TEXT[lang].bug, 'bug');
+      else kb.row().text(TEXT[lang].bug, 'bug');
     }
     return kb;
   }
@@ -173,11 +217,11 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
-  private async onStart(ctx: Context) {
-    const lang = langOf(ctx.from?.language_code);
-    const payload = typeof ctx.match === 'string' ? ctx.match.trim() : '';
+  private async onStart(ctx: Context, withPayload = true) {
+    const lang = await this.langFor(ctx.from);
+    const payload = withPayload && typeof ctx.match === 'string' ? ctx.match.trim() : '';
     const reply_markup = this.playKeyboard(lang, payload || undefined, true);
-    // картинка в выбранном игроком стиле (новичкам — вектор)
+    // картинка в стиле графики игрока (пока VECTOR_ART выключен — всегда пиксели)
     const style = VECTOR_ART ? ((ctx.from && this.onStyle ? await this.onStyle(String(ctx.from.id)).catch(() => null) : null) ?? 'vector') : 'pixel';
     const photo = this.welcomePhoto[style] ?? this.welcomeImageUrl(style);
     if (photo) {
@@ -195,12 +239,12 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async onHelp(ctx: Context) {
-    const lang = langOf(ctx.from?.language_code);
+    const lang = await this.langFor(ctx.from);
     await ctx.reply(TEXT[lang].help, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
   }
 
   private async onBug(ctx: Context) {
-    const lang = langOf(ctx.from?.language_code);
+    const lang = await this.langFor(ctx.from);
     const text = typeof ctx.match === 'string' ? ctx.match.trim() : '';
     if (!text || !ctx.from || !this.onBugCommand) {
       await ctx.reply(TEXT[lang].bugAsk, { parse_mode: 'HTML' });
@@ -216,7 +260,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async onStyleCommand(ctx: Context) {
-    const lang = langOf(ctx.from?.language_code);
+    const lang = await this.langFor(ctx.from);
     const arg = typeof ctx.match === 'string' ? ctx.match.trim().toLowerCase() : '';
     if (!ctx.from || !this.onStyle) return;
     // /style vector | /style pixel (и русские варианты) — сразу применить
@@ -235,7 +279,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async onStylePick(ctx: Context, style: string) {
-    const lang = langOf(ctx.from?.language_code);
+    const lang = await this.langFor(ctx.from);
     if (!ctx.from || !this.onStyle) {
       await ctx.answerCallbackQuery();
       return;
@@ -297,21 +341,66 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async setCommands() {
     const api = this.bot!.api;
-    await api.setMyCommands([
-      { command: 'start', description: 'Play Idle RPG' },
-      { command: 'help', description: 'How to play' },
-      ...(VECTOR_ART ? [{ command: 'style', description: 'Art style: vector or pixel' }] : []),
-      { command: 'bug', description: 'Report a bug: /bug text' },
-    ]);
-    await api.setMyCommands(
-      [
-        { command: 'start', description: 'Играть в Idle RPG' },
-        { command: 'help', description: 'Как играть' },
-        ...(VECTOR_ART ? [{ command: 'style', description: 'Графика: вектор или пиксели' }] : []),
-        { command: 'bug', description: 'Сообщить о баге: /bug текст' },
-      ],
-      { language_code: 'ru' },
-    );
+    await api.setMyCommands(commandsFor('en'));
+    await api.setMyCommands(commandsFor('ru'), { language_code: 'ru' });
+  }
+
+  // ——— очистка чата ———
+
+  /**
+   * /clear: удаляет недавнюю переписку (сообщения бота и игрока — Telegram разрешает боту это в личке
+   * для сообщений младше 48 ч) и заново присылает приветствие. Прогресс игры не трогает.
+   */
+  private async onClear(ctx: Context) {
+    const chat = ctx.chat;
+    const last = ctx.message?.message_id;
+    if (!chat || chat.type !== 'private' || !last) return;
+    const ids: number[] = [];
+    for (let id = last; id > 0 && ids.length < CLEAR_DEPTH; id--) ids.push(id);
+    for (let i = 0; i < ids.length; i += 100) {
+      const part = ids.slice(i, i + 100);
+      // пачкой; если Telegram отказал (например, есть сообщения старше 48 ч) — по одному из свежей сотни
+      const ok = await this.bot!.api.deleteMessages(chat.id, part).catch(() => false);
+      if (!ok && i === 0) await Promise.all(part.slice(0, 40).map((id) => this.bot!.api.deleteMessage(chat.id, id).catch(() => false)));
+    }
+    await this.onStart(ctx, false);
+  }
+
+  // ——— язык бота ———
+
+  /** Язык ответа: выбранный командой /lang, иначе язык Telegram. */
+  async langFor(from?: { id: number; language_code?: string }): Promise<Lang> {
+    if (!from) return 'en';
+    const row = await this.db.one<{ lang: string }>('SELECT lang FROM bot_users WHERE tg_id = $1', [String(from.id)]).catch(() => null);
+    return row?.lang === 'ru' || row?.lang === 'en' ? row.lang : langOf(from.language_code);
+  }
+
+  private langKeyboard(cur: Lang): InlineKeyboard {
+    const mark = (l: Lang) => (l === cur ? `• ${LANG_NAMES[l]} •` : LANG_NAMES[l]);
+    return new InlineKeyboard().text(mark('ru'), 'lang:ru').text(mark('en'), 'lang:en');
+  }
+
+  private async onLangCommand(ctx: Context) {
+    const lang = await this.langFor(ctx.from);
+    await ctx.reply(TEXT[lang].langAsk, { parse_mode: 'HTML', reply_markup: this.langKeyboard(lang) });
+  }
+
+  private async onLangPick(ctx: Context, lang: Lang) {
+    if (!ctx.from) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    await this.db
+      .query('INSERT INTO bot_users (tg_id, lang) VALUES ($1, $2) ON CONFLICT (tg_id) DO UPDATE SET lang = EXCLUDED.lang, updated_at = now()', [String(ctx.from.id), lang])
+      .catch((e) => this.log.warn(`bot lang not saved: ${String(e)}`));
+    await ctx.answerCallbackQuery({ text: LANG_NAMES[lang] });
+    // меню команд этого чата — на выбранном языке
+    if (ctx.chat) await this.bot!.api.setMyCommands(commandsFor(lang), { scope: { type: 'chat', chat_id: ctx.chat.id } }).catch(() => undefined);
+    try {
+      await ctx.editMessageText(TEXT[lang].langSet, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang, undefined, true) });
+    } catch {
+      await ctx.reply(TEXT[lang].langSet, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang, undefined, true) });
+    }
   }
 
   async onModuleDestroy() {

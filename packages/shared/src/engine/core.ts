@@ -1,5 +1,5 @@
 import type { Config } from '../config';
-import { ACHIEVEMENTS, HEROINE_MAP } from '../content';
+import { ACHIEVEMENTS, HEROINE_MAP, MODE_SET, SET_SLOTS } from '../content';
 import { Rng } from '../rng';
 import type { ClassId, Currency, GameEvent, Item, PlayerState, Reward } from '../types';
 import { CURRENCIES } from '../types';
@@ -243,6 +243,13 @@ export function rollLoot(ctx: Ctx, o: Partial<LootOpts> & { lvl: number }): Item
     rarityBonus: lootBonus(s),
     ...o,
   });
+}
+
+/** Предмет сета режима (легендарный или выше) — сразу в инвентарь; null, если некуда положить. */
+export function grantModeSetPiece(ctx: Ctx, mode: keyof typeof MODE_SET, rarity: 4 | 5 = 4): string | null {
+  const slot = SET_SLOTS[ctx.rng.int(SET_SLOTS.length)];
+  const item = rollLoot(ctx, { lvl: farmLevel(ctx.cfg, ctx.s), forceRarity: rarity, slot, set: MODE_SET[mode] });
+  return addItem(ctx, item, { noAutoSmelt: true });
 }
 
 export function smeltGain(ctx: Ctx, item: Item) {

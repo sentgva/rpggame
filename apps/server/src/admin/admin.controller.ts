@@ -58,7 +58,9 @@ export class AdminController {
   @HttpCode(200)
   async broadcast(@Headers('x-admin-token') token: string, @Body() body: { text: string }) {
     this.check(token);
-    const rows = await this.db.query<{ id: string; lang: string }>("SELECT id, lang FROM players WHERE (state->'settings'->>'notify')::boolean IS TRUE");
+    const rows = await this.db.query<{ id: string; lang: string }>(
+      "SELECT id, COALESCE((SELECT lang FROM bot_users b WHERE b.tg_id = players.id), state->'settings'->>'lang', lang) AS lang FROM players WHERE (state->'settings'->>'notify')::boolean IS TRUE",
+    );
     let sent = 0;
     for (const r of rows) {
       if (await this.bots.send(r.id, body.text, r.lang === 'en' ? 'en' : 'ru')) sent++;
