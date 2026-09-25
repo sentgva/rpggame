@@ -1,0 +1,29 @@
+{
+  "name": "@idle/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "art:preview": "tsx scripts/art-preview.ts"
+  },
+  "dependencies": {
+    "@fontsource/manrope": "^5.2.0",
+    "@fontsource/pixelify-sans": "^5.2.0",
+    "pixi.js": "^8.13.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "5.9.3",
+    "vite": "^7.1.0"
+  }
+}

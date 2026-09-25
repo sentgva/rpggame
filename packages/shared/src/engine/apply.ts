@@ -67,6 +67,7 @@ export function applyAction(state: PlayerState, action: Action, opt: ApplyOption
   };
   tick(ctx);
   const result = handler(ctx, action);
+  touch(ctx);
   s.rng = ctx.rng.state;
   if (action.type.startsWith('dev.')) s.dev.used = true;
   return { state: s, result: result ?? {}, events: ctx.events };
@@ -138,6 +139,11 @@ export function tick(ctx: Ctx) {
   if (s.mail.length > 50) s.mail = s.mail.slice(-50);
   settleChest(ctx);
   void cfg;
+}
+
+/** Отметка «игрок был в игре» — после действия (для экрана «Пока вас не было»). */
+export function touch(ctx: Ctx) {
+  ctx.s.lastSeen = ctx.now;
 }
 
 export function sanitizeResult(result: any): any {

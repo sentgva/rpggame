@@ -1,0 +1,155 @@
+/* Палитра из ТЗ (раздел 2) */
+:root {
+  --panel-1: #1b1418;
+  --panel-2: #2a1e22;
+  --panel-3: #33252a;
+  --frame: #5a3a2e;
+  --frame-dark: #3a2620;
+  --edge: #b8322c;
+  --accent: #e0a13a;
+  --accent-2: #f2c86a;
+  --accent-dark: #9a6a1e;
+  --text: #f2e6d8;
+  --text-2: #a89484;
+  --text-3: #6f5f55;
+  --good: #4fbf5a;
+  --bad: #e03a3a;
+  --info: #3d7be0;
+  --tg-accent: #e0a13a;
+
+  --r-common: #9a9a9a;
+  --r-uncommon: #4fbf5a;
+  --r-rare: #3d7be0;
+  --r-epic: #9b4de0;
+  --r-legendary: #f08a24;
+  --r-mythic: #e03a3a;
+  --r-divine: linear-gradient(135deg, #e03a3a, #f08a24, #f2d46b, #4fbf5a, #3d9be0, #9b4de0);
+
+  --font-pixel: 'Pixelify Sans', 'Manrope', system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --nav-h: 64px;
+  --top-h: 52px;
+  --safe-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #120c10;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+img.pixel,
+canvas.pixel,
+.pixel {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--frame);
+  border-radius: 2px;
+}
+
+@keyframes pop-in {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.25);
+  }
+}
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 1px rgba(240, 138, 36, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 14px 3px rgba(240, 138, 36, 0.6);
+  }
+}
+@keyframes shine {
+  0% {
+    background-position: -120% 0;
+  }
+  60%,
+  100% {
+    background-position: 220% 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes rainbow {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
