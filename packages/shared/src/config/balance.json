@@ -132,7 +132,7 @@
   },
   "gear": {
     "growth": 1.02,
-    "growthLate": 1.06,
+    "growthLate": 1.055,
     "growthRamp": 250,
     "defGrowth": 1.03,
     "enhanceStep": 0.1,

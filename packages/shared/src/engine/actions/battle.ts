@@ -168,9 +168,11 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
   const gold = Math.floor(goldPerMin(cfg, s, L) * R.bossGoldMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
   const xp = Math.floor(xpPerMin(cfg, s, L) * R.bossXpMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
   const cur: Record<string, number> = { gold, xp };
+  // кристаллы и осколки — только за первое прохождение (не повторяются после Вознесения)
+  const first = ref.n > s.progress.maxGlobalEver;
   let crystals = 0;
-  if (ref.kind === 'boss') crystals += R.actBossCrystals * (1 + ref.diff);
-  else if (ref.stage % R.bossCrystalsEvery === 0) crystals += R.bossCrystals * (1 + ref.diff);
+  if (first && ref.kind === 'boss') crystals += R.actBossCrystals * (1 + ref.diff);
+  else if (first && ref.stage % R.bossCrystalsEvery === 0) crystals += R.bossCrystals * (1 + ref.diff);
   if (crystals) cur.crystals = crystals;
   const starDust = Math.floor((ref.kind === 'boss' ? R.actBossStarDust : ref.kind === 'mini' ? R.bossStarDust * 2 : ref.stage % 2 === 0 ? R.bossStarDust : 0) * (1 + L / 50));
   if (starDust) cur.starDust = starDust;
@@ -195,7 +197,7 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
   }
   // осколки владычицы на Кошмаре; на Normal/Hard владычица отдаёт осколки души самой «младшей» героине отряда
   let shards: { hero: string; n: number } | null = null;
-  if (ref.kind === 'boss' && ref.diff < 2 && R.actBossShards) {
+  if (first && ref.kind === 'boss' && ref.diff < 2 && R.actBossShards) {
     const party = currentParty(ctx).filter((id): id is string => !!id && !!s.heroines[id]);
     const hero = party.sort((a, b) => s.heroines[a].stars - s.heroines[b].stars || s.heroines[a].lvl - s.heroines[b].lvl)[0];
     if (hero) {
@@ -204,7 +206,7 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
       shards = { hero, n };
     }
   }
-  if (ref.kind === 'boss' && ref.diff === 2) {
+  if (first && ref.kind === 'boss' && ref.diff === 2) {
     const boss = ACT_BOSSES.find((b) => b.id === act.boss);
     if (boss?.hero) {
       const n = s.heroines[boss.hero] ? 40 : 80;
