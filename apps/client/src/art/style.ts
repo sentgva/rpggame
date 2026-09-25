@@ -12,3 +12,6 @@ export const useArt = create<{ style: ArtStyle; version: number; set(s: ArtStyle
 
 export const artStyle = () => useArt.getState().style;
 export const artVersion = () => useArt.getState().version;
+
+/** Векторные фигуры стройнее пиксельных «чиби» — показываем их на 15% крупнее (в бою и в интерфейсе). */
+export const VECTOR_SCALE = 1.15;

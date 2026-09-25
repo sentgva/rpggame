@@ -11,7 +11,7 @@ import {
   TilingSprite,
 } from 'pixi.js';
 import { derivedCanvas, isCanvasReady, unitCanvas, whenCanvasReady } from '../art/runtime';
-import { artVersion } from '../art/style';
+import { VECTOR_SCALE, artVersion } from '../art/style';
 import { useGame } from '../store/game';
 import { frameKey, lifeFrame, newLife, type LifeAnim, type LifeFrame } from '../art/anim';
 import { t } from '../i18n';
@@ -82,6 +82,8 @@ class UnitView {
   artVer = artVersion();
   /** кадр, который ещё растеризуется (пока показываем прежний) */
   waiting = '';
+  /** Колосс: и так во всю высоту сцены — векторное увеличение к нему не применяем */
+  colossus = false;
 
   constructor(
     public snap: UnitSnap,
@@ -96,6 +98,7 @@ class UnitView {
     const herald = !!HEROINE_MAP[snap.ref]?.herald;
     const colossus = !!ENEMY_MAP[snap.ref]?.colossus;
     this.special = herald || colossus;
+    this.colossus = colossus;
     this.life = newLife(now, snap.side === 0 && !snap.mirror, this.special);
     this.bobPhase = this.life.phase;
     const big = colossus ? 2.5 : herald ? 1.2 : snap.kind === 'boss' ? 2 : snap.kind === 'mini' ? 1.35 : snap.kind === 'summon' ? 0.8 : 1;
@@ -121,10 +124,11 @@ class UnitView {
     return -(this.spriteH - 2) * this.pix * this.scale;
   }
 
-  /** Размер на экране не зависит от разрешения кадра: 48-пиксельный и векторный спрайты одного роста. */
+  /** Размер на экране не зависит от разрешения кадра; векторные фигуры (кадр > 48 px) — на 15% крупнее пиксельных. */
   fitCanvas(canvas: HTMLCanvasElement) {
     const flip = this.snap.side === 1 ? -1 : 1;
-    this.pix = canvas.height > 32 ? (32 / canvas.height) * 1.2 : 1;
+    const grow = canvas.height > 64 && !this.colossus ? VECTOR_SCALE : 1;
+    this.pix = canvas.height > 32 ? (32 / canvas.height) * 1.2 * grow : 1;
     this.spriteH = canvas.height;
     this.sprite.scale.set(this.scale * this.pix * flip, this.scale * this.pix);
     this.flash.scale.copyFrom(this.sprite.scale);
@@ -776,7 +780,9 @@ export class BattleRenderer {
   }
 
   private flashUnit(u: UnitView, alpha: number) {
-    this.tween(140, (k) => (u.flash.alpha = alpha * (1 - k)));
+    // по Вестницам и Колоссам бьют без остановки — мягкая вспышка, иначе они постоянно «белеют»
+    const a = u.special ? alpha * 0.4 : alpha;
+    this.tween(140, (k) => (u.flash.alpha = a * (1 - k)));
   }
 
   private slash(tg: UnitView) {
@@ -845,7 +851,8 @@ export class BattleRenderer {
     const tx = new Text({ text, style: numStyle(size, color) });
     tx.anchor.set(0.5, 1);
     const x0 = u.baseX + (Math.random() - 0.5) * 18;
-    const y0 = u.baseY + u.headY - 6;
+    // не выше верхнего края сцены (над Колоссом цифры иначе обрезаются)
+    const y0 = Math.max(44, u.baseY + u.headY - 6);
     tx.position.set(x0, y0);
     this.ui.addChild(tx);
     tx.scale.set(0.6);
@@ -921,7 +928,8 @@ export class BattleRenderer {
         if (u.special) {
           // Вестницы и Колоссы парят над землёй, тень «дышит» вместе с ними
           const lift = Math.sin(this.time / 520 + u.bobPhase);
-          u.sprite.y = -5 * u.pix * Math.min(2, u.scale) + lift * 2.4;
+          // высота парения — в «пикселях» 48-пиксельной фигуры, чтобы не зависеть от разрешения кадра
+          u.sprite.y = -5 * ((u.pix * u.spriteH) / 48) * Math.min(2, u.scale) + lift * 2.4;
           u.shadow.scale.set(0.8 - lift * 0.08, 0.8 - lift * 0.08);
         } else u.sprite.y = Math.sin(this.time / 380 + u.bobPhase) * 1.2;
       }
