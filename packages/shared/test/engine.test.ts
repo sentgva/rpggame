@@ -45,6 +45,8 @@ import {
   hordeState,
   spireParty,
   HEROINE_MAP,
+  artStyleOf,
+  VECTOR_ART,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -142,6 +144,10 @@ describe('действия', () => {
     const r = applyAction(s, { type: 'settings', patch: { artStyle: 'pixel' } }, { cfg, now: T0 });
     expect(r.state.settings.artStyle).toBe('pixel');
     expect(() => applyAction(s, { type: 'settings', patch: { artStyle: '3d' } }, { cfg, now: T0 })).toThrow(GameError);
+    // пока векторный стиль выключен, рисуем пикселями при любом сохранённом выборе
+    expect(artStyleOf(undefined)).toBe(VECTOR_ART ? 'vector' : 'pixel');
+    expect(artStyleOf('vector')).toBe(VECTOR_ART ? 'vector' : 'pixel');
+    expect(artStyleOf('pixel')).toBe('pixel');
   });
 
   it('dev-действия запрещены без флага разработчика', () => {

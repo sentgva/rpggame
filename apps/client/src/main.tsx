@@ -8,6 +8,7 @@ import { loadPixelFont } from './styles/pixelFont';
 import { installErrorTrap } from './net/diag';
 import { useGame } from './store/game';
 import { useUi } from './store/ui';
+import { artStyleOf } from '@idle/shared';
 import { useArt } from './art/style';
 import { initTelegram } from './tg/telegram';
 
@@ -16,7 +17,7 @@ initTelegram();
 if (import.meta.env.DEV) Object.assign(window, { __game: useGame, __ui: useUi });
 installErrorTrap();
 // стиль графики персонажей — из настроек игрока
-useGame.subscribe((g) => useArt.getState().set(g.state?.settings.artStyle ?? 'vector'));
+useGame.subscribe((g) => useArt.getState().set(artStyleOf(g.state?.settings.artStyle)));
 // вернулись в игру (например, после смены стиля в чате с ботом) — подтягиваем состояние с сервера
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {

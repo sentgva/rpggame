@@ -288,12 +288,21 @@ export interface PlayerSettings {
   autoSmelt: number;
   haptics: boolean;
   speed: 1 | 2;
-  /** Стиль графики персонажей: новый векторный (по умолчанию) или прежний пиксельный. */
+  /** Стиль графики персонажей (учитывается, только если включён VECTOR_ART). */
   artStyle?: ArtStyle;
 }
 
 export type ArtStyle = 'vector' | 'pixel';
 export const ART_STYLES: ArtStyle[] = ['vector', 'pixel'];
+/**
+ * Векторный стиль персонажей выключен: у всех пиксели, переключателя в настройках и /style в боте нет.
+ * true — вернуть вектор (по умолчанию) и переключатель; код векторной графики остаётся в клиенте.
+ */
+export const VECTOR_ART: boolean = false;
+/** Стиль, которым рисуем на деле: без VECTOR_ART — всегда пиксели. */
+export function artStyleOf(s?: ArtStyle): ArtStyle {
+  return VECTOR_ART ? (s ?? 'vector') : 'pixel';
+}
 
 export interface PlayerState {
   v: number;

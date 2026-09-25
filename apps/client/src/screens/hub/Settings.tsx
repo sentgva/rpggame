@@ -1,4 +1,4 @@
-import { ITEM_RARITY_NAMES } from '@idle/shared';
+import { ITEM_RARITY_NAMES, VECTOR_ART, artStyleOf } from '@idle/shared';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Button, Panel, Slider, Toggle, css, openSheet } from '../../components/ui';
@@ -38,16 +38,18 @@ export function Settings() {
             </Button>
           </div>
         </Row>
-        <Row label={t('settings.artStyle')}>
-          <div className={css.row} style={{ gap: 4 }}>
-            <Button size="small" kind={(st.artStyle ?? 'vector') === 'vector' ? 'primary' : 'secondary'} onClick={() => set({ artStyle: 'vector' })}>
-              {t('settings.artVector')}
-            </Button>
-            <Button size="small" kind={st.artStyle === 'pixel' ? 'primary' : 'secondary'} onClick={() => set({ artStyle: 'pixel' })}>
-              {t('settings.artPixel')}
-            </Button>
-          </div>
-        </Row>
+        {VECTOR_ART && (
+          <Row label={t('settings.artStyle')}>
+            <div className={css.row} style={{ gap: 4 }}>
+              <Button size="small" kind={artStyleOf(st.artStyle) === 'vector' ? 'primary' : 'secondary'} onClick={() => set({ artStyle: 'vector' })}>
+                {t('settings.artVector')}
+              </Button>
+              <Button size="small" kind={artStyleOf(st.artStyle) === 'pixel' ? 'primary' : 'secondary'} onClick={() => set({ artStyle: 'pixel' })}>
+                {t('settings.artPixel')}
+              </Button>
+            </div>
+          </Row>
+        )}
         <Row label={t('settings.music')}>
           <Slider value={st.music} onChange={(v) => set({ music: v })} />
         </Row>

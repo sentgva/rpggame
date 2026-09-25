@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Bot, InlineKeyboard, type Context } from 'grammy';
+import { VECTOR_ART } from '@idle/shared';
 import { env } from '../env';
 
 const TEXT = {
@@ -27,7 +28,7 @@ const TEXT = {
       '4️⃣ Выполняй задания — они дают опыт <b>боевого пропуска</b> с обликами сезона.',
       '5️⃣ Застрял — загляни в Башню, подземелья и экспедиции за ресурсами.',
       '',
-      '🎨 Графика: <code>/style</code> — вектор или пиксели (или в настройках игры).',
+      ...(VECTOR_ART ? ['🎨 Графика: <code>/style</code> — вектор или пиксели (или в настройках игры).'] : []),
       '🐞 Нашёл ошибку? Напиши <code>/bug что случилось</code> или нажми кнопку в настройках игры.',
     ].join('\n'),
     bugAsk: '🐞 Опиши проблему одной командой:\n<code>/bug что случилось и как повторить</code>\n\nОтчёт придёт разработчику лично.',
@@ -75,7 +76,7 @@ const TEXT = {
       '4️⃣ Quests give <b>battle pass</b> XP with seasonal skins.',
       '5️⃣ Stuck? Farm the Tower, dungeons and expeditions.',
       '',
-      '🎨 Art style: <code>/style</code> — vector or pixel (also in game settings).',
+      ...(VECTOR_ART ? ['🎨 Art style: <code>/style</code> — vector or pixel (also in game settings).'] : []),
       '🐞 Found a bug? Send <code>/bug what happened</code> or use the button in game settings.',
     ].join('\n'),
     bugAsk: '🐞 Describe the problem in one command:\n<code>/bug what happened and how to repeat it</code>\n\nThe report goes straight to the developer.',
@@ -127,12 +128,15 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     this.bot.command('play', (ctx) => this.onStart(ctx));
     this.bot.command('help', (ctx) => this.onHelp(ctx));
     this.bot.command('bug', (ctx) => this.onBug(ctx));
-    this.bot.command('style', (ctx) => this.onStyleCommand(ctx));
-    this.bot.callbackQuery('style', async (ctx) => {
-      await ctx.answerCallbackQuery();
-      await this.onStyleCommand(ctx);
-    });
-    this.bot.callbackQuery(/^style:(vector|pixel)$/, (ctx) => this.onStylePick(ctx, ctx.match[1]));
+    // переключатель графики — только пока векторный стиль включён (VECTOR_ART)
+    if (VECTOR_ART) {
+      this.bot.command('style', (ctx) => this.onStyleCommand(ctx));
+      this.bot.callbackQuery('style', async (ctx) => {
+        await ctx.answerCallbackQuery();
+        await this.onStyleCommand(ctx);
+      });
+      this.bot.callbackQuery(/^style:(vector|pixel)$/, (ctx) => this.onStylePick(ctx, ctx.match[1]));
+    }
     this.bot.callbackQuery('help', async (ctx) => {
       await ctx.answerCallbackQuery();
       await this.onHelp(ctx);
@@ -152,7 +156,11 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     } else if (env.botUsername && env.appName) {
       kb = new InlineKeyboard().url(TEXT[lang].play, `https://t.me/${env.botUsername}/${env.appName}${startParam ? `?startapp=${startParam}` : ''}`);
     }
-    if (extras) (kb ?? (kb = new InlineKeyboard())).row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].style, 'style').row().text(TEXT[lang].bug, 'bug');
+    if (extras) {
+      kb ??= new InlineKeyboard();
+      if (VECTOR_ART) kb.row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].style, 'style').row().text(TEXT[lang].bug, 'bug');
+      else kb.row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].bug, 'bug');
+    }
     return kb;
   }
 
@@ -170,7 +178,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     const payload = typeof ctx.match === 'string' ? ctx.match.trim() : '';
     const reply_markup = this.playKeyboard(lang, payload || undefined, true);
     // картинка в выбранном игроком стиле (новичкам — вектор)
-    const style = (ctx.from && this.onStyle ? await this.onStyle(String(ctx.from.id)).catch(() => null) : null) ?? 'vector';
+    const style = VECTOR_ART ? ((ctx.from && this.onStyle ? await this.onStyle(String(ctx.from.id)).catch(() => null) : null) ?? 'vector') : 'pixel';
     const photo = this.welcomePhoto[style] ?? this.welcomeImageUrl(style);
     if (photo) {
       try {
@@ -292,14 +300,14 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     await api.setMyCommands([
       { command: 'start', description: 'Play Idle RPG' },
       { command: 'help', description: 'How to play' },
-      { command: 'style', description: 'Art style: vector or pixel' },
+      ...(VECTOR_ART ? [{ command: 'style', description: 'Art style: vector or pixel' }] : []),
       { command: 'bug', description: 'Report a bug: /bug text' },
     ]);
     await api.setMyCommands(
       [
         { command: 'start', description: 'Играть в Idle RPG' },
         { command: 'help', description: 'Как играть' },
-        { command: 'style', description: 'Графика: вектор или пиксели' },
+        ...(VECTOR_ART ? [{ command: 'style', description: 'Графика: вектор или пиксели' }] : []),
         { command: 'bug', description: 'Сообщить о баге: /bug текст' },
       ],
       { language_code: 'ru' },

@@ -59,15 +59,18 @@ describe.skipIf(!url)('PlayerService + PostgreSQL', () => {
 
   it('/style в боте: стиль графики пишется в настройки, новичку — «нет игрока»', async () => {
     const { StyleService } = await import('../src/bot/style.service');
+    const { artStyleOf, VECTOR_ART } = await import('@idle/shared');
     const bot = { onStyle: null as null | ((uid: string, style?: string) => Promise<string | null>) };
     const style = new StyleService(bot as never, players);
     expect(bot.onStyle).toBeTypeOf('function');
     expect(await style.handle('nobody')).toBeNull();
-    expect(await style.handle('u1')).toBe('vector');
+    expect(await style.handle('u1')).toBe(VECTOR_ART ? 'vector' : 'pixel');
     expect(await style.handle('u1', 'pixel')).toBe('pixel');
     expect((await players.getState('u1')).settings.artStyle).toBe('pixel');
     expect(await style.handle('u1', 'watercolor')).toBe('pixel');
-    expect(await bot.onStyle!('u1', 'vector')).toBe('vector');
+    // сохранённый выбор не теряется, даже когда вектор выключен (VECTOR_ART = false → рисуем пикселями)
+    expect(await bot.onStyle!('u1', 'vector')).toBe(artStyleOf('vector'));
+    expect((await players.getState('u1')).settings.artStyle).toBe('vector');
   });
 
   it('состояние и ledger сохраняются в БД', async () => {
