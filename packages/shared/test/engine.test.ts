@@ -136,6 +136,14 @@ describe('действия', () => {
     expect(stateHash(a.state)).toBe(stateHash(b.state));
   });
 
+  it('стиль графики: вектор по умолчанию, переключается на пиксели, мусор отклоняется', () => {
+    const s = fresh();
+    expect(s.settings.artStyle ?? 'vector').toBe('vector');
+    const r = applyAction(s, { type: 'settings', patch: { artStyle: 'pixel' } }, { cfg, now: T0 });
+    expect(r.state.settings.artStyle).toBe('pixel');
+    expect(() => applyAction(s, { type: 'settings', patch: { artStyle: '3d' } }, { cfg, now: T0 })).toThrow(GameError);
+  });
+
   it('dev-действия запрещены без флага разработчика', () => {
     const s = fresh();
     expect(() => applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'max' }, { cfg, now: T0 })).toThrow(GameError);

@@ -1,11 +1,11 @@
-/** Картинка приветствия бота (/start): npx tsx --tsconfig scripts/tsconfig.json scripts/welcome-banner.ts public/welcome.png */
+/** Пиксельная картинка приветствия бота (/start): npx tsx --tsconfig scripts/tsconfig.json scripts/welcome-banner.ts public/welcome-pixel.png */
 import { writeFileSync } from 'node:fs';
 import { HEROINE_MAP } from '@idle/shared';
 import { CLASS_OUTFIT, renderFigure } from '../src/art/figure';
 import { CLASS_WEAPON } from '../src/art/sprite';
 import { encodePng } from './png';
 
-const out = process.argv[2] ?? 'public/welcome.png';
+const out = process.argv[2] ?? 'public/welcome-pixel.png';
 const W = 1040;
 const H = 440;
 const S = 4;

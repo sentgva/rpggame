@@ -2,6 +2,7 @@ import { ELEMENT_COLORS, ENEMY_MAP, HEROINE_MAP } from '@idle/shared';
 import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from 'react';
 import { frameKey, lifeFrame, newLife, type LifeFrame } from '../art/anim';
 import { enemyUrl, heroUrl } from '../art/runtime';
+import { useArt } from '../art/style';
 
 // один общий таймер на все «живые» портреты
 const subs = new Set<(now: number) => void>();
@@ -35,6 +36,7 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
 /** Героиня, которая дышит, моргает и иногда подмигивает. */
 export function HeroImg({ id, skin, still, alt = '', style, ...rest }: Props) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
+  useArt((a) => a.version);
   const herald = !!HEROINE_MAP[id]?.herald;
   useEffect(() => {
     setFrame(null);
@@ -63,6 +65,7 @@ export function HeroImg({ id, skin, still, alt = '', style, ...rest }: Props) {
 /** Враг с «живой» анимацией; Колоссы машут крыльями/хвостом и светятся своей стихией. */
 export function EnemyImg({ id, alt = '', style, ...rest }: Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & { id: string }) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
+  useArt((a) => a.version);
   const def = ENEMY_MAP[id];
   const special = !!def?.colossus;
   useEffect(() => {

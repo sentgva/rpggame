@@ -475,6 +475,9 @@ export const ru = {
 
   'settings.title': 'Настройки',
   'settings.lang': 'Язык',
+  'settings.artStyle': 'Графика',
+  'settings.artVector': 'Вектор',
+  'settings.artPixel': 'Пиксели',
   'settings.music': 'Музыка',
   'settings.sfx': 'Звуки',
   'settings.notify': 'Уведомления бота',

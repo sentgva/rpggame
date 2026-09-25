@@ -10,7 +10,8 @@ import {
   TextureSource,
   TilingSprite,
 } from 'pixi.js';
-import { unitCanvas } from '../art/runtime';
+import { derivedCanvas, isCanvasReady, unitCanvas, whenCanvasReady } from '../art/runtime';
+import { artVersion } from '../art/style';
 import { useGame } from '../store/game';
 import { frameKey, lifeFrame, newLife, type LifeAnim, type LifeFrame } from '../art/anim';
 import { t } from '../i18n';
@@ -76,6 +77,11 @@ class UnitView {
   aura = new Graphics();
   auraParts: { x: number; y: number; vy: number; life: number; size: number }[] = [];
   auraAcc = 0;
+  /** разрешение векторного кадра и версия стиля графики, под которую собраны текстуры */
+  texSize = 256;
+  artVer = artVersion();
+  /** кадр, который ещё растеризуется (пока показываем прежний) */
+  waiting = '';
 
   constructor(
     public snap: UnitSnap,
@@ -94,17 +100,15 @@ class UnitView {
     this.bobPhase = this.life.phase;
     const big = colossus ? 2.5 : herald ? 1.2 : snap.kind === 'boss' ? 2 : snap.kind === 'mini' ? 1.35 : snap.kind === 'summon' ? 0.8 : 1;
     this.scale = scale * big;
-    const canvas = unitCanvas(snap.ref, { mirror: snap.mirror, skin });
-    this.sprite = new Sprite(Texture.from(canvas));
+    // векторные кадры растеризуются с запасом по разрешению: крупным юнитам — вдвое больше
+    this.texSize = big > 1.3 ? 512 : 256;
+    const canvas = unitCanvas(snap.ref, { mirror: snap.mirror, skin, size: this.texSize });
+    this.sprite = new Sprite(liveTexture(canvas));
     this.sprite.anchor.set(0.5, 1);
-    const flip = snap.side === 1 ? -1 : 1;
-    // фигуры 48 px: переводим в «единицы» прежних 32-пиксельных спрайтов (и делаем чуть крупнее)
-    this.pix = canvas.height > 32 ? (32 / canvas.height) * 1.2 : 1;
-    this.spriteH = canvas.height;
-    this.sprite.scale.set(this.scale * this.pix * flip, this.scale * this.pix);
-    this.flash = new Sprite(Texture.from(silhouette(canvas)));
+    this.flash = new Sprite(liveTexture(silhouette(canvas)));
+    this.fitCanvas(canvas);
+    this.preload();
     this.flash.anchor.set(0.5, 1);
-    this.flash.scale.copyFrom(this.sprite.scale);
     this.flash.alpha = 0;
     this.shadow.ellipse(0, 0, 11 * this.scale, 3 * this.scale).fill({ color: 0x000000, alpha: 0.35 });
     this.body.addChild(this.sprite, this.flash);
@@ -117,14 +121,67 @@ class UnitView {
     return -(this.spriteH - 2) * this.pix * this.scale;
   }
 
+  /** Размер на экране не зависит от разрешения кадра: 48-пиксельный и векторный спрайты одного роста. */
+  fitCanvas(canvas: HTMLCanvasElement) {
+    const flip = this.snap.side === 1 ? -1 : 1;
+    this.pix = canvas.height > 32 ? (32 / canvas.height) * 1.2 : 1;
+    this.spriteH = canvas.height;
+    this.sprite.scale.set(this.scale * this.pix * flip, this.scale * this.pix);
+    this.flash.scale.copyFrom(this.sprite.scale);
+  }
+
+  private canvasFor(f: LifeFrame) {
+    return unitCanvas(this.snap.ref, { mirror: this.snap.mirror, skin: this.skin, size: this.texSize }, f);
+  }
+
+  /** Заранее растеризуем частые кадры, чтобы моргание и удар не ждали. */
+  preload() {
+    const frames: LifeFrame[] = [
+      { arms: 'idle2', eyes: 'open' },
+      { arms: 'idle', eyes: 'half' },
+      { arms: 'idle', eyes: 'closed' },
+      { arms: 'attack', eyes: 'open' },
+    ];
+    if (this.special) frames.push({ arms: 'idle', eyes: 'open', flap: true }, { arms: 'idle2', eyes: 'open', flap: true });
+    for (const f of frames) this.canvasFor(f);
+  }
+
   /** Сменить кадр (поза рук + глаза); текстуры кадров кэшируются по канвасу. */
   setFrame(f: LifeFrame) {
     const key = frameKey(f);
     if (key === this.frame) return;
+    const canvas = this.canvasFor(f);
+    if (!isCanvasReady(canvas)) {
+      // кадр ещё рисуется — держим текущий, переключимся, когда будет готов
+      if (this.waiting !== key) {
+        this.waiting = key;
+        whenCanvasReady(canvas, () => {
+          if (this.waiting === key) {
+            this.waiting = '';
+            this.frame = '';
+          }
+        });
+      }
+      return;
+    }
     this.frame = key;
-    const canvas = unitCanvas(this.snap.ref, { mirror: this.snap.mirror, skin: this.skin }, f);
-    this.sprite.texture = Texture.from(canvas);
-    this.flash.texture = Texture.from(silhouette(canvas));
+    this.sprite.texture = liveTexture(canvas);
+    this.flash.texture = liveTexture(silhouette(canvas));
+    if (canvas.height !== this.spriteH) this.fitCanvas(canvas);
+  }
+
+  /** Сменили стиль графики в настройках — пересобираем кадры. */
+  checkArt() {
+    const v = artVersion();
+    if (v === this.artVer) return;
+    this.artVer = v;
+    this.waiting = '';
+    const canvas = this.canvasFor({ arms: 'idle', eyes: 'open' });
+    this.sprite.texture = liveTexture(canvas);
+    this.flash.texture = liveTexture(silhouette(canvas));
+    this.fitCanvas(canvas);
+    this.frame = '';
+    this.preload();
   }
 
   /** Искры ауры поднимаются вокруг Вестниц и Колоссов. */
@@ -221,22 +278,26 @@ const silhouettes = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 function silhouette(src: HTMLCanvasElement): HTMLCanvasElement {
   let c = silhouettes.get(src);
   if (!c) {
-    c = whiteSilhouette(src);
+    c = derivedCanvas(src, (dst) => {
+      const ctx = dst.getContext('2d')!;
+      ctx.clearRect(0, 0, dst.width, dst.height);
+      ctx.drawImage(src, 0, 0);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, dst.width, dst.height);
+      ctx.globalCompositeOperation = 'source-over';
+    });
     silhouettes.set(src, c);
   }
   return c;
 }
 
-function whiteSilhouette(src: HTMLCanvasElement): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = src.width;
-  c.height = src.height;
-  const ctx = c.getContext('2d')!;
-  ctx.drawImage(src, 0, 0);
-  ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, c.width, c.height);
-  return c;
+/** Текстура холста: векторные кадры сглаживаются и догружаются, когда растеризованы. */
+function liveTexture(canvas: HTMLCanvasElement): Texture {
+  const t = Texture.from(canvas);
+  if (canvas.height > 64) t.source.scaleMode = 'linear';
+  if (!isCanvasReady(canvas)) whenCanvasReady(canvas, () => t.source.update());
+  return t;
 }
 
 const numStyle = (size: number, fill: string) =>
@@ -316,6 +377,8 @@ export class BattleRenderer {
     });
     this.app.stage.addChild(this.stage);
     this.stage.addChild(this.bg, this.world, this.fx, this.ui);
+    // отладочный доступ к сцене в dev-сборке (скриншотные проверки)
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__battle = this;
     this.world.sortableChildren = true;
     this.fx.addChild(this.fxG);
     this.bg.addChild(this.particleG);
@@ -876,13 +939,17 @@ export class BattleRenderer {
       u.drawStatuses(this.time);
     }
     // твины
-    this.tweens = this.tweens.filter((tw) => {
+    // твины, созданные во время обновления (искры после попадания снаряда), не должны потеряться
+    const running = this.tweens;
+    this.tweens = [];
+    const alive = running.filter((tw) => {
       try {
         return tw.update(dt);
       } catch {
         return false; // объект анимации уже удалён — просто выбрасываем твин
       }
     });
+    this.tweens = alive.concat(this.tweens);
     // тряска
     if (this.shake > 0) {
       this.stage.x = (Math.random() - 0.5) * this.shake;

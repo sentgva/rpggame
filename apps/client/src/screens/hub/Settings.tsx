@@ -38,6 +38,16 @@ export function Settings() {
             </Button>
           </div>
         </Row>
+        <Row label={t('settings.artStyle')}>
+          <div className={css.row} style={{ gap: 4 }}>
+            <Button size="small" kind={(st.artStyle ?? 'vector') === 'vector' ? 'primary' : 'secondary'} onClick={() => set({ artStyle: 'vector' })}>
+              {t('settings.artVector')}
+            </Button>
+            <Button size="small" kind={st.artStyle === 'pixel' ? 'primary' : 'secondary'} onClick={() => set({ artStyle: 'pixel' })}>
+              {t('settings.artPixel')}
+            </Button>
+          </div>
+        </Row>
         <Row label={t('settings.music')}>
           <Slider value={st.music} onChange={(v) => set({ music: v })} />
         </Row>

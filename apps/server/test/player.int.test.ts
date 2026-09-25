@@ -57,6 +57,19 @@ describe.skipIf(!url)('PlayerService + PostgreSQL', () => {
     expect(r4.ok).toBe(true);
   });
 
+  it('/style в боте: стиль графики пишется в настройки, новичку — «нет игрока»', async () => {
+    const { StyleService } = await import('../src/bot/style.service');
+    const bot = { onStyle: null as null | ((uid: string, style?: string) => Promise<string | null>) };
+    const style = new StyleService(bot as never, players);
+    expect(bot.onStyle).toBeTypeOf('function');
+    expect(await style.handle('nobody')).toBeNull();
+    expect(await style.handle('u1')).toBe('vector');
+    expect(await style.handle('u1', 'pixel')).toBe('pixel');
+    expect((await players.getState('u1')).settings.artStyle).toBe('pixel');
+    expect(await style.handle('u1', 'watercolor')).toBe('pixel');
+    expect(await bot.onStyle!('u1', 'vector')).toBe('vector');
+  });
+
   it('состояние и ledger сохраняются в БД', async () => {
     await players.flush(true);
     const row = await db.one("SELECT state, max_stage FROM players WHERE id = 'u1'");

@@ -288,7 +288,12 @@ export interface PlayerSettings {
   autoSmelt: number;
   haptics: boolean;
   speed: 1 | 2;
+  /** Стиль графики персонажей: новый векторный (по умолчанию) или прежний пиксельный. */
+  artStyle?: ArtStyle;
 }
+
+export type ArtStyle = 'vector' | 'pixel';
+export const ART_STYLES: ArtStyle[] = ['vector', 'pixel'];
 
 export interface PlayerState {
   v: number;

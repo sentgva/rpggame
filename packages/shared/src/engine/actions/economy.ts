@@ -1,5 +1,6 @@
 import { HEROINE_MAP, SHOP_OFFER_MAP, SUMMON_POOL } from '../../content';
 import type { HeroRarity, Item, PlayerSettings } from '../../types';
+import { ART_STYLES } from '../../types';
 import type { Action } from '../apply';
 import {
   addAccountXp,
@@ -200,6 +201,7 @@ export const economyActions = {
     if (p.autoBoss !== undefined) st.autoBoss = !!p.autoBoss && (s.ascension.up.autoBoss ?? 0) > 0;
     if (p.autoSmelt !== undefined) st.autoSmelt = vInt(p.autoSmelt, -1, 4, 'autoSmelt');
     if (p.speed !== undefined) st.speed = p.speed === 2 ? 2 : 1;
+    if (p.artStyle !== undefined) st.artStyle = vOneOf(p.artStyle, ART_STYLES, 'artStyle');
     return {};
   },
 

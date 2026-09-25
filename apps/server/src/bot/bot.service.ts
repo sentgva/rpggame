@@ -27,6 +27,7 @@ const TEXT = {
       '4️⃣ Выполняй задания — они дают опыт <b>боевого пропуска</b> с обликами сезона.',
       '5️⃣ Застрял — загляни в Башню, подземелья и экспедиции за ресурсами.',
       '',
+      '🎨 Графика: <code>/style</code> — вектор или пиксели (или в настройках игры).',
       '🐞 Нашёл ошибку? Напиши <code>/bug что случилось</code> или нажми кнопку в настройках игры.',
     ].join('\n'),
     bugAsk: '🐞 Опиши проблему одной командой:\n<code>/bug что случилось и как повторить</code>\n\nОтчёт придёт разработчику лично.',
@@ -35,6 +36,20 @@ const TEXT = {
     play: '▶️ Играть',
     howTo: '📖 Как играть',
     bug: '🐞 Сообщить о баге',
+    style: '🎨 Графика',
+    styleAsk: (cur: string) =>
+      [
+        '🎨 <b>Графика персонажей</b>',
+        '',
+        '✨ <b>Вектор</b> — гладкая рисованная графика: мягкие тени, живые глаза и позы',
+        '👾 <b>Пиксели</b> — классический пиксель-арт, как раньше',
+        '',
+        `Сейчас: <b>${cur === 'pixel' ? 'Пиксели' : 'Вектор'}</b>`,
+      ].join('\n'),
+    styleSet: (cur: string) => `✅ Готово! Графика: <b>${cur === 'pixel' ? 'Пиксели' : 'Вектор'}</b>.\nЕсли игра открыта — сверни и разверни её, стиль обновится.`,
+    styleNoPlayer: '🎮 Сначала открой игру — потом здесь можно будет сменить графику.',
+    styleVector: '✨ Вектор',
+    stylePixel: '👾 Пиксели',
   },
   en: {
     welcome: [
@@ -60,6 +75,7 @@ const TEXT = {
       '4️⃣ Quests give <b>battle pass</b> XP with seasonal skins.',
       '5️⃣ Stuck? Farm the Tower, dungeons and expeditions.',
       '',
+      '🎨 Art style: <code>/style</code> — vector or pixel (also in game settings).',
       '🐞 Found a bug? Send <code>/bug what happened</code> or use the button in game settings.',
     ].join('\n'),
     bugAsk: '🐞 Describe the problem in one command:\n<code>/bug what happened and how to repeat it</code>\n\nThe report goes straight to the developer.',
@@ -68,6 +84,20 @@ const TEXT = {
     play: '▶️ Play',
     howTo: '📖 How to play',
     bug: '🐞 Report a bug',
+    style: '🎨 Art style',
+    styleAsk: (cur: string) =>
+      [
+        '🎨 <b>Character art style</b>',
+        '',
+        '✨ <b>Vector</b> — smooth hand-drawn look: soft shading, lively eyes and poses',
+        '👾 <b>Pixel</b> — the classic pixel art',
+        '',
+        `Current: <b>${cur === 'pixel' ? 'Pixel' : 'Vector'}</b>`,
+      ].join('\n'),
+    styleSet: (cur: string) => `✅ Done! Art style: <b>${cur === 'pixel' ? 'Pixel' : 'Vector'}</b>.\nIf the game is open, minimize and reopen it to refresh.`,
+    styleNoPlayer: '🎮 Open the game first — then you can switch the art style here.',
+    styleVector: '✨ Vector',
+    stylePixel: '👾 Pixel',
   },
 };
 
@@ -84,9 +114,11 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   readonly bot: Bot | null = env.botToken ? new Bot(env.botToken) : null;
   private started = false;
 
-  /** Кэш file_id приветственной картинки (Telegram не перекачивает её каждый раз). */
-  private welcomePhoto: string | null = null;
+  /** Кэш file_id приветственных картинок по стилю графики (Telegram не перекачивает их каждый раз). */
+  private welcomePhoto: Record<string, string> = {};
   /** Обработчик /bug — подключает BugService. */
+  /** Обработчик /style — подключает StyleService: без style возвращает текущий; null — игрока нет. */
+  onStyle: ((uid: string, style?: string) => Promise<string | null>) | null = null;
   onBugCommand: ((from: { id: number; username?: string; first_name?: string }, text: string) => Promise<{ ok: boolean; error?: { code: string } }>) | null = null;
 
   constructor() {
@@ -95,6 +127,12 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     this.bot.command('play', (ctx) => this.onStart(ctx));
     this.bot.command('help', (ctx) => this.onHelp(ctx));
     this.bot.command('bug', (ctx) => this.onBug(ctx));
+    this.bot.command('style', (ctx) => this.onStyleCommand(ctx));
+    this.bot.callbackQuery('style', async (ctx) => {
+      await ctx.answerCallbackQuery();
+      await this.onStyleCommand(ctx);
+    });
+    this.bot.callbackQuery(/^style:(vector|pixel)$/, (ctx) => this.onStylePick(ctx, ctx.match[1]));
     this.bot.callbackQuery('help', async (ctx) => {
       await ctx.answerCallbackQuery();
       await this.onHelp(ctx);
@@ -114,14 +152,14 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     } else if (env.botUsername && env.appName) {
       kb = new InlineKeyboard().url(TEXT[lang].play, `https://t.me/${env.botUsername}/${env.appName}${startParam ? `?startapp=${startParam}` : ''}`);
     }
-    if (extras) (kb ?? (kb = new InlineKeyboard())).row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].bug, 'bug');
+    if (extras) (kb ?? (kb = new InlineKeyboard())).row().text(TEXT[lang].howTo, 'help').text(TEXT[lang].style, 'style').row().text(TEXT[lang].bug, 'bug');
     return kb;
   }
 
-  /** Публичный адрес картинки приветствия (лежит рядом с клиентом). */
-  private welcomeImageUrl(): string | null {
+  /** Публичный адрес картинки приветствия (лежит рядом с клиентом): вектор или пиксели. */
+  private welcomeImageUrl(style: string): string | null {
     try {
-      return env.webAppUrl ? new URL('/welcome.png', env.webAppUrl).toString() : null;
+      return env.webAppUrl ? new URL(style === 'pixel' ? '/welcome-pixel.png' : '/welcome.png', env.webAppUrl).toString() : null;
     } catch {
       return null;
     }
@@ -131,15 +169,18 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     const lang = langOf(ctx.from?.language_code);
     const payload = typeof ctx.match === 'string' ? ctx.match.trim() : '';
     const reply_markup = this.playKeyboard(lang, payload || undefined, true);
-    const photo = this.welcomePhoto ?? this.welcomeImageUrl();
+    // картинка в выбранном игроком стиле (новичкам — вектор)
+    const style = (ctx.from && this.onStyle ? await this.onStyle(String(ctx.from.id)).catch(() => null) : null) ?? 'vector';
+    const photo = this.welcomePhoto[style] ?? this.welcomeImageUrl(style);
     if (photo) {
       try {
         const m = await ctx.replyWithPhoto(photo, { caption: TEXT[lang].welcome, parse_mode: 'HTML', reply_markup });
-        this.welcomePhoto = m.photo?.[m.photo.length - 1]?.file_id ?? this.welcomePhoto;
+        const id = m.photo?.[m.photo.length - 1]?.file_id;
+        if (id) this.welcomePhoto[style] = id;
         return;
       } catch (e) {
         this.log.warn(`welcome photo failed: ${String(e)}`);
-        this.welcomePhoto = null;
+        delete this.welcomePhoto[style];
       }
     }
     await ctx.reply(TEXT[lang].welcome, { parse_mode: 'HTML', reply_markup });
@@ -159,6 +200,49 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     }
     const r = await this.onBugCommand(ctx.from, text);
     await ctx.reply(r.ok ? TEXT[lang].bugThanks : r.error?.code === 'rateLimit' ? TEXT[lang].bugLimit : TEXT[lang].bugAsk, { parse_mode: 'HTML' });
+  }
+
+  private styleKeyboard(lang: 'ru' | 'en', cur: string): InlineKeyboard {
+    const mark = (s: string, label: string) => (cur === s ? `• ${label} •` : label);
+    return new InlineKeyboard().text(mark('vector', TEXT[lang].styleVector), 'style:vector').text(mark('pixel', TEXT[lang].stylePixel), 'style:pixel');
+  }
+
+  private async onStyleCommand(ctx: Context) {
+    const lang = langOf(ctx.from?.language_code);
+    const arg = typeof ctx.match === 'string' ? ctx.match.trim().toLowerCase() : '';
+    if (!ctx.from || !this.onStyle) return;
+    // /style vector | /style pixel (и русские варианты) — сразу применить
+    const direct = /^(v|vec|vector|вектор)/.test(arg) ? 'vector' : /^(p|pix|pixel|пикс)/.test(arg) ? 'pixel' : undefined;
+    if (direct) {
+      const cur = await this.onStyle(String(ctx.from.id), direct);
+      await ctx.reply(cur ? TEXT[lang].styleSet(cur) : TEXT[lang].styleNoPlayer, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
+      return;
+    }
+    const cur = await this.onStyle(String(ctx.from.id));
+    if (!cur) {
+      await ctx.reply(TEXT[lang].styleNoPlayer, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
+      return;
+    }
+    await ctx.reply(TEXT[lang].styleAsk(cur), { parse_mode: 'HTML', reply_markup: this.styleKeyboard(lang, cur) });
+  }
+
+  private async onStylePick(ctx: Context, style: string) {
+    const lang = langOf(ctx.from?.language_code);
+    if (!ctx.from || !this.onStyle) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    const cur = await this.onStyle(String(ctx.from.id), style);
+    if (!cur) {
+      await ctx.answerCallbackQuery({ text: TEXT[lang].styleNoPlayer.replace(/<[^>]+>/g, ''), show_alert: true });
+      return;
+    }
+    await ctx.answerCallbackQuery({ text: TEXT[lang].styleSet(cur).replace(/<[^>]+>/g, '').split('\n')[0] });
+    try {
+      await ctx.editMessageText(TEXT[lang].styleAsk(cur) + '\n\n' + TEXT[lang].styleSet(cur).split('\n')[1], { parse_mode: 'HTML', reply_markup: this.styleKeyboard(lang, cur) });
+    } catch {
+      /* то же содержимое — Telegram отвечает «message is not modified» */
+    }
   }
 
   async onApplicationBootstrap() {
@@ -208,12 +292,14 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     await api.setMyCommands([
       { command: 'start', description: 'Play Idle RPG' },
       { command: 'help', description: 'How to play' },
+      { command: 'style', description: 'Art style: vector or pixel' },
       { command: 'bug', description: 'Report a bug: /bug text' },
     ]);
     await api.setMyCommands(
       [
         { command: 'start', description: 'Играть в Idle RPG' },
         { command: 'help', description: 'Как играть' },
+        { command: 'style', description: 'Графика: вектор или пиксели' },
         { command: 'bug', description: 'Сообщить о баге: /bug текст' },
       ],
       { language_code: 'ru' },

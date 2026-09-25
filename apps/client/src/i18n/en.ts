@@ -477,6 +477,9 @@ export const en: typeof ru = {
 
   'settings.title': 'Settings',
   'settings.lang': 'Language',
+  'settings.artStyle': 'Art style',
+  'settings.artVector': 'Vector',
+  'settings.artPixel': 'Pixel',
   'settings.music': 'Music',
   'settings.sfx': 'Sounds',
   'settings.notify': 'Bot notifications',

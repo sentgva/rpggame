@@ -3,6 +3,8 @@ import { renderIcon } from './icons';
 import { renderItemIcon } from './itemArt';
 import { CLASS_OUTFIT, renderFigure, type OutfitKind, type Pose } from './figure';
 import { CLASS_BODY, CLASS_WEAPON, ROLE_CLASS, type Bitmap, type SpriteSpec } from './sprite';
+import { artStyle } from './style';
+import { PORTRAIT_VIEW, renderVectorSvg, type VSpec } from './vector/figure';
 
 type FigureSpec = SpriteSpec & { outfit?: OutfitKind };
 
@@ -17,6 +19,82 @@ export function bitmapToCanvas(b: Bitmap): HTMLCanvasElement {
   const img = ctx.createImageData(b.w, b.h);
   img.data.set(b.data);
   ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+// ——— векторный стиль: SVG для интерфейса, растр для сцены боя ———
+
+function toVSpec(spec: FigureSpec): VSpec {
+  return { look: spec.look, weapon: spec.weapon, element: spec.element, outfit: spec.outfit, shadow: spec.shadow, tint: spec.tint };
+}
+
+export function svgUrl(svg: string): string {
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+interface Readiness {
+  ready: boolean;
+  cbs: (() => void)[];
+}
+const readiness = new WeakMap<HTMLCanvasElement, Readiness>();
+
+/** Готов ли холст (векторные кадры растеризуются асинхронно). */
+export function isCanvasReady(c: HTMLCanvasElement): boolean {
+  const r = readiness.get(c);
+  return !r || r.ready;
+}
+
+export function whenCanvasReady(c: HTMLCanvasElement, cb: () => void) {
+  const r = readiness.get(c);
+  if (!r || r.ready) cb();
+  else r.cbs.push(cb);
+}
+
+function markReady(c: HTMLCanvasElement) {
+  const r = readiness.get(c);
+  if (!r || r.ready) return;
+  r.ready = true;
+  const cbs = r.cbs;
+  r.cbs = [];
+  for (const f of cbs) {
+    try {
+      f();
+    } catch (e) {
+      console.error('canvas ready', e);
+    }
+  }
+}
+
+/** SVG → холст size×size (асинхронно; до готовности холст прозрачный). */
+function rasterize(svg: string, size: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  readiness.set(c, { ready: false, cbs: [] });
+  const img = new Image();
+  img.onload = () => {
+    c.getContext('2d')!.drawImage(img, 0, 0, size, size);
+    markReady(c);
+  };
+  img.onerror = () => markReady(c);
+  img.src = svgUrl(svg.replace('<svg ', `<svg width="${size}" height="${size}" `));
+  return c;
+}
+
+/** Производный холст (силуэт и т. п.), готовый вслед за исходным. */
+export function derivedCanvas(src: HTMLCanvasElement, draw: (dst: HTMLCanvasElement) => void): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  if (isCanvasReady(src)) {
+    draw(c);
+    return c;
+  }
+  readiness.set(c, { ready: false, cbs: [] });
+  whenCanvasReady(src, () => {
+    draw(c);
+    markReady(c);
+  });
   return c;
 }
 
@@ -52,35 +130,52 @@ function specKey(kind: string, id: string, spec: Partial<SpriteSpec> & { skin?: 
 }
 
 /** Кадр героини: поза рук и состояние глаз (кадры рисуются лениво и кэшируются). */
-export function heroCanvas(heroId: string, skin?: string, opts: Partial<SpriteSpec> = {}, pose: Pose = {}): HTMLCanvasElement {
-  const key = specKey('h', heroId, { ...opts, skin }, pose);
+export function heroCanvas(heroId: string, skin?: string, opts: Partial<SpriteSpec> = {}, pose: Pose = {}, size = 256): HTMLCanvasElement {
+  const vector = artStyle() === 'vector';
+  const key = (vector ? `v${size}:` : '') + specKey('h', heroId, { ...opts, skin }, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(renderFigure(heroSpec(heroId, skin, opts), pose));
+    const spec = heroSpec(heroId, skin, opts);
+    c = vector ? rasterize(renderVectorSvg(toVSpec(spec), pose), size) : bitmapToCanvas(renderFigure(spec, pose));
     canvasCache.set(key, c);
   }
   return c;
 }
 
-export function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}, pose: Pose = {}): HTMLCanvasElement {
-  const key = specKey('e', enemyId, opts, pose);
+export function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}, pose: Pose = {}, size = 256): HTMLCanvasElement {
+  const vector = artStyle() === 'vector';
+  const key = (vector ? `v${size}:` : '') + specKey('e', enemyId, opts, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(renderFigure(enemySpec(enemyId, opts), pose));
+    const spec = enemySpec(enemyId, opts);
+    c = vector ? rasterize(renderVectorSvg(toVSpec(spec), pose), size) : bitmapToCanvas(renderFigure(spec, pose));
     canvasCache.set(key, c);
   }
   return c;
 }
 
-/** Юнит боя: героиня, враг, призыв или тёмный двойник. */
-export function unitCanvas(ref: string, opts: { mirror?: boolean; skin?: string } = {}, pose: Pose = {}): HTMLCanvasElement {
+/** Юнит боя: героиня, враг, призыв или тёмный двойник. size — разрешение векторного кадра. */
+export function unitCanvas(ref: string, opts: { mirror?: boolean; skin?: string; size?: number } = {}, pose: Pose = {}): HTMLCanvasElement {
   // героини (в т.ч. отряд соперника на арене и тёмные двойники) — по своему облику
-  if (HEROINE_MAP[ref]) return heroCanvas(ref, opts.skin, { shadow: opts.mirror }, pose);
-  if (ENEMY_MAP[ref]) return enemyCanvas(ref, {}, pose);
-  return heroCanvas('lira', undefined, {}, pose);
+  if (HEROINE_MAP[ref]) return heroCanvas(ref, opts.skin, { shadow: opts.mirror }, pose, opts.size);
+  if (ENEMY_MAP[ref]) return enemyCanvas(ref, {}, pose, opts.size);
+  return heroCanvas('lira', undefined, {}, pose, opts.size);
+}
+
+function vectorUrl(key: string, make: () => string): string {
+  let u = urlCache.get(key);
+  if (!u) {
+    u = svgUrl(make());
+    urlCache.set(key, u);
+    const img = new Image();
+    img.src = u;
+    img.decode?.().catch(() => {});
+  }
+  return u;
 }
 
 export function heroUrl(heroId: string, skin?: string, pose: Pose = {}): string {
+  if (artStyle() === 'vector') return vectorUrl(`vurl:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`, () => renderVectorSvg(toVSpec(heroSpec(heroId, skin)), pose));
   const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
   let u = urlCache.get(key);
   if (!u) {
@@ -97,6 +192,7 @@ export function heroUrl(heroId: string, skin?: string, pose: Pose = {}): string 
 }
 
 export function enemyUrl(enemyId: string, pose: Pose = {}): string {
+  if (artStyle() === 'vector') return vectorUrl(`vurl:e:${enemyId}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`, () => renderVectorSvg(toVSpec(enemySpec(enemyId)), pose));
   const key = `url:e:${enemyId}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
   let u = urlCache.get(key);
   if (!u) {
@@ -108,6 +204,7 @@ export function enemyUrl(enemyId: string, pose: Pose = {}): string {
 
 /** Портрет: голова и плечи крупным планом. */
 export function portraitUrl(heroId: string, skin?: string): string {
+  if (artStyle() === 'vector') return vectorUrl(`vport:${heroId}:${skin ?? ''}`, () => renderVectorSvg(toVSpec(heroSpec(heroId, skin)), {}, PORTRAIT_VIEW));
   const key = `portrait:${heroId}:${skin ?? ''}`;
   let u = urlCache.get(key);
   if (!u) {
