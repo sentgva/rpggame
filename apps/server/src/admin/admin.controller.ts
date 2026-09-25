@@ -84,6 +84,14 @@ export class AdminController {
     return this.balance.reload();
   }
 
+  /** Зарегистрировать вебхук, команды и кнопку меню бота (нужно один раз после деплоя на Vercel). */
+  @Post('bot/setup')
+  @HttpCode(200)
+  async botSetup(@Headers('x-admin-token') token: string) {
+    this.check(token);
+    return this.bots.setup();
+  }
+
   @Get('stats')
   async stats(@Headers('x-admin-token') token: string) {
     this.check(token);

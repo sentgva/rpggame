@@ -85,6 +85,33 @@ HTTPS-прокси (Caddy / nginx / Cloudflare Tunnel): Telegram открыва�
 
 Все переменные описаны в [`.env.example`](.env.example).
 
+## Деплой на Vercel
+
+Проект уже настроен для Vercel ([`vercel.json`](vercel.json)): клиент раздаётся CDN как статика,
+всё API (NestJS) работает одной функцией [`api/index.js`](api/index.js) в регионе `fra1`, база — Neon Postgres
+из Vercel Marketplace (переменная `DATABASE_URL` появляется при подключении базы к проекту).
+
+На Vercel сервер сам включает **serverless-режим** (`VERCEL=1` → `SERVERLESS=true`):
+- состояние игрока не кэшируется в памяти: каждое действие выполняется в транзакции с блокировкой строки
+  (`SELECT … FOR UPDATE`), сохраняется до ответа, повторы по action id отсекаются таблицей `action_results`;
+- ledger пишется в той же транзакции, аналитика и фоновые задачи — через `waitUntil` после ответа;
+- уведомления «сундук полон» запускает Vercel Cron (`GET /api/cron/notify`, раз в день на тарифе Hobby,
+  защищён `CRON_SECRET`);
+- вебхук бота не ставится при каждом холодном старте — его регистрирует один запрос после деплоя:
+
+```bash
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" https://<домен>/api/admin/bot/setup
+# → setWebhook(<WEBHOOK_URL>/api/bot/webhook), команды бота и кнопка меню «Играть» (WEBAPP_URL)
+```
+
+Переменные проекта: `DATABASE_URL` (от Neon), `BOT_TOKEN`, `BOT_USERNAME`, `WEBAPP_URL` и `WEBHOOK_URL`
+(= адрес проекта), `BOT_MODE=webhook`, `WEBHOOK_SECRET`, `SESSION_SECRET`, `ADMIN_TOKEN`, `CRON_SECRET`,
+при необходимости `DEV_MODE_ENABLED` и `DEV_USER_IDS`. После изменения переменных нужен повторный деплой.
+
+```bash
+npx vercel deploy --prod      # из корня репозитория; сборка идёт на стороне Vercel
+```
+
 ## Режим разработчика
 
 - `DEV_MODE_ENABLED=true` и `DEV_USER_IDS=<ваш Telegram ID>` — после входа в «Настройках» появится

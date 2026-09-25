@@ -13,7 +13,9 @@ import {
   type GameEvent,
   type PlayerState,
 } from '@idle/shared';
+import type { PoolClient } from 'pg';
 import { BalanceService } from '../balance/balance.service';
+import { background } from '../common/background';
 import { DbService } from '../db/db.service';
 import { env, isDevUser } from '../env';
 import { AnalyticsService } from './analytics.service';
@@ -26,6 +28,8 @@ interface Entry {
   lock: Promise<unknown>;
   recent: Map<string, ActionResponse>;
   meta: { referrer: string | null; refQualified: boolean };
+  /** Строки ledger, накопленные текущей операцией. */
+  ledger: unknown[][];
 }
 
 export type ActionResponse =
@@ -33,19 +37,31 @@ export type ActionResponse =
   | { ok: false; error: { code: string; params?: Record<string, string | number> } };
 
 export interface PlayerHooks {
-  afterAction?(id: string, state: PlayerState, action: Action): void;
+  afterAction?(id: string, state: PlayerState, action: Action, meta: Entry['meta']): void;
+}
+
+interface PlayerRow {
+  state: PlayerState;
+  referrer_id: string | null;
+  ref_qualified: boolean;
 }
 
 /**
- * Состояние игроков: сервер — источник истины. Держим горячие состояния в памяти
- * (write-behind с периодическим сбросом в PostgreSQL), применяем действия через
- * общий движок и пишем ledger/аналитику.
+ * Состояние игроков: сервер — источник истины. Применяем действия через общий движок
+ * и пишем ledger/аналитику.
+ *
+ * Обычный сервер держит горячие состояния в памяти (write-behind с периодическим сбросом
+ * в PostgreSQL) и сериализует действия игрока очередью в памяти. В serverless-режиме
+ * (Vercel) инстансов много и они живут недолго, поэтому каждое действие выполняется
+ * в транзакции: строка игрока блокируется SELECT … FOR UPDATE, состояние сохраняется
+ * до ответа, повторы по action id отсекаются таблицей action_results.
  */
 @Injectable()
 export class PlayerService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger('Players');
   private cache = new Map<string, Entry>();
   private timer: NodeJS.Timeout | null = null;
+  private readonly serverless = env.serverless;
   hooks: PlayerHooks = {};
 
   constructor(
@@ -55,7 +71,7 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    this.timer = setInterval(() => void this.flush(false), env.flushIntervalMs);
+    if (!this.serverless) this.timer = setInterval(() => void this.flush(false), env.flushIntervalMs);
   }
 
   async onModuleDestroy() {
@@ -103,21 +119,8 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
     return { state: entry!.state, created: true };
   }
 
-  private async load(id: string): Promise<Entry | null> {
-    const cached = this.cache.get(id);
-    if (cached) {
-      cached.lastAccess = Date.now();
-      return cached;
-    }
-    const row = await this.db.one<{ state: PlayerState; referrer_id: string | null; ref_qualified: boolean }>(
-      'SELECT state, referrer_id, ref_qualified FROM players WHERE id = $1',
-      [id],
-    );
-    if (!row) return null;
-    // повторная проверка после await: кто-то мог загрузить параллельно
-    const again = this.cache.get(id);
-    if (again) return again;
-    const entry: Entry = {
+  private entryFromRow(id: string, row: PlayerRow): Entry {
+    return {
       id,
       state: migrate(this.balance.get(), row.state, Date.now()),
       dirty: false,
@@ -125,7 +128,23 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
       lock: Promise.resolve(),
       recent: new Map(),
       meta: { referrer: row.referrer_id, refQualified: row.ref_qualified },
+      ledger: [],
     };
+  }
+
+  private async load(id: string): Promise<Entry | null> {
+    const cached = this.serverless ? undefined : this.cache.get(id);
+    if (cached) {
+      cached.lastAccess = Date.now();
+      return cached;
+    }
+    const row = await this.db.one<PlayerRow>('SELECT state, referrer_id, ref_qualified FROM players WHERE id = $1', [id]);
+    if (!row) return null;
+    if (this.serverless) return this.entryFromRow(id, row);
+    // повторная проверка после await: кто-то мог загрузить параллельно
+    const again = this.cache.get(id);
+    if (again) return again;
+    const entry = this.entryFromRow(id, row);
     this.cache.set(id, entry);
     return entry;
   }
@@ -134,11 +153,32 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
     return (await this.load(id))?.state ?? null;
   }
 
-  /** Последовательное выполнение операций над одним игроком. */
-  private async withLock<T>(id: string, fn: (e: Entry) => Promise<T> | T): Promise<T> {
+  /**
+   * Последовательное выполнение операций над одним игроком. В serverless-режиме fn получает
+   * клиент транзакции, в которой строка игрока заблокирована; изменения сохраняются до COMMIT.
+   */
+  private async withLock<T>(id: string, fn: (e: Entry, tx?: PoolClient) => Promise<T> | T): Promise<T> {
+    if (this.serverless) {
+      const out = await this.db.tx(async (c) => {
+        const r = await c.query<PlayerRow>('SELECT state, referrer_id, ref_qualified FROM players WHERE id = $1 FOR UPDATE', [id]);
+        if (!r.rows[0]) throw new GameError('noPlayer');
+        const entry = this.entryFromRow(id, r.rows[0]);
+        const res = await fn(entry, c);
+        if (entry.dirty) await this.writeEntry(entry, c);
+        await this.insertLedger(entry.ledger.splice(0), c);
+        return res;
+      });
+      return out;
+    }
     const entry = await this.load(id);
     if (!entry) throw new GameError('noPlayer');
-    const run = entry.lock.then(() => fn(entry));
+    const run = entry.lock.then(async () => {
+      try {
+        return await fn(entry);
+      } finally {
+        this.ledgerQueue.push(...entry.ledger.splice(0));
+      }
+    });
     entry.lock = run.catch(() => undefined);
     return run;
   }
@@ -146,12 +186,23 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
   // ——— действия ———
 
   async applyClient(id: string, actionId: string, action: Action): Promise<ActionResponse> {
-    return this.withLock(id, (e) => {
-      const prev = e.recent.get(actionId);
-      if (prev) return prev;
+    return this.withLock(id, async (e, tx) => {
+      if (tx) {
+        const prev = await tx.query<{ response: ActionResponse }>('SELECT response FROM action_results WHERE player_id = $1 AND action_id = $2', [id, actionId]);
+        if (prev.rows[0]) return prev.rows[0].response;
+      } else {
+        const prev = e.recent.get(actionId);
+        if (prev) return prev;
+      }
       const res = this.apply(e, action, { dev: isDevUser(id), trusted: false, source: action?.type ?? '?', actionId });
-      e.recent.set(actionId, res);
-      if (e.recent.size > 64) e.recent.delete(e.recent.keys().next().value!);
+      if (tx) {
+        await tx.query('INSERT INTO action_results (player_id, action_id, response) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [id, actionId, JSON.stringify(res)]);
+        // старые ответы нужны только для повторов в пределах минут
+        if (Math.random() < 0.05) await tx.query("DELETE FROM action_results WHERE player_id = $1 AND created_at < now() - interval '1 hour'", [id]);
+      } else {
+        e.recent.set(actionId, res);
+        if (e.recent.size > 64) e.recent.delete(e.recent.keys().next().value!);
+      }
       return res;
     });
   }
@@ -159,7 +210,7 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
   /** Действие от имени сервера (платежи, почта, компенсации) — сразу сохраняется в БД. */
   async applyTrusted(id: string, action: Action, source = 'server'): Promise<ActionResponse> {
     const res = await this.withLock(id, (e) => this.apply(e, action, { dev: false, trusted: true, source }));
-    await this.flushOne(id);
+    if (!this.serverless) await this.flushOne(id);
     return res;
   }
 
@@ -172,10 +223,10 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
       const r = applyAction(e.state, action, { cfg, now, dev: o.dev, server: true, trusted: o.trusted });
       e.state = r.state;
       e.dirty = true;
-      this.recordLedger(e.id, before, e.state.cur, o.source, o.actionId);
+      this.recordLedger(e, before, e.state.cur, o.source, o.actionId);
       if (r.events.length) this.analytics.track(e.id, r.events);
-      if (action.type.startsWith('dev.')) void this.devLog(e.id, action.type, action);
-      this.hooks.afterAction?.(e.id, e.state, action);
+      if (action.type.startsWith('dev.')) background(this.devLog(e.id, action.type, action));
+      this.hooks.afterAction?.(e.id, e.state, action, e.meta);
       return { ok: true, now, hash: stateHash(e.state), result: sanitizeResult(r.result) };
     } catch (err) {
       if (err instanceof GameError) return { ok: false, error: { code: err.code, params: err.params } };
@@ -191,14 +242,11 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
       e.state.dev.used = true;
       e.dirty = true;
     });
-    await this.flushOne(id);
+    if (!this.serverless) await this.flushOne(id);
   }
 
-  referralMeta(id: string) {
-    return this.cache.get(id)?.meta ?? null;
-  }
-
-  markQualified(id: string) {
+  markQualified(id: string, meta: Entry['meta']) {
+    meta.refQualified = true;
     const e = this.cache.get(id);
     if (e) e.meta.refQualified = true;
   }
@@ -207,10 +255,10 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
 
   private ledgerQueue: unknown[][] = [];
 
-  private recordLedger(id: string, before: Record<Currency, number>, after: Record<Currency, number>, source: string, actionId?: string) {
+  private recordLedger(e: Entry, before: Record<Currency, number>, after: Record<Currency, number>, source: string, actionId?: string) {
     for (const c of CURRENCIES) {
       const d = (after[c] ?? 0) - (before[c] ?? 0);
-      if (d !== 0 && isFinite(d)) this.ledgerQueue.push([id, c, d, after[c], source, actionId ?? null]);
+      if (d !== 0 && isFinite(d)) e.ledger.push([e.id, c, d, after[c], source, actionId ?? null]);
     }
   }
 
@@ -235,23 +283,37 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
         if (e.dirty) await this.writeEntry(e);
         if (!e.dirty && (all || now - e.lastAccess > 30 * 60000)) this.cache.delete(e.id);
       }
-      if (this.ledgerQueue.length) {
-        const rows = this.ledgerQueue.splice(0, this.ledgerQueue.length);
-        for (let i = 0; i < rows.length; i += 500) {
-          const chunk = rows.slice(i, i + 500);
-          const params: unknown[] = [];
-          const values = chunk.map((r, j) => {
-            params.push(...r);
-            const b = j * 6;
-            return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
-          });
-          await this.db.query(`INSERT INTO ledger (player_id, currency, delta, balance, source, action_id) VALUES ${values.join(',')}`, params);
-        }
-      }
+      await this.flushLedger();
     } catch (err) {
       this.log.error(`flush failed: ${String(err)}`);
     } finally {
       this.flushing = false;
+    }
+  }
+
+  /** Записать накопленный ledger. */
+  async flushLedger() {
+    if (!this.ledgerQueue.length) return;
+    const rows = this.ledgerQueue.splice(0, this.ledgerQueue.length);
+    try {
+      await this.insertLedger(rows);
+    } catch (err) {
+      // не теряем записи: вернём в очередь до следующей попытки
+      this.ledgerQueue.unshift(...rows);
+      throw err;
+    }
+  }
+
+  private async insertLedger(rows: unknown[][], tx?: PoolClient) {
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500);
+      const params: unknown[] = [];
+      const values = chunk.map((r, j) => {
+        params.push(...r);
+        const b = j * 6;
+        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
+      });
+      await (tx ?? this.db.pool).query(`INSERT INTO ledger (player_id, currency, delta, balance, source, action_id) VALUES ${values.join(',')}`, params);
     }
   }
 
@@ -260,7 +322,7 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
     if (e?.dirty) await this.writeEntry(e);
   }
 
-  private async writeEntry(e: Entry) {
+  private async writeEntry(e: Entry, tx?: PoolClient) {
     e.dirty = false;
     const s = e.state;
     let power = 0;
@@ -270,7 +332,7 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
       /* не критично */
     }
     try {
-      await this.db.query(
+      await (tx ?? this.db.pool).query(
         `UPDATE players SET state = $2, version = version + 1, max_stage = $3, tower = $4, arena_rating = $5, power = $6,
            dev_used = dev_used OR $7, lang = $8, updated_at = now(), last_seen_at = to_timestamp($9 / 1000.0)
          WHERE id = $1`,

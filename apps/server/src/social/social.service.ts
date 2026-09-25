@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { PlayerState } from '@idle/shared';
+import { background } from '../common/background';
 import { DbService } from '../db/db.service';
 import { env } from '../env';
 import { PlayerService } from '../game/player.service';
@@ -23,8 +23,8 @@ export class SocialService {
     @Inject(DbService) private readonly db: DbService,
     @Inject(PlayerService) private readonly players: PlayerService,
   ) {
-    players.hooks.afterAction = (id, state) => {
-      if (env.socialEnabled) void this.checkReferral(id, state);
+    players.hooks.afterAction = (id, state, _action, meta) => {
+      if (env.socialEnabled && meta.referrer && !meta.refQualified && state.progress.maxGlobalEver >= 21) background(this.checkReferral(id, meta));
     };
   }
 
@@ -36,12 +36,13 @@ export class SocialService {
     return rows.map((r, i) => ({ rank: i + 1, name: r.first_name || r.username || `#${r.id.slice(-4)}`, score: Number(r.score), me: r.id === me }));
   }
 
-  private async checkReferral(id: string, state: PlayerState) {
-    const meta = this.players.referralMeta(id);
-    if (!meta?.referrer || meta.refQualified || state.progress.maxGlobalEver < 21) return;
-    this.players.markQualified(id);
+  private async checkReferral(id: string, meta: { referrer: string | null; refQualified: boolean }) {
+    if (!meta.referrer) return;
+    this.players.markQualified(id, meta);
     try {
-      await this.db.query('UPDATE players SET ref_qualified = TRUE WHERE id = $1', [id]);
+      // условие в WHERE: засчитываем друга один раз, даже если параллельные инстансы проверят его одновременно
+      const upd = await this.db.query('UPDATE players SET ref_qualified = TRUE WHERE id = $1 AND NOT ref_qualified RETURNING id', [id]);
+      if (!upd.length) return;
       const row = await this.db.one<{ n: string }>('SELECT count(*) AS n FROM players WHERE referrer_id = $1 AND ref_qualified', [meta.referrer]);
       const n = Number(row?.n ?? 0);
       const reward = LADDER[n];

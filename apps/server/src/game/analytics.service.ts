@@ -16,7 +16,8 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(DbService) private readonly db: DbService) {}
 
   onModuleInit() {
-    this.timer = setInterval(() => void this.flush(), 5000);
+    // в serverless очередь сбрасывается в конце каждого запроса (см. serverless.ts)
+    if (!env.serverless) this.timer = setInterval(() => void this.flush(), 5000);
   }
 
   async onModuleDestroy() {

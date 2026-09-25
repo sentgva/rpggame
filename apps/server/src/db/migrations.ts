@@ -94,4 +94,18 @@ CREATE TABLE IF NOT EXISTS server_settings (
 );
 `,
   },
+  {
+    id: 2,
+    sql: `
+-- идемпотентность действий в serverless-режиме (ответ на повтор того же action id)
+CREATE TABLE IF NOT EXISTS action_results (
+  player_id  TEXT NOT NULL,
+  action_id  TEXT NOT NULL,
+  response   JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (player_id, action_id)
+);
+CREATE INDEX IF NOT EXISTS action_results_age ON action_results (player_id, created_at);
+`,
+  },
 ];

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { attachDatabasePool } from '@vercel/functions';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import { env } from '../env';
 import { MIGRATIONS } from './migrations';
@@ -6,9 +7,14 @@ import { MIGRATIONS } from './migrations';
 @Injectable()
 export class DbService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger('Db');
-  readonly pool = new Pool({ connectionString: env.databaseUrl, max: 20 });
+  // в serverless инстансов много: держим мало соединений и быстро их отпускаем (Neon — через pooler)
+  readonly pool = env.serverless
+    ? new Pool({ connectionString: env.databaseUrl, max: 4, idleTimeoutMillis: 5000, connectionTimeoutMillis: 10000 })
+    : new Pool({ connectionString: env.databaseUrl, max: 20 });
 
   async onModuleInit() {
+    // Vercel Fluid: закрывать простаивающие соединения до заморозки инстанса
+    if (env.serverless) attachDatabasePool(this.pool);
     await this.migrate();
   }
 

@@ -11,7 +11,11 @@ function list(v: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/** Serverless-режим (Vercel): без состояния в памяти процесса между запросами. */
+const serverless = bool(process.env.SERVERLESS, !!process.env.VERCEL);
+
 export const env = {
+  serverless,
   port: Number(process.env.PORT ?? 3000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   databaseUrl: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/idle_rpg',
@@ -45,6 +49,10 @@ export const env = {
   posthogHost: process.env.POSTHOG_HOST ?? 'https://eu.i.posthog.com',
   flushIntervalMs: Number(process.env.FLUSH_INTERVAL_MS ?? 3000),
   rateLimitPerMin: Number(process.env.RATE_LIMIT_PER_MIN ?? 240),
+  /** Секрет Vercel Cron (заголовок Authorization: Bearer ...). */
+  cronSecret: process.env.CRON_SECRET ?? '',
+  /** Регистрировать вебхук и команды бота при старте (в serverless — через POST /api/admin/bot/setup). */
+  botAutoSetup: bool(process.env.BOT_AUTO_SETUP, !serverless),
 };
 
 export function isDevUser(telegramId: string): boolean {

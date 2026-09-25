@@ -23,7 +23,8 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if (!env.notificationsEnabled) return;
+    // в serverless проверку запускает Vercel Cron: GET /api/cron/notify
+    if (!env.notificationsEnabled || env.serverless) return;
     this.timer = setInterval(() => void this.tick(), 10 * 60000);
   }
 
@@ -38,8 +39,8 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
     return s.chest.minutes + elapsed * rate >= capMinutes(cfg, s, now);
   }
 
-  async tick() {
-    if (!this.bots.bot) return;
+  async tick(): Promise<{ checked: number }> {
+    if (!this.bots.bot || !env.notificationsEnabled) return { checked: 0 };
     const today = new Date().toISOString().slice(0, 10);
     const rows = await this.db.query<{ id: string; state: PlayerState; notify_day: string | null; notify_count: number }>(
       `SELECT id, state, notify_day, notify_count FROM players
@@ -59,5 +60,6 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
       await new Promise((res) => setTimeout(res, 50));
     }
     if (rows.length) this.log.log(`checked ${rows.length} players`);
+    return { checked: rows.length };
   }
 }

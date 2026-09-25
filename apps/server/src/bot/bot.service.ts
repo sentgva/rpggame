@@ -15,6 +15,8 @@ const TEXT = {
   },
 };
 
+const ALLOWED_UPDATES = ['message', 'pre_checkout_query', 'callback_query'] as const;
+
 export function langOf(code?: string): 'ru' | 'en' {
   return code && /^(ru|uk|be|kk)/.test(code) ? 'ru' : 'en';
 }
@@ -60,27 +62,44 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
       this.log.warn('BOT_MODE=off — бот только отправляет сообщения и счета, обновления не принимаются');
       return;
     }
+    if (env.botMode === 'webhook' && !env.botAutoSetup) return; // serverless: вебхук ставится через POST /api/admin/bot/setup
     try {
       await this.bot.init();
       if (env.botMode === 'webhook' && env.webhookUrl) {
-        await this.bot.api.setWebhook(`${env.webhookUrl.replace(/\/$/, '')}/api/bot/webhook`, {
-          secret_token: env.webhookSecret || undefined,
-          allowed_updates: ['message', 'pre_checkout_query', 'callback_query'],
-        });
-        this.log.log('webhook set');
+        await this.setup();
       } else {
         await this.bot.api.deleteWebhook();
-        void this.bot.start({ allowed_updates: ['message', 'pre_checkout_query', 'callback_query'] });
+        void this.bot.start({ allowed_updates: ALLOWED_UPDATES });
         this.started = true;
         this.log.log(`long polling as @${this.bot.botInfo.username}`);
+        await this.setCommands();
       }
-      await this.bot.api.setMyCommands([
-        { command: 'start', description: 'Idle RPG' },
-        { command: 'paysupport', description: 'Payment support' },
-      ]);
     } catch (e) {
       this.log.error(`bot init failed: ${String(e)}`);
     }
+  }
+
+  /** Регистрирует вебхук, команды и кнопку меню «Играть» (WEBAPP_URL). */
+  async setup(): Promise<{ webhook: string; menuButton: boolean }> {
+    if (!this.bot) throw new Error('BOT_TOKEN не задан');
+    if (!env.webhookUrl) throw new Error('WEBHOOK_URL не задан');
+    const webhook = `${env.webhookUrl.replace(/\/$/, '')}/api/bot/webhook`;
+    await this.bot.api.setWebhook(webhook, { secret_token: env.webhookSecret || undefined, allowed_updates: ALLOWED_UPDATES });
+    this.log.log('webhook set');
+    await this.setCommands();
+    let menuButton = false;
+    if (env.webAppUrl) {
+      await this.bot.api.setChatMenuButton({ menu_button: { type: 'web_app', text: TEXT.ru.play, web_app: { url: env.webAppUrl } } });
+      menuButton = true;
+    }
+    return { webhook, menuButton };
+  }
+
+  private async setCommands() {
+    await this.bot!.api.setMyCommands([
+      { command: 'start', description: 'Idle RPG' },
+      { command: 'paysupport', description: 'Payment support' },
+    ]);
   }
 
   async onModuleDestroy() {
