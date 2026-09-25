@@ -60,6 +60,8 @@ class UnitView {
   bobPhase = Math.random() * Math.PI * 2;
   scale: number;
   barW: number;
+  pix = 1;
+  spriteH = 32;
 
   constructor(
     public snap: UnitSnap,
@@ -74,7 +76,10 @@ class UnitView {
     this.sprite = new Sprite(Texture.from(canvas));
     this.sprite.anchor.set(0.5, 1);
     const flip = snap.side === 1 ? -1 : 1;
-    this.sprite.scale.set(this.scale * flip, this.scale);
+    // фигуры 48 px: переводим в «единицы» прежних 32-пиксельных спрайтов (и делаем чуть крупнее)
+    this.pix = canvas.height > 32 ? (32 / canvas.height) * 1.2 : 1;
+    this.spriteH = canvas.height;
+    this.sprite.scale.set(this.scale * this.pix * flip, this.scale * this.pix);
     this.flash = new Sprite(Texture.from(whiteSilhouette(canvas)));
     this.flash.anchor.set(0.5, 1);
     this.flash.scale.copyFrom(this.sprite.scale);
@@ -87,7 +92,7 @@ class UnitView {
   }
 
   get headY() {
-    return -30 * this.scale;
+    return -(this.spriteH - 2) * this.pix * this.scale;
   }
 
   drawBars() {

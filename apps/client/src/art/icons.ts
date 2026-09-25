@@ -1,5 +1,5 @@
 /**
- * Пиксельные иконки 16×16 (отображаются ×3 = 48×48). Контур добавляется автоматически.
+ * Пиксельные иконки: шаблоны 16×16, выводятся 32×32 (Scale2x + объём + контур).
  * Стоковые эмодзи в интерфейсе не используются — только эти иконки.
  */
 import { hex, type RGBA } from './color';
@@ -1345,29 +1345,60 @@ ICONS.hero = ICONS.heroes;
 const OUTLINE = hex(PAL.X);
 
 /** Растеризовать иконку в RGBA 16×16 с автоконтуром. */
+/** Scale2x (EPX): удваивает разрешение, сглаживая диагонали без размытия. */
+function scale2x(src: string[], w: number, h: number): string[] {
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? '.' : src[y * w + x]);
+  const out = new Array<string>(w * 2 * h * 2);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const P = at(x, y);
+      const A = at(x, y - 1);
+      const B = at(x + 1, y);
+      const C = at(x - 1, y);
+      const D = at(x, y + 1);
+      const W2 = w * 2;
+      out[y * 2 * W2 + x * 2] = C === A && C !== D && A !== B ? A : P;
+      out[y * 2 * W2 + x * 2 + 1] = A === B && A !== C && B !== D ? B : P;
+      out[(y * 2 + 1) * W2 + x * 2] = D === C && D !== B && C !== A ? C : P;
+      out[(y * 2 + 1) * W2 + x * 2 + 1] = B === D && B !== A && D !== C ? D : P;
+    }
+  return out;
+}
+
+function shade(c: RGBA, k: number): RGBA {
+  const f = (v: number) => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k))));
+  return [f(c[0]), f(c[1]), f(c[2]), c[3]];
+}
+
+/**
+ * Иконка 32×32: шаблон 16×16 увеличивается Scale2x, затем объём (блик сверху-слева,
+ * тень снизу-справа по краю силуэта) и тонкий тёмный контур.
+ */
 export function renderIcon(name: string): Bitmap {
   const rows = ICONS[name] ?? ICONS.info;
-  const w = 16;
-  const h = 16;
-  const grid: (RGBA | null)[] = new Array(w * h).fill(null);
-  rows.forEach((row, y) => {
-    for (let x = 0; x < Math.min(w, row.length); x++) {
-      const c = row[x];
-      if (c === '.' || c === ' ') continue;
-      grid[y * w + x] = hex(PAL[c] ?? '#FF00FF');
-    }
-  });
+  const sw = 16;
+  const sh = 16;
+  const src: string[] = [];
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) src.push(rows[y]?.[x] && rows[y][x] !== ' ' ? rows[y][x] : '.');
+  const w = sw * 2;
+  const h = sh * 2;
+  const g = scale2x(src, sw, sh);
+  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && g[y * w + x] !== '.';
   const data = new Uint8ClampedArray(w * h * 4);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
-      let col = grid[i];
-      if (!col) {
-        const n =
-          (x > 0 && grid[i - 1]) || (x < w - 1 && grid[i + 1]) || (y > 0 && grid[i - w]) || (y < h - 1 && grid[i + w]);
-        if (n) col = OUTLINE;
+      const ch = g[i];
+      if (ch === '.') {
+        if (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) data.set(OUTLINE, i * 4);
+        continue;
       }
-      if (col) data.set(col, i * 4);
+      let col = hex(PAL[ch] ?? '#FF00FF');
+      if (ch !== 'X' && ch !== 'D') {
+        if (!solid(x + 1, y) || !solid(x, y + 1)) col = shade(col, -0.22);
+        else if (!solid(x - 1, y) || !solid(x, y - 1)) col = shade(col, 0.22);
+      }
+      data.set(col, i * 4);
     }
   return { w, h, data };
 }

@@ -12,7 +12,7 @@ import {
   type Item,
 } from '@idle/shared';
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
-import { heroUrl, iconUrl } from '../art/runtime';
+import { heroUrl, iconUrl, itemIconUrl } from '../art/runtime';
 import { t, tl } from '../i18n';
 import { useGame } from '../store/game';
 import { useUi } from '../store/ui';
@@ -282,7 +282,7 @@ export function ItemSlot({
     >
       {item ? (
         <>
-          <img className="pixel" src={iconUrl(itemIconName(item))} style={{ width: size * 0.74, height: size * 0.74 }} alt="" />
+          <img className="pixel" src={itemIconUrl(item)} style={{ width: size * 0.8, height: size * 0.8 }} alt="" />
           {item.enh > 0 && <span className={s.enh}>+{item.enh}</span>}
           <span className={s.lvlTag}>{item.lvl}</span>
           {compare && <img className={cx(s.cmp, 'pixel')} src={iconUrl(compare)} alt="" />}
