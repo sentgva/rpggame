@@ -11,7 +11,7 @@ import {
   type HeroRarity,
 } from '@idle/shared';
 import { useMemo, useState } from 'react';
-import { heroUrl } from '../art/runtime';
+import { HeroImg } from '../components/HeroImg';
 import { Button, HeroCard, Icon, Panel, Tabs, css, cx } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
@@ -219,7 +219,7 @@ function PartySlot({ id, active, onClick }: { id: string | null; active: boolean
         boxShadow: active ? '0 0 10px rgba(242,200,106,.5)' : undefined,
       }}
     >
-      {h ? <img className="pixel" src={heroUrl(h.id, h.skin)} alt="" style={{ width: '100%', height: '100%' }} /> : <Icon name="plus" size={22} style={{ opacity: 0.4 }} />}
+      {h ? <HeroImg className="pixel" id={h.id} skin={h.skin} style={{ width: '100%', height: '100%' }} /> : <Icon name="plus" size={22} style={{ opacity: 0.4 }} />}
       {h && <span style={{ position: 'absolute', bottom: 0, right: 3, fontSize: 10, fontWeight: 800, textShadow: '0 0 2px #000' }}>{h.lvl}</span>}
     </div>
   );

@@ -1,7 +1,8 @@
 import { accountXpToNext, formatNum } from '@idle/shared';
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import styles from './App.module.css';
-import { heroUrl, portraitUrl } from './art/runtime';
+import { portraitUrl } from './art/runtime';
+import { HeroImg } from './components/HeroImg';
 import { Bar, Button, Icon, ModalHost, Toasts, cx } from './components/ui';
 import { t } from './i18n';
 import { BattleTab } from './screens/BattleTab';
@@ -44,7 +45,7 @@ function Loading({ error }: { error: string | null }) {
     <div className={styles.app}>
       <div className={styles.loading}>
         <div className={styles.logo}>IDLE RPG</div>
-        <img className={styles.loadingSprite} src={heroUrl('lira')} alt="" />
+        <HeroImg className={styles.loadingSprite} id="lira" />
         <div style={{ color: error ? 'var(--bad)' : 'var(--text-2)' }}>{error ?? t('app.loading')}</div>
         {error && (
           <Button onClick={() => void useGame.getState().init()}>{t('app.retry')}</Button>

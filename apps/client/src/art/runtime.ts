@@ -1,7 +1,7 @@
 import { BASE_ITEM_MAP, CLASSES, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Item, type Look } from '@idle/shared';
 import { renderIcon } from './icons';
 import { renderItemIcon } from './itemArt';
-import { CLASS_OUTFIT, renderFigure, type OutfitKind } from './figure';
+import { CLASS_OUTFIT, renderFigure, type OutfitKind, type Pose } from './figure';
 import { CLASS_BODY, CLASS_WEAPON, ROLE_CLASS, type Bitmap, type SpriteSpec } from './sprite';
 
 type FigureSpec = SpriteSpec & { outfit?: OutfitKind };
@@ -47,43 +47,50 @@ export function enemySpec(enemyId: string, opts: Partial<SpriteSpec> = {}): Figu
   };
 }
 
-function specKey(kind: string, id: string, spec: Partial<SpriteSpec> & { skin?: string }): string {
-  return `${kind}:${id}:${spec.skin ?? ''}:${spec.shadow ? 1 : 0}:${spec.tint ?? ''}`;
+function specKey(kind: string, id: string, spec: Partial<SpriteSpec> & { skin?: string }, pose: Pose = {}): string {
+  return `${kind}:${id}:${spec.skin ?? ''}:${spec.shadow ? 1 : 0}:${spec.tint ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}`;
 }
 
-export function heroCanvas(heroId: string, skin?: string, opts: Partial<SpriteSpec> = {}): HTMLCanvasElement {
-  const key = specKey('h', heroId, { ...opts, skin });
+/** Кадр героини: поза рук и состояние глаз (кадры рисуются лениво и кэшируются). */
+export function heroCanvas(heroId: string, skin?: string, opts: Partial<SpriteSpec> = {}, pose: Pose = {}): HTMLCanvasElement {
+  const key = specKey('h', heroId, { ...opts, skin }, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(renderFigure(heroSpec(heroId, skin, opts)));
+    c = bitmapToCanvas(renderFigure(heroSpec(heroId, skin, opts), pose));
     canvasCache.set(key, c);
   }
   return c;
 }
 
-export function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}): HTMLCanvasElement {
-  const key = specKey('e', enemyId, opts);
+export function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}, pose: Pose = {}): HTMLCanvasElement {
+  const key = specKey('e', enemyId, opts, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(renderFigure(enemySpec(enemyId, opts)));
+    c = bitmapToCanvas(renderFigure(enemySpec(enemyId, opts), pose));
     canvasCache.set(key, c);
   }
   return c;
 }
 
 /** Юнит боя: героиня, враг, призыв или тёмный двойник. */
-export function unitCanvas(ref: string, side: 0 | 1, opts: { mirror?: boolean; skin?: string } = {}): HTMLCanvasElement {
-  if (HEROINE_MAP[ref] && (side === 0 || opts.mirror)) return heroCanvas(ref, opts.skin, { shadow: opts.mirror });
-  if (ENEMY_MAP[ref]) return enemyCanvas(ref);
-  return heroCanvas('lira');
+export function unitCanvas(ref: string, side: 0 | 1, opts: { mirror?: boolean; skin?: string } = {}, pose: Pose = {}): HTMLCanvasElement {
+  if (HEROINE_MAP[ref] && (side === 0 || opts.mirror)) return heroCanvas(ref, opts.skin, { shadow: opts.mirror }, pose);
+  if (ENEMY_MAP[ref]) return enemyCanvas(ref, {}, pose);
+  return heroCanvas('lira', undefined, {}, pose);
 }
 
-export function heroUrl(heroId: string, skin?: string): string {
-  const key = `url:${heroId}:${skin ?? ''}`;
+export function heroUrl(heroId: string, skin?: string, pose: Pose = {}): string {
+  const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}`;
   let u = urlCache.get(key);
   if (!u) {
-    u = heroCanvas(heroId, skin).toDataURL();
+    u = heroCanvas(heroId, skin, {}, pose).toDataURL();
     urlCache.set(key, u);
+    // заранее декодируем, чтобы смена кадра в <img> не мигала
+    if (pose.arms || pose.eyes) {
+      const img = new Image();
+      img.src = u;
+      img.decode?.().catch(() => {});
+    }
   }
   return u;
 }
@@ -104,13 +111,13 @@ export function portraitUrl(heroId: string, skin?: string): string {
   let u = urlCache.get(key);
   if (!u) {
     const src = heroCanvas(heroId, skin);
-    // голова и плечи фигуры 48×48
+    // голова и плечи фигуры 48×48 (голова x18–29, y5–15)
     const c = document.createElement('canvas');
     c.width = 22;
-    c.height = 21;
+    c.height = 22;
     const ctx = c.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(src, 13, 1, 22, 21, 0, 0, 22, 21);
+    ctx.drawImage(src, 13, 1, 22, 22, 0, 0, 22, 22);
     u = c.toDataURL();
     urlCache.set(key, u);
   }

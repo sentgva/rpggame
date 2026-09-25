@@ -1,7 +1,7 @@
 /** Превью героинь/врагов нового генератора: npx tsx scripts/figure-preview.ts out.png [heroines|enemies] [scale] [ids] */
 import { writeFileSync } from 'node:fs';
 import { ENEMIES, HEROINES } from '@idle/shared';
-import { CLASS_OUTFIT, renderFigure } from '../src/art/figure';
+import { CLASS_OUTFIT, renderFigure, type Pose } from '../src/art/figure';
 import { CLASS_WEAPON, ROLE_CLASS, type Bitmap } from '../src/art/sprite';
 import { encodePng } from './png';
 
@@ -9,16 +9,26 @@ const out = process.argv[2] ?? 'figures.png';
 const which = process.argv[3] ?? 'heroines';
 const SCALE = Number(process.argv[4] ?? 3);
 const only = process.argv[5]?.split(',');
+// позы через запятую: eyes:arms, например open:idle,closed:idle2,wink:attack
+const poses: Pose[] = (process.argv[6] ?? 'open:idle')
+  .split(',')
+  .map((p) => {
+    const [eyes, arms] = p.split(':') as [Pose['eyes'], Pose['arms']];
+    return { eyes, arms };
+  });
 const sprites: Bitmap[] = [];
 if (which === 'heroines') {
   for (const h of HEROINES) {
     if (only && !only.includes(h.id)) continue;
-    sprites.push(renderFigure({ look: h.look, weapon: CLASS_WEAPON[h.cls], body: 'robe', element: h.element, outfit: CLASS_OUTFIT[h.cls] }));
+    for (const pose of poses)
+      sprites.push(renderFigure({ look: h.look, weapon: CLASS_WEAPON[h.cls], body: 'robe', element: h.element, outfit: CLASS_OUTFIT[h.cls] }, pose));
   }
 } else {
   for (const e of ENEMIES) {
+    if (only && !only.includes(e.id)) continue;
     const cls = ROLE_CLASS[e.role];
-    sprites.push(renderFigure({ look: e.look, weapon: CLASS_WEAPON[cls], body: 'robe', element: e.element, outfit: CLASS_OUTFIT[cls] }));
+    for (const pose of poses)
+      sprites.push(renderFigure({ look: e.look, weapon: CLASS_WEAPON[cls], body: 'robe', element: e.element, outfit: CLASS_OUTFIT[cls] }, pose));
   }
 }
 const cols = Math.min(8, sprites.length);

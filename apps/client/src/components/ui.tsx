@@ -12,12 +12,13 @@ import {
   type Item,
 } from '@idle/shared';
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
-import { heroUrl, iconUrl, itemIconUrl } from '../art/runtime';
+import { iconUrl, itemIconUrl } from '../art/runtime';
 import { t, tl } from '../i18n';
 import { useGame } from '../store/game';
 import { useUi } from '../store/ui';
 import { haptic, pushBack } from '../tg/telegram';
 import s from './ui.module.css';
+import { HeroImg } from './HeroImg';
 
 export { s as css };
 
@@ -200,7 +201,7 @@ export function HeroCard({
         {def.rarity}
       </span>
       <img className={s.elemTag} src={iconUrl(def.element)} alt="" />
-      <img className={cx(s.heroSprite, !owned && s.dim)} src={heroUrl(id, h?.skin)} alt="" draggable={false} />
+      <HeroImg className={cx(s.heroSprite, !owned && s.dim)} id={id} skin={h?.skin} still={!owned} />
       <div className={s.heroName}>{tl(def.name)}</div>
       {owned && h ? (
         <div className={s.heroMeta}>

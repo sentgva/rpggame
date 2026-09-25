@@ -11,6 +11,7 @@ import {
   TilingSprite,
 } from 'pixi.js';
 import { unitCanvas } from '../art/runtime';
+import { frameKey, lifeFrame, newLife, type LifeAnim, type LifeFrame } from '../art/anim';
 import { t } from '../i18n';
 import { sfx } from '../audio/sfx';
 import { ACTS } from '@idle/shared';
@@ -62,14 +63,23 @@ class UnitView {
   barW: number;
   pix = 1;
   spriteH = 32;
+  /** моргание и дыхание рук */
+  life: LifeAnim;
+  frame = 'idle:open';
+  /** до какого момента держать позу удара / зажмуриться от попадания */
+  attackUntil = 0;
+  hurtUntil = 0;
 
   constructor(
     public snap: UnitSnap,
     scale: number,
+    now: number,
   ) {
     this.hp = snap.hp;
     this.maxHp = snap.maxHp;
     this.energy = snap.energy;
+    this.life = newLife(now, snap.side === 0 && !snap.mirror);
+    this.bobPhase = this.life.phase;
     const big = snap.kind === 'boss' ? 2 : snap.kind === 'mini' ? 1.35 : snap.kind === 'summon' ? 0.8 : 1;
     this.scale = scale * big;
     const canvas = unitCanvas(snap.ref, snap.side, { mirror: snap.mirror });
@@ -80,7 +90,7 @@ class UnitView {
     this.pix = canvas.height > 32 ? (32 / canvas.height) * 1.2 : 1;
     this.spriteH = canvas.height;
     this.sprite.scale.set(this.scale * this.pix * flip, this.scale * this.pix);
-    this.flash = new Sprite(Texture.from(whiteSilhouette(canvas)));
+    this.flash = new Sprite(Texture.from(silhouette(canvas)));
     this.flash.anchor.set(0.5, 1);
     this.flash.scale.copyFrom(this.sprite.scale);
     this.flash.alpha = 0;
@@ -93,6 +103,30 @@ class UnitView {
 
   get headY() {
     return -(this.spriteH - 2) * this.pix * this.scale;
+  }
+
+  /** Сменить кадр (поза рук + глаза); текстуры кадров кэшируются по канвасу. */
+  setFrame(f: LifeFrame) {
+    const key = frameKey(f);
+    if (key === this.frame) return;
+    this.frame = key;
+    const canvas = unitCanvas(this.snap.ref, this.snap.side, { mirror: this.snap.mirror }, f);
+    this.sprite.texture = Texture.from(canvas);
+    this.flash.texture = Texture.from(silhouette(canvas));
+  }
+
+  /** Живая анимация: дыхание рук, моргание, поза удара, зажмуривание от боли. */
+  animate(time: number) {
+    if (!this.alive) {
+      this.setFrame({ arms: 'idle', eyes: 'closed' });
+      return;
+    }
+    if (this.statuses.has('freeze')) return; // заморожена — застывает в текущем кадре
+    const f = lifeFrame(this.life, time);
+    if (time < this.attackUntil) f.arms = 'attack';
+    if (time < this.hurtUntil) f.eyes = 'closed';
+    else if (this.statuses.has('stun') && f.eyes === 'open') f.eyes = 'half';
+    this.setFrame(f);
   }
 
   drawBars() {
@@ -142,6 +176,17 @@ class UnitView {
     }
     this.sprite.tint = this.statuses.has('freeze') ? 0x9fd8ff : 0xffffff;
   }
+}
+
+const silhouettes = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+function silhouette(src: HTMLCanvasElement): HTMLCanvasElement {
+  let c = silhouettes.get(src);
+  if (!c) {
+    c = whiteSilhouette(src);
+    silhouettes.set(src, c);
+  }
+  return c;
 }
 
 function whiteSilhouette(src: HTMLCanvasElement): HTMLCanvasElement {
@@ -377,7 +422,7 @@ export class BattleRenderer {
   }
 
   private addUnit(snap: UnitSnap, appear = false) {
-    const u = new UnitView(snap, this.unitScale);
+    const u = new UnitView(snap, this.unitScale, this.time);
     this.units.set(snap.uid, u);
     this.world.addChild(u.root);
     this.placeUnit(u);
@@ -446,6 +491,7 @@ export class BattleRenderer {
       case 'act': {
         const u = this.units.get(e.u);
         if (!u) break;
+        u.attackUntil = this.time + (e.kind === 'ult' ? 520 : 300);
         u.energy = e.e;
         u.drawBars();
         const skill = SKILL_MAP[e.s];
@@ -491,6 +537,7 @@ export class BattleRenderer {
         const color = e.dot ? '#' + (DOT_COLOR[e.dot] ?? 0xffffff).toString(16).padStart(6, '0') : e.crit ? '#ffe040' : u.snap.side === 0 ? '#ff8a7a' : '#ffffff';
         this.floater(u, fmt(e.v) + (e.crit ? '!' : ''), color, e.crit ? 20 : e.dot ? 11 : 14);
         if (!e.dot) {
+          u.hurtUntil = this.time + 220;
           this.flashUnit(u, 0.9);
           this.knock(u);
           if (e.crit) this.shake = Math.max(this.shake, 3);
@@ -766,6 +813,7 @@ export class BattleRenderer {
     for (const u of this.units.values()) {
       if (u.alive) u.sprite.y = Math.sin(this.time / 380 + u.bobPhase) * 1.2;
       u.flash.y = u.sprite.y;
+      u.animate(this.time);
       u.drawStatuses(this.time);
     }
     // твины

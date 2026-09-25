@@ -1,6 +1,7 @@
 import { HEROINE_MAP, HERO_RARITY_COLORS, type SummonPull } from '@idle/shared';
 import { useEffect, useState } from 'react';
 import { heroUrl } from '../../art/runtime';
+import { HeroImg } from '../../components/HeroImg';
 import { Button, Cost, Icon, Panel, css } from '../../components/ui';
 import { t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
@@ -23,8 +24,8 @@ export function Summon() {
       <Panel>
         <div style={{ position: 'relative', height: 170, borderRadius: 6, overflow: 'hidden', background: 'radial-gradient(circle at 50% 60%, #5a2a8a, #1a0e24 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="summon" size={110} style={{ animation: 'bob 2s ease-in-out infinite', filter: 'drop-shadow(0 0 12px #e040ff)' }} />
-          <img className="pixel" src={heroUrl('lira')} width={72} height={72} alt="" style={{ position: 'absolute', left: 14, bottom: 6 }} />
-          <img className="pixel" src={heroUrl('velvet')} width={72} height={72} alt="" style={{ position: 'absolute', right: 14, bottom: 6, transform: 'scaleX(-1)' }} />
+          <HeroImg className="pixel" id="lira" width={72} height={72} style={{ position: 'absolute', left: 14, bottom: 6 }} />
+          <HeroImg className="pixel" id="velvet" width={72} height={72} style={{ position: 'absolute', right: 14, bottom: 6, transform: 'scaleX(-1)' }} />
         </div>
         <div className={css.row} style={{ justifyContent: 'space-between', margin: '8px 0' }}>
           <span className={css.tiny}>{t('summon.pitySSR', { n: S.pitySSR - s.summon.pitySSR })}</span>

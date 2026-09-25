@@ -18,6 +18,7 @@ import {
 } from '@idle/shared';
 import { useState } from 'react';
 import { heroUrl } from '../../art/runtime';
+import { HeroImg } from '../../components/HeroImg';
 import { Button, Cost, ElementIcon, Icon, ItemSlot, Panel, Stars, Tabs, css, cx, elementName, formatNum, confirmDialog } from '../../components/ui';
 import { getLang, t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
@@ -61,7 +62,7 @@ export function HeroDetail({ id }: { id: string }) {
       <Panel>
         <div className={css.row} style={{ alignItems: 'flex-start', gap: 12 }}>
           <div style={{ position: 'relative', flex: 'none' }}>
-            <img className="pixel" src={heroUrl(id, h.skin)} width={128} height={128} alt="" style={{ animation: 'bob 1.4s ease-in-out infinite', filter: h.awakened ? 'drop-shadow(0 0 6px #ffe8a0)' : undefined }} />
+            <HeroImg className="pixel" id={id} skin={h.skin} width={128} height={128} style={{ animation: 'bob 1.4s ease-in-out infinite', filter: h.awakened ? 'drop-shadow(0 0 6px #ffe8a0)' : undefined }} />
           </div>
           <div className={css.grow}>
             <div className={css.title}>{tl(def.name)}</div>
