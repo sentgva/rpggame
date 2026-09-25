@@ -355,7 +355,6 @@ export interface PlayerState {
   story: string[];
   titles: string[];
   title?: string;
-  recentActions: string[];
   lastBoss?: { gold: number; xp: number; at: number; doubled?: boolean };
   notify?: { chestFullAt?: number };
   referral?: { by?: string; count: number; claimed: number[] };

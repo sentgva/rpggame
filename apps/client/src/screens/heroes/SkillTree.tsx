@@ -110,7 +110,7 @@ export function SkillTree({ heroId }: { heroId: string }) {
           const pts = branchPoints(h, cls, b);
           return (
             <div key={b} className={css.panel} style={{ padding: 6 }}>
-              <div style={{ textAlign: 'center', fontFamily: 'var(--font-pixel)', color: 'var(--accent-2)', fontSize: 13 }}>{tl(CLASSES[cls].branches[b])}</div>
+              <div style={{ textAlign: 'center', fontFamily: 'var(--font-pixel)', color: 'var(--accent-2)', fontSize: 16 }}>{tl(CLASSES[cls].branches[b])}</div>
               <div className={css.tiny} style={{ textAlign: 'center', marginBottom: 4 }}>
                 {pts}
               </div>

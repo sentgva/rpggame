@@ -151,6 +151,7 @@ async function confirm(id: string, action: Action) {
         confirmed = applyAction(confirmed, action, { cfg: cfg!, now: res.now, dev: isDev }).state;
         if (res.hash && stateHash(confirmed) !== res.hash) {
           // рассинхрон (например, другое устройство) — берём состояние сервера
+          console.warn(`[sync] hash mismatch after ${action.type}`);
           const fresh = await backend.fetchState();
           confirmed = fresh.state;
         }

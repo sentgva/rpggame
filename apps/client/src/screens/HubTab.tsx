@@ -87,7 +87,7 @@ function HubRoot() {
             }}
           >
             <Icon name={it.icon} size={44} />
-            <span style={{ fontFamily: 'var(--font-pixel)', fontSize: 13 }}>{it.label}</span>
+            <span style={{ fontFamily: 'var(--font-pixel)', fontSize: 16 }}>{it.label}</span>
             {it.badge && <span className={css.dot} style={{ top: 6, right: 6 }} />}
             {it.locked && <Icon name="lock" size={16} style={{ position: 'absolute', top: 6, left: 6 }} />}
           </button>

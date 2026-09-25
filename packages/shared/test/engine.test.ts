@@ -117,9 +117,10 @@ describe('действия', () => {
   it('платёжные действия доступны только серверу', () => {
     const s = fresh();
     expect(() => applyAction(s, { type: 'purchase.grant', product: 'crystals_300' }, { cfg, now: T0 })).toThrow(GameError);
-    const r = applyAction(s, { type: 'purchase.grant', product: 'crystals_300', charge: 'c1' }, { cfg, now: T0, server: true });
+    expect(() => applyAction(s, { type: 'purchase.grant', product: 'crystals_300' }, { cfg, now: T0, server: true })).toThrow(GameError);
+    const r = applyAction(s, { type: 'purchase.grant', product: 'crystals_300', charge: 'c1' }, { cfg, now: T0, trusted: true });
     expect(r.state.cur.crystals).toBe(s.cur.crystals + 600); // первая покупка ×2
-    const r2 = applyAction(r.state, { type: 'purchase.grant', product: 'crystals_300', charge: 'c2' }, { cfg, now: T0, server: true });
+    const r2 = applyAction(r.state, { type: 'purchase.grant', product: 'crystals_300', charge: 'c2' }, { cfg, now: T0, trusted: true });
     expect(r2.state.cur.crystals).toBe(r.state.cur.crystals + 300);
   });
 

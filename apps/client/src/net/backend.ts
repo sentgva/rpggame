@@ -105,7 +105,7 @@ export class LocalBackend implements Backend {
   async invoice(product: string): Promise<string | null> {
     // без сервера платежей нет — в dev-режиме выдаём товар для проверки наград
     if (!this.isDev) return null;
-    const r = applyAction(this.state, { type: 'purchase.grant', product, charge: `local-${Date.now()}` }, { cfg: this.cfg, now: Date.now(), server: true });
+    const r = applyAction(this.state, { type: 'purchase.grant', product, charge: `local-${Date.now()}` }, { cfg: this.cfg, now: Date.now(), trusted: true });
     this.state = r.state;
     this.persist();
     return 'local:paid';

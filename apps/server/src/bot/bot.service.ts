@@ -1,0 +1,100 @@
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Bot, InlineKeyboard, type Context } from 'grammy';
+import { env } from '../env';
+
+const TEXT = {
+  ru: {
+    welcome: 'Командор, Кристалл Эфира пробудился! Собери Легион Валькирий и освободи владычиц Аэриса.',
+    play: 'Играть',
+    support: 'Поддержка по платежам: напишите сюда, указав ID платежа. Мы ответим в течение 24 часов. Возвраты Stars выполняются через Telegram.',
+  },
+  en: {
+    welcome: 'Commander, the Aether Crystal has awakened! Gather the Valkyrie Legion and free the sovereigns of Aeris.',
+    play: 'Play',
+    support: 'Payment support: message us here with your payment ID. We reply within 24 hours. Stars refunds are processed via Telegram.',
+  },
+};
+
+export function langOf(code?: string): 'ru' | 'en' {
+  return code && /^(ru|uk|be|kk)/.test(code) ? 'ru' : 'en';
+}
+
+/** Telegram-бот: вход в Mini App, платежи Stars, уведомления, реферальные ссылки. */
+@Injectable()
+export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
+  private readonly log = new Logger('Bot');
+  readonly bot: Bot | null = env.botToken ? new Bot(env.botToken) : null;
+  private started = false;
+
+  constructor() {
+    if (!this.bot) return;
+    this.bot.command('start', (ctx) => this.onStart(ctx));
+    this.bot.command('play', (ctx) => this.onStart(ctx));
+    this.bot.command('paysupport', (ctx) => ctx.reply(TEXT[langOf(ctx.from?.language_code)].support));
+    this.bot.catch((err) => this.log.error(`bot error: ${String(err.error)}`));
+  }
+
+  playKeyboard(lang: 'ru' | 'en', startParam?: string): InlineKeyboard | undefined {
+    if (env.webAppUrl) {
+      const url = startParam ? `${env.webAppUrl}${env.webAppUrl.includes('?') ? '&' : '?'}tgWebAppStartParam=${encodeURIComponent(startParam)}` : env.webAppUrl;
+      return new InlineKeyboard().webApp(TEXT[lang].play, url);
+    }
+    if (env.botUsername && env.appName) {
+      return new InlineKeyboard().url(TEXT[lang].play, `https://t.me/${env.botUsername}/${env.appName}${startParam ? `?startapp=${startParam}` : ''}`);
+    }
+    return undefined;
+  }
+
+  private async onStart(ctx: Context) {
+    const lang = langOf(ctx.from?.language_code);
+    const payload = typeof ctx.match === 'string' ? ctx.match.trim() : '';
+    await ctx.reply(TEXT[lang].welcome, { reply_markup: this.playKeyboard(lang, payload || undefined) });
+  }
+
+  async onApplicationBootstrap() {
+    if (!this.bot) {
+      this.log.warn('BOT_TOKEN не задан — бот, платежи и уведомления отключены');
+      return;
+    }
+    if (env.botMode === 'off') {
+      this.log.warn('BOT_MODE=off — бот только отправляет сообщения и счета, обновления не принимаются');
+      return;
+    }
+    try {
+      await this.bot.init();
+      if (env.botMode === 'webhook' && env.webhookUrl) {
+        await this.bot.api.setWebhook(`${env.webhookUrl.replace(/\/$/, '')}/api/bot/webhook`, {
+          secret_token: env.webhookSecret || undefined,
+          allowed_updates: ['message', 'pre_checkout_query', 'callback_query'],
+        });
+        this.log.log('webhook set');
+      } else {
+        await this.bot.api.deleteWebhook();
+        void this.bot.start({ allowed_updates: ['message', 'pre_checkout_query', 'callback_query'] });
+        this.started = true;
+        this.log.log(`long polling as @${this.bot.botInfo.username}`);
+      }
+      await this.bot.api.setMyCommands([
+        { command: 'start', description: 'Idle RPG' },
+        { command: 'paysupport', description: 'Payment support' },
+      ]);
+    } catch (e) {
+      this.log.error(`bot init failed: ${String(e)}`);
+    }
+  }
+
+  async onModuleDestroy() {
+    if (this.started) await this.bot?.stop();
+  }
+
+  async send(chatId: string, text: string, lang: 'ru' | 'en' = 'ru'): Promise<boolean> {
+    if (!this.bot) return false;
+    try {
+      await this.bot.api.sendMessage(chatId, text, { reply_markup: this.playKeyboard(lang) });
+      return true;
+    } catch (e) {
+      this.log.warn(`send to ${chatId} failed: ${String(e)}`);
+      return false;
+    }
+  }
+}

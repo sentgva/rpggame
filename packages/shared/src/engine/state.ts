@@ -149,7 +149,6 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
     lastSeen: now,
     story: ['prologue'],
     titles: [],
-    recentActions: [],
   };
   return s;
 }

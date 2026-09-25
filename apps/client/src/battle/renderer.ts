@@ -152,8 +152,8 @@ function whiteSilhouette(src: HTMLCanvasElement): HTMLCanvasElement {
 
 const numStyle = (size: number, fill: string) =>
   new TextStyle({
-    fontFamily: 'Pixelify Sans, Manrope, sans-serif',
-    fontSize: size,
+    fontFamily: 'Tiny5, Manrope, sans-serif',
+    fontSize: Math.round(size * 1.25),
     fontWeight: '700',
     fill,
     stroke: { color: '#1a1016', width: 4 },

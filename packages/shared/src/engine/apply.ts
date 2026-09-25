@@ -39,7 +39,10 @@ export interface ApplyOptions {
   cfg: Config;
   now: number;
   dev?: boolean;
+  /** Выполняется на сервере: бои без записи событий. */
   server?: boolean;
+  /** Действие инициировано сервером (платежи, почта) — разрешены SERVER_ONLY. */
+  trusted?: boolean;
   /** Не клонировать состояние (вызывающий уже передал копию). */
   mutate?: boolean;
 }
@@ -53,7 +56,7 @@ export interface ApplyResult {
 export function applyAction(state: PlayerState, action: Action, opt: ApplyOptions): ApplyResult {
   const handler = HANDLERS[action?.type];
   if (!handler) throw new GameError('unknownAction', { type: String(action?.type) });
-  if (SERVER_ONLY.has(action.type) && !opt.server) throw new GameError('forbidden');
+  if (SERVER_ONLY.has(action.type) && !opt.trusted) throw new GameError('forbidden');
   if (action.type.startsWith('dev.') && !opt.dev) throw new GameError('forbidden');
   const s = opt.mutate ? state : structuredClone(state);
   const ctx: Ctx = {

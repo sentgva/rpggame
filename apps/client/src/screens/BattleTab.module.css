@@ -32,7 +32,7 @@
   border-radius: 4px;
   padding: 3px 8px;
   font-family: var(--font-pixel);
-  font-size: 13px;
+  font-size: 16px;
   color: var(--accent-2);
 }
 .diff {
@@ -113,7 +113,7 @@
   color: var(--accent-2);
   border-radius: 4px;
   font-family: var(--font-pixel);
-  font-size: 12px;
+  font-size: 15px;
   padding: 2px 6px;
   pointer-events: none;
 }
@@ -205,4 +205,11 @@
   align-items: center;
   font-size: 12px;
   color: var(--text-2);
+}
+.quickRow button {
+  white-space: normal;
+  line-height: 1.05;
+  text-align: center;
+  font-size: 14px;
+  min-width: 0;
 }

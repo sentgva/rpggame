@@ -30,7 +30,7 @@
 }
 .panelTitle {
   font-family: var(--font-pixel);
-  font-size: 15px;
+  font-size: 18px;
   color: var(--accent-2);
   letter-spacing: 0.5px;
   margin: -2px 0 8px;
@@ -57,7 +57,7 @@
   padding: 8px 12px;
   min-height: 38px;
   font-family: var(--font-pixel);
-  font-size: 14px;
+  font-size: 17px;
   color: #2a1606;
   background: linear-gradient(180deg, #f6c86a 0%, var(--accent) 55%, #b87a24 100%);
   box-shadow:
@@ -112,11 +112,11 @@
 .small {
   min-height: 30px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 15px;
 }
 .big {
   min-height: 48px;
-  font-size: 16px;
+  font-size: 20px;
   padding: 10px 16px;
 }
 .block {
@@ -181,7 +181,7 @@
 }
 .title {
   font-family: var(--font-pixel);
-  font-size: 18px;
+  font-size: 22px;
   color: var(--accent-2);
   text-shadow: 0 1px 0 #000;
 }
@@ -266,7 +266,7 @@
   background: transparent;
   color: var(--text-2);
   font-family: var(--font-pixel);
-  font-size: 13px;
+  font-size: 16px;
   padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
@@ -456,7 +456,7 @@
 }
 .heroName {
   font-family: var(--font-pixel);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.1;
   text-align: center;
   white-space: nowrap;
@@ -477,7 +477,7 @@
   top: 2px;
   left: 3px;
   font-family: var(--font-pixel);
-  font-size: 11px;
+  font-size: 13px;
   text-shadow: 0 1px 0 #000;
 }
 .elemTag {

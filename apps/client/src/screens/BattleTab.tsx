@@ -226,7 +226,7 @@ function ChestPanel() {
             }}
           >
             <Icon name="speed" size={16} />
-            {t('battle.x2')} · {t('common.watchAd')}
+            {t('battle.x2')} ({t('common.watchAd').toLowerCase()})
           </Button>
         )}
       </div>
