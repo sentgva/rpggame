@@ -1,0 +1,50 @@
+# Продакшен-стенд: PostgreSQL + Redis + приложение (API, клиент, бот).
+#   cp .env.example .env   # заполнить BOT_TOKEN, WEBAPP_URL и т.д.
+#   docker compose up -d --build
+# Приложение слушает :3000 — поставьте перед ним HTTPS-прокси (Caddy/nginx), Telegram требует https.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: idle
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-idle}
+      POSTGRES_DB: idle_rpg
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U idle -d idle_rpg']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+
+  app:
+    build:
+      context: .
+      args:
+        VITE_ADSGRAM_BLOCK_ID: ${VITE_ADSGRAM_BLOCK_ID:-}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://idle:${POSTGRES_PASSWORD:-idle}@db:5432/idle_rpg
+      REDIS_URL: redis://redis:6379
+      # файл баланса можно смонтировать и править на лету (горячая перезагрузка)
+      # BALANCE_CONFIG_PATH: /config/balance.json
+    # volumes:
+    #   - ./balance.json:/config/balance.json:ro
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  pgdata:
