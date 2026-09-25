@@ -49,7 +49,11 @@ let modeLock: Promise<void> | null = null;
 let modeActive = false;
 
 export function registerPlayer(p: Player | null) {
+  if (player === p) return;
   player = p;
+  // Смена проигрывателя (вкладку боя открыли/закрыли): текущий бой прерываем, иначе режиссёр
+  // ждал бы проигрывание, которое уже никто не показывает, и сцена оставалась пустой.
+  current?.abort();
 }
 
 function sleep(ms: number, signal?: AbortSignal) {

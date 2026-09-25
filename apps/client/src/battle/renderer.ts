@@ -193,10 +193,15 @@ export class BattleRenderer {
   private time = 0;
   private ready = false;
   private destroyed = false;
+  /** Завершители идущих проигрываний: при отсоединении/уничтожении их нужно отпустить. */
+  private pending = new Set<() => void>();
+  /** WebGL-контекст потерян (свернули Telegram, сброс GPU) — сцену нужно пересоздать. */
+  lost = false;
+  onContextLost: (() => void) | null = null;
 
-  async init(host: HTMLElement) {
-    const w = host.clientWidth || 360;
-    const h = host.clientHeight || 260;
+  async init(host?: HTMLElement) {
+    const w = host?.clientWidth || 360;
+    const h = host?.clientHeight || 260;
     await this.app.init({
       width: w,
       height: h,
@@ -210,17 +215,53 @@ export class BattleRenderer {
       this.app.destroy(true);
       return;
     }
-    host.appendChild(this.app.canvas);
     this.app.canvas.style.width = '100%';
     this.app.canvas.style.height = '100%';
+    this.app.canvas.style.display = 'block';
+    this.app.canvas.addEventListener('webglcontextlost', () => {
+      this.lost = true;
+      this.onContextLost?.();
+    });
     this.app.stage.addChild(this.stage);
     this.stage.addChild(this.bg, this.world, this.fx, this.ui);
     this.world.sortableChildren = true;
     this.fx.addChild(this.fxG);
     this.bg.addChild(this.particleG);
     this.resize(w, h);
-    this.app.ticker.add((tk) => this.update(tk.deltaMS));
+    this.app.ticker.add((tk) => {
+      try {
+        this.update(tk.deltaMS);
+      } catch (e) {
+        console.error('battle render', e);
+      }
+    });
     this.ready = true;
+    if (host) this.attach(host);
+  }
+
+  get isReady() {
+    return this.ready && !this.destroyed;
+  }
+
+  /** Показать сцену в контейнере (один рендерер переживает переключение вкладок). */
+  attach(host: HTMLElement) {
+    if (!this.isReady) return;
+    if (this.app.canvas.parentElement !== host) host.appendChild(this.app.canvas);
+    if (host.clientWidth && host.clientHeight) this.resize(host.clientWidth, host.clientHeight);
+    this.app.ticker.start();
+  }
+
+  /** Убрать сцену с экрана: прерываем идущее проигрывание и останавливаем отрисовку. */
+  detach() {
+    this.releasePending();
+    if (!this.isReady) return;
+    this.app.ticker.stop();
+    this.app.canvas.remove();
+  }
+
+  private releasePending() {
+    for (const f of [...this.pending]) f();
+    this.pending.clear();
   }
 
   resize(w: number, h: number) {
@@ -233,8 +274,13 @@ export class BattleRenderer {
   }
 
   destroy() {
+    this.releasePending();
+    this.tweens = [];
     this.destroyed = true;
-    if (this.ready) this.app.destroy(true, { children: true });
+    if (this.ready) {
+      this.app.ticker.stop();
+      this.app.destroy(true, { children: true });
+    }
   }
 
   private get unitScale() {
@@ -314,6 +360,10 @@ export class BattleRenderer {
   }
 
   clearUnits() {
+    // анимации прошлого боя ссылаются на удаляемые объекты — сбрасываем их вместе с эффектами
+    this.tweens = [];
+    for (const c of [...this.fx.children]) if (c !== this.fxG) c.destroy({ children: true });
+    this.fxG.clear();
     for (const u of this.units.values()) u.root.destroy({ children: true });
     this.units.clear();
     for (const c of [...this.ui.children]) c.destroy();
@@ -335,7 +385,7 @@ export class BattleRenderer {
   /** Проиграть бой по событиям симулятора. */
   play(p: Playback, signal: AbortSignal): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.ready) {
+      if (!this.isReady || this.lost) {
         resolve();
         return;
       }
@@ -347,22 +397,33 @@ export class BattleRenderer {
       const endT = events.length ? events[events.length - 1].t : 0;
       let holdUntil = -1;
       const onAbort = () => finish();
+      let done = false;
       const finish = () => {
-        this.app.ticker.remove(tick);
+        if (done) return;
+        done = true;
+        this.pending.delete(finish);
+        if (!this.destroyed) this.app.ticker.remove(tick);
         signal.removeEventListener('abort', onAbort);
         resolve();
       };
+      this.pending.add(finish);
       signal.addEventListener('abort', onAbort);
       const tick = (tk: { deltaMS: number }) => {
         clock += tk.deltaMS * p.speed;
         while (i < events.length && events[i].t <= clock) {
-          this.apply(events[i], p);
+          try {
+            this.apply(events[i], p);
+          } catch (e) {
+            // одно «кривое» событие не должно останавливать бой
+            console.error('battle event', events[i], e);
+          }
           i++;
         }
         if (i >= events.length && holdUntil < 0) holdUntil = clock + 900 * p.speed;
         if (holdUntil > 0 && clock >= holdUntil && clock >= endT) finish();
       };
       this.app.ticker.add(tick);
+      if (signal.aborted) finish();
     });
   }
 
@@ -701,7 +762,13 @@ export class BattleRenderer {
       u.drawStatuses(this.time);
     }
     // твины
-    this.tweens = this.tweens.filter((tw) => tw.update(dt));
+    this.tweens = this.tweens.filter((tw) => {
+      try {
+        return tw.update(dt);
+      } catch {
+        return false; // объект анимации уже удалён — просто выбрасываем твин
+      }
+    });
     // тряска
     if (this.shake > 0) {
       this.stage.x = (Math.random() - 0.5) * this.shake;
