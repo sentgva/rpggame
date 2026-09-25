@@ -19,7 +19,6 @@ import type { Action } from '../apply';
 import {
   addItem,
   assert,
-  farmStage,
   give,
   grantReward,
   metric,
@@ -32,6 +31,7 @@ import {
   vOneOf,
   vStr,
   type Ctx,
+  farmLevel,
 } from '../core';
 import { autoEquipHero } from './items';
 
@@ -227,7 +227,7 @@ export const metaActions = {
       out.skin = r.skin;
     }
     if (r.item) {
-      const it = rollLoot(ctx, { lvl: farmStage(s), forceRarity: r.item === 'legendary' ? 4 : 3 });
+      const it = rollLoot(ctx, { lvl: farmLevel(cfg, s), forceRarity: r.item === 'legendary' ? 4 : 3 });
       out.item = addItem(ctx, it, { noAutoSmelt: true });
     }
     return out;

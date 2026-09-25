@@ -46,18 +46,45 @@ export function heroUnits(cfg: Config, s: PlayerState, slots: (string | null)[],
   return out;
 }
 
+export function diffOfGlobal(n: number): number {
+  return Math.max(0, Math.min(2, Math.floor((n - 1) / STAGES_PER_DIFF)));
+}
+
 export function difficultyMultForGlobal(cfg: Config, n: number): number {
-  const d = Math.min(2, Math.floor((n - 1) / STAGES_PER_DIFF));
-  return cfg.enemy.difficultyMult[Math.max(0, d)];
+  return cfg.enemy.difficultyMult[diffOfGlobal(n)];
+}
+
+/** Сколько «этапов роста» даёт множитель сложности: ×25 ≈ 37 этапов, ×400 ≈ 70. */
+function diffLevels(cfg: Config, d: number): number {
+  return Math.log(cfg.enemy.difficultyMult[d] ?? 1) / Math.log(cfg.enemy.hpGrowth);
+}
+
+/**
+ * Уровень силы врагов сквозного этапа n: номер этапа внутри сложности + эквивалент
+ * множителя сложности. HP0·1.09^n·×25 ≡ HP0·1.09^(n+37), поэтому Hard 1-1 ≈ Normal 2-17,
+ * а Normal 10-20 = 200, Hard 10-20 ≈ 237, Nightmare 10-20 ≈ 270. На этом уровне строятся
+ * враги, доход и уровень выпадающих предметов.
+ */
+export function powerLevel(cfg: Config, n: number): number {
+  const d = diffOfGlobal(n);
+  return n - d * cfg.enemy.difficultyOffset + diffLevels(cfg, d);
+}
+
+/** Обратное к powerLevel: самый ранний сквозной этап с врагами уровня lvl (для подписей «≈ этап»). */
+export function stageForLevel(cfg: Config, lvl: number): number {
+  for (let d = 0; d < 3; d++) {
+    const n = Math.round(lvl + d * cfg.enemy.difficultyOffset - diffLevels(cfg, d));
+    if (n <= (d + 1) * STAGES_PER_DIFF || d === 2) return Math.max(1, Math.min(3 * STAGES_PER_DIFF, n));
+  }
+  return 1;
 }
 
 export type EnemyTier = 'normal' | 'elite' | 'mini' | 'boss';
 
-/** Характеристики врага на сквозном этапе n: HP = HP0·1.09^n, ATK = ATK0·1.08^n. */
-export function enemyStats(cfg: Config, n: number, def: EnemyDef, tier: EnemyTier, mult = 1): FinalStats {
+/** Характеристики врага уровня силы L: HP = HP0·1.09^L, ATK = ATK0·1.08^L. */
+export function enemyStats(cfg: Config, L: number, def: EnemyDef, tier: EnemyTier, mult = 1): FinalStats {
   const E = cfg.enemy;
   const role = ROLE_STATS[def.role];
-  const dm = difficultyMultForGlobal(cfg, n) * mult;
   let hpM = 1;
   let atkM = 1;
   if (tier !== 'normal') {
@@ -72,22 +99,23 @@ export function enemyStats(cfg: Config, n: number, def: EnemyDef, tier: EnemyTie
       atkM *= Math.sqrt(E.actBossMult);
     }
   }
-  const hp = E.hp0 * Math.pow(E.hpGrowth, n) * dm * role.hp * hpM;
-  const atk = E.atk0 * Math.pow(E.atkGrowth, n) * dm * role.atk * atkM;
-  const def0 = E.def0 * Math.pow(E.defGrowth, n) * role.def;
+  const hp = E.hp0 * Math.pow(E.hpGrowth, L) * mult * role.hp * hpM;
+  const atk = E.atk0 * Math.pow(E.atkGrowth, L) * mult * role.atk * atkM;
+  const def0 = E.def0 * Math.pow(E.defGrowth, L) * role.def;
+  const n = L;
   return {
     hp: Math.max(1, Math.round(hp)),
     atk: Math.max(1, Math.round(atk)),
     def: Math.round(def0),
-    spd: Math.round(role.spd + Math.min(40, n / 15)),
-    crit: 0.05 + Math.min(0.2, n / 3000),
+    spd: Math.round(role.spd + Math.min(40, n / 7)),
+    crit: 0.05 + Math.min(0.2, n / 1500),
     critDmg: 1.5,
-    acc: Math.min(0.3, n / 2000),
+    acc: Math.min(0.3, n / 1000),
     eva: def.role === 'rogue' ? 0.05 : 0,
-    pen: Math.min(0.3, n / 2000),
+    pen: Math.min(0.3, n / 1000),
     lifesteal: 0,
     healPower: 1,
-    resist: Math.min(0.4, n / 1500) + (tier === 'boss' ? 0.1 : 0),
+    resist: Math.min(0.4, n / 700) + (tier === 'boss' ? 0.1 : 0),
     energyRegen: tier === 'normal' ? 1 : 1.2,
     bonus: {},
   };
@@ -106,7 +134,7 @@ function enemySkillRefs(def: EnemyDef): { basic: SkillRef; skills: SkillRef[]; u
   return { basic, skills, ult };
 }
 
-export function enemyUnit(cfg: Config, n: number, id: string, slot: number, tier: EnemyTier, mult = 1): UnitInit {
+export function enemyUnit(cfg: Config, L: number, id: string, slot: number, tier: EnemyTier, mult = 1): UnitInit {
   const def = ENEMY_MAP[id];
   const role = ROLE_STATS[def.role];
   const kind: UnitKind = tier === 'normal' ? 'enemy' : tier === 'boss' ? 'boss' : 'mini';
@@ -122,25 +150,25 @@ export function enemyUnit(cfg: Config, n: number, id: string, slot: number, tier
     element: def.element,
     targeting: def.role === 'rogue' ? 'back' : def.role === 'healer' ? 'healer' : 'nearest',
     melee: def.role === 'tank' || def.role === 'brute' || def.role === 'rogue',
-    stats: enemyStats(cfg, n, def, tier, mult),
+    stats: enemyStats(cfg, L, def, tier, mult),
     basic: refs.basic,
     skills: refs.skills,
     ult: tier === 'normal' ? undefined : refs.ult,
     fx: [],
     mechanic: tier === 'boss' ? def.mechanic : undefined,
     act: def.act,
-    lvl: Math.max(1, Math.round(n / 3)),
+    lvl: Math.max(1, Math.round(L)),
   };
 }
 
 /** Раскладка врагов по слотам: сначала передний ряд. */
-function arrange(cfg: Config, n: number, list: { id: string; tier: EnemyTier }[], mult = 1): UnitInit[] {
+function arrange(cfg: Config, L: number, list: { id: string; tier: EnemyTier }[], mult = 1): UnitInit[] {
   const front = list.filter((x) => x.tier !== 'normal' || ROLE_STATS[ENEMY_MAP[x.id].role].row === 'front');
   const back = list.filter((x) => !front.includes(x));
   const out: UnitInit[] = [];
   let slot = 0;
-  for (const x of front) out.push(enemyUnit(cfg, n, x.id, slot++, x.tier, mult));
-  for (const x of back) out.push(enemyUnit(cfg, n, x.id, slot++, x.tier, mult));
+  for (const x of front) out.push(enemyUnit(cfg, L, x.id, slot++, x.tier, mult));
+  for (const x of back) out.push(enemyUnit(cfg, L, x.id, slot++, x.tier, mult));
   return out;
 }
 
@@ -160,7 +188,7 @@ export function waveComposition(cfg: Config, ref: StageRef, wave: number): strin
 export function waveUnits(cfg: Config, ref: StageRef, wave: number): UnitInit[] {
   return arrange(
     cfg,
-    ref.n,
+    powerLevel(cfg, ref.n),
     waveComposition(cfg, ref, wave).map((id) => ({ id, tier: 'normal' as EnemyTier })),
   );
 }
@@ -174,10 +202,10 @@ export function bossUnits(cfg: Config, ref: StageRef): UnitInit[] {
   else if (ref.kind === 'mini') boss = { id: act.minis[ref.stage / 5 - 1], tier: 'mini' };
   else boss = { id: rng.pick(act.enemies), tier: 'elite' };
   const adds = [rng.pick(act.enemies), rng.pick(act.enemies)];
-  return arrange(cfg, ref.n, [boss, ...adds.map((id) => ({ id, tier: 'normal' as EnemyTier }))]);
+  return arrange(cfg, powerLevel(cfg, ref.n), [boss, ...adds.map((id) => ({ id, tier: 'normal' as EnemyTier }))]);
 }
 
-/** Произвольный отряд врагов (подземелья, Башня, Бездна, Лабиринт). */
+/** Произвольный отряд врагов уровня силы L (подземелья, Башня, Бездна, Лабиринт). */
 export function customEnemies(cfg: Config, n: number, list: { id: string; tier: EnemyTier }[], mult = 1): UnitInit[] {
   return arrange(cfg, n, list, mult);
 }

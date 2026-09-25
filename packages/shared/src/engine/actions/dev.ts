@@ -2,7 +2,7 @@ import { AFFIX_MAP, HEROINES, HEROINE_MAP, SET_MAP, SET_SLOTS, SKINS, STAGES_PER
 import type { Currency, Difficulty, Item, ItemRarity, ItemSlot } from '../../types';
 import { CURRENCIES, ITEM_SLOTS } from '../../types';
 import type { Action } from '../apply';
-import { addHeroine, addItem, assert, give, newUid, rollLoot, settleChest, vInt, vOneOf, vStr, type Ctx } from '../core';
+import { addHeroine, addItem, assert, farmLevel, give, newUid, rollLoot, settleChest, vInt, vOneOf, vStr, type Ctx } from '../core';
 import { affixValue } from '../loot';
 import { createPlayer, dayKey, weekKey } from '../state';
 import { grantProduct } from './purchase';
@@ -93,7 +93,7 @@ export const devActions = {
     const set = vStr(a.set, 'set');
     assert(SET_MAP[set], 'badParam', { name: 'set' });
     const rarity = (a.rarity !== undefined ? vInt(a.rarity, 3, 6, 'rarity') : 4) as ItemRarity;
-    const lvl = a.lvl !== undefined ? vInt(a.lvl, 1, 2000, 'lvl') : Math.max(1, ctx.s.progress.maxGlobal);
+    const lvl = a.lvl !== undefined ? vInt(a.lvl, 1, 2000, 'lvl') : farmLevel(ctx.cfg, ctx.s);
     const uids: string[] = [];
     for (const slot of SET_SLOTS) {
       const it = rollLoot(ctx, { lvl, forceRarity: rarity, slot, set });

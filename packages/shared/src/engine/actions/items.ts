@@ -2,7 +2,7 @@ import { ACTS, BASE_ITEM_MAP, ENDGAME_SETS, GEM_TYPES, HEROINE_MAP, RECIPES, SET
 import type { EquipSlot, Item, ItemSlot } from '../../types';
 import { EQUIP_SLOTS, equipSlotToItemSlot } from '../../types';
 import type { Action } from '../apply';
-import { addItem, assert, farmStage, give, requireUnlocked, rollLoot, smeltGain, spend, track, trackMax, vInt, vOneOf, vStr, vStrArr, type Ctx } from '../core';
+import { addItem, assert, farmLevel, give, requireUnlocked, rollLoot, smeltGain, spend, track, trackMax, vInt, vOneOf, vStr, vStrArr, type Ctx } from '../core';
 import { rollAffix } from '../loot';
 import { equippedIndex, itemPower } from '../stats';
 
@@ -21,6 +21,13 @@ export function enhanceCost(ctx: Pick<Ctx, 'cfg'>, it: Item, level = it.enh): { 
   };
 }
 
+/** Цена переноса заточки: доля от стоимости заточки целевого предмета до того же уровня. */
+export function transferGold(ctx: Pick<Ctx, 'cfg'>, from: Item, to: Item): number {
+  let gold = 0;
+  for (let e = to.enh; e < from.enh; e++) gold += enhanceCost(ctx, to, e).gold;
+  return Math.floor(gold * ctx.cfg.gear.transferCostPct);
+}
+
 export function enhanceChance(ctx: Pick<Ctx, 'cfg'>, it: Item): number {
   const G = ctx.cfg.gear;
   if (it.enh < G.enhanceSafe) return 1;
@@ -35,7 +42,7 @@ export function reforgeCost(ctx: Pick<Ctx, 'cfg'>, it: Item): { gold: number; du
 }
 
 export function forgeGoldCost(ctx: Pick<Ctx, 'cfg' | 's'>, kind: string): number {
-  const n = farmStage(ctx.s);
+  const n = farmLevel(ctx.cfg, ctx.s);
   const mult = kind === 'divine' ? 20 : kind === 'legendary' || kind === 'setLegendary' ? 8 : 3;
   return Math.floor(500 * Math.pow(n + 10, 1.3) * mult);
 }
@@ -60,18 +67,35 @@ export function autoEquipHero(ctx: Ctx, heroId: string): number {
     const current = h.gear[slot] ? s.items[h.gear[slot]!] : undefined;
     let best = current;
     let bestP = current ? itemPower(cfg, current) : -1;
+    let bestTransfer = 0;
     for (const it of Object.values(s.items)) {
       if (it.slot !== itemSlot) continue;
       const owner = idx[it.uid];
       if (owner && !(owner.hero === heroId && owner.slot === slot)) continue;
       if (!canWear(cls, BASE_ITEM_MAP[it.base])) continue;
-      const p = itemPower(cfg, it);
+      let p = itemPower(cfg, it);
+      let transfer = 0;
+      // новый предмет может оказаться лучше, если перенести на него заточку старого
+      if (current && it !== current && current.enh > it.enh) {
+        const pt = itemPower(cfg, { ...it, enh: current.enh });
+        const cost = transferGold(ctx, current, it);
+        if (pt > p && pt > bestP && s.cur.gold >= cost) {
+          p = pt;
+          transfer = cost;
+        }
+      }
       if (p > bestP) {
         best = it;
         bestP = p;
+        bestTransfer = transfer;
       }
     }
     if (best && best !== current) {
+      if (bestTransfer > 0 && current) {
+        spend(ctx, { gold: bestTransfer });
+        best.enh = current.enh;
+        current.enh = 0;
+      }
       h.gear[slot] = best.uid;
       idx[best.uid] = { hero: heroId, slot };
       if (current) delete idx[current.uid];
@@ -235,9 +259,7 @@ export const itemActions = {
     const to = item(ctx, a.to);
     assert(from.uid !== to.uid && from.slot === to.slot, 'badParam', { name: 'to' });
     assert(from.enh > to.enh, 'nothingToTransfer');
-    let gold = 0;
-    for (let e = to.enh; e < from.enh; e++) gold += enhanceCost(ctx, to, e).gold;
-    spend(ctx, { gold: Math.floor(gold * ctx.cfg.gear.transferCostPct) });
+    spend(ctx, { gold: transferGold(ctx, from, to) });
     to.enh = from.enh;
     from.enh = 0;
     return { enh: to.enh };
@@ -248,7 +270,7 @@ export const itemActions = {
     const recipe = RECIPES.find((r) => r.id === a.recipe);
     assert(recipe, 'badParam', { name: 'recipe' });
     assert(s.progress.maxGlobalEver >= recipe.unlockGlobal || s.dev.unlockAll, 'locked', { feature: 'forge' });
-    const n = farmStage(s);
+    const n = farmLevel(ctx.cfg, s);
     const slot = a.slot !== undefined ? (vStr(a.slot, 'slot') as ItemSlot) : undefined;
     const cost = { ...recipe.cost, gold: forgeGoldCost(ctx, recipe.kind) };
     let crafted: Item;

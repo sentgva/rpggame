@@ -1,7 +1,7 @@
 import { SKIN_MAP, STARS_PRODUCT_MAP } from '../../content';
 import type { Currency } from '../../types';
 import type { Action } from '../apply';
-import { addHeroine, addItem, assert, farmStage, give, rollLoot, vStr, type Ctx } from '../core';
+import { addHeroine, addItem, assert, farmLevel, give, rollLoot, vStr, type Ctx } from '../core';
 import { dayKey, seasonEnd } from '../state';
 
 const DAY = 86400000;
@@ -63,7 +63,7 @@ export function grantProduct(ctx: Ctx, id: string, chargeId: string): { granted:
         granted.hero = 'astrid';
         granted.items = [];
         for (const slot of ['helmet', 'armor', 'gloves', 'boots', 'belt', 'cloak'] as const) {
-          const it = rollLoot(ctx, { lvl: Math.max(10, farmStage(s)), forceRarity: 3, slot, set: 'verdant' });
+          const it = rollLoot(ctx, { lvl: Math.max(10, farmLevel(ctx.cfg, s)), forceRarity: 3, slot, set: 'verdant' });
           const uid = addItem(ctx, it, { noAutoSmelt: true });
           if (uid) granted.items.push(uid);
         }

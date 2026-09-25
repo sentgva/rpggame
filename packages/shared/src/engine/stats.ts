@@ -65,9 +65,20 @@ export function maxStars(cfg: Config, rarity: HeroRarity): number {
 
 // ——— предметы ———
 
-/** Кривая роста основных характеристик предмета от уровня. */
+/**
+ * Кривая роста основных характеристик предмета от уровня. Темп роста за уровень плавно
+ * растёт от growth до growthLate за growthRamp уровней: в начале игры силу даёт прокачка
+ * героинь, ближе к концу — снаряжение (иначе поздние этапы стоят месяцами).
+ */
 export function gearCurve(cfg: Config, lvl: number, stat: StatKey): number {
-  return Math.pow(stat === 'def' ? cfg.gear.defGrowth : cfg.gear.growth, lvl);
+  const G = cfg.gear;
+  if (stat === 'def') return Math.pow(G.defGrowth, lvl);
+  const a = Math.log(G.growth);
+  const b = Math.log(G.growthLate ?? G.growth);
+  const R = Math.max(1, G.growthRamp ?? 1);
+  const L = Math.max(0, lvl);
+  const ln = L <= R ? a * L + ((b - a) * L * L) / (2 * R) : a * R + ((b - a) * R) / 2 + b * (L - R);
+  return Math.exp(ln);
 }
 
 export function isExpStat(stat: StatKey): boolean {
@@ -229,13 +240,22 @@ export function ultRank(h: HeroineState): number {
   return Math.min(7, Math.max(1, h.stars) + (h.awakened ? 1 : 0));
 }
 
+/** Множитель «Памяти Легиона» за циклы Вознесения: (1 + cyclePower)^count. */
+export function legionMult(cfg: Config, s: Pick<PlayerState, 'ascension'>): number {
+  return Math.pow(1 + cfg.ascension.cyclePower, s.ascension.count);
+}
+
 export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: BuildContext = {}): HeroBuild {
   const def = HEROINE_MAP[h.id];
   const cls = CLASSES[def.cls];
   const rarityMult = cfg.stat.rarityMult[def.rarity];
   const lvlMult = 1 + cfg.stat.levelGrowth * (h.lvl - 1);
   const starMult = 1 + cfg.stat.starGrowth * (h.stars - 1);
-  const m = rarityMult * lvlMult * starMult;
+  // Уровень и звёзды усиливают и базу, и снаряжение: иначе к середине игры экспоненциальный
+  // рост предметов обесценил бы прокачку героини (см. README, «Баланс»).
+  const m = lvlMult * starMult;
+  // «Память Легиона»: каждый цикл Вознесения умножает ATK и HP отряда
+  const legion = legionMult(cfg, s);
 
   const add: Stats = {};
   const fx: SpecialEffect[] = [];
@@ -296,6 +316,7 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
 
   // общие бонусы аккаунта
   addStats(add, constellationStats(s.constellation).stats);
+  // Вознесение: улучшения древа
   addStats(add, {
     atkPct: ascensionValue(s, 'atk'),
     hpPct: ascensionValue(s, 'hp'),
@@ -319,9 +340,9 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
 
   const base = cls.base;
   const stats: FinalStats = {
-    hp: Math.round((base.hp * m + (add.hp ?? 0)) * (1 + (add.hpPct ?? 0))),
-    atk: Math.round((base.atk * m + (add.atk ?? 0)) * (1 + (add.atkPct ?? 0))),
-    def: Math.round((base.def * m + (add.def ?? 0)) * (1 + (add.defPct ?? 0))),
+    hp: Math.round((base.hp * rarityMult + (add.hp ?? 0)) * m * legion * (1 + (add.hpPct ?? 0))),
+    atk: Math.round((base.atk * rarityMult + (add.atk ?? 0)) * m * legion * (1 + (add.atkPct ?? 0))),
+    def: Math.round((base.def * rarityMult + (add.def ?? 0)) * m * (1 + (add.defPct ?? 0))),
     spd: Math.round(base.spd + (add.spd ?? 0)),
     crit: cfg.stat.critBase + (base.crit ?? 0) + (add.crit ?? 0),
     critDmg: cfg.stat.critDmgBase + (base.critDmg ?? 0) + (add.critDmg ?? 0),

@@ -129,7 +129,7 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
           en: 'The Aether Crystal has awakened. Accept these gifts and gather the Valkyrie Legion.',
         },
         at: now,
-        rewards: { cur: { crystals: 500, scrolls: 2 } },
+        rewards: { cur: { crystals: 300, scrolls: 2 } },
       },
     ],
     settings: {

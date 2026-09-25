@@ -20,9 +20,9 @@ import {
   vOneOf,
   vStr,
   xpPerMin,
-  farmStage,
   dustPerMin,
   type Ctx,
+  farmLevel,
 } from '../core';
 import { weekKey } from '../state';
 
@@ -43,7 +43,7 @@ function useAd(ctx: Ctx) {
 
 /** Сгенерировать предметы сундука; при переполнении — автопереплавка. */
 function chestItems(ctx: Ctx, count: number): { items: string[]; smelted: number } {
-  const n = farmStage(ctx.s);
+  const n = farmLevel(ctx.cfg, ctx.s);
   const items: string[] = [];
   let smelted = 0;
   const limit = Math.min(count, 400);
@@ -174,7 +174,7 @@ export const economyActions = {
     }
     if (offer.give.item) {
       const rarity = offer.give.item === 'mythic' ? 5 : offer.give.item === 'legendary' ? 4 : 3;
-      const it = rollLoot(ctx, { lvl: farmStage(s), forceRarity: rarity as Item['rarity'] });
+      const it = rollLoot(ctx, { lvl: farmLevel(ctx.cfg, s), forceRarity: rarity as Item['rarity'] });
       const uid = addItem(ctx, it, { noAutoSmelt: true });
       assert(uid, 'inventoryFull');
       out.item = uid;

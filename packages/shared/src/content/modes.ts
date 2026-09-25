@@ -19,14 +19,15 @@ export const DUNGEONS: DungeonDef[] = [
 ];
 export const DUNGEON_MAP: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
 
-/** Сквозной этап, которому соответствует уровень подземелья. */
+/** Уровень силы врагов подземелья (1 → 10, 20 → 257 ≈ Hard 10-20). */
 export function dungeonStage(level: number): number {
-  return 30 * level - 10;
+  return 13 * level - 3;
 }
 
 // ——— Башня испытаний ———
+/** Уровень силы врагов этажа Башни (500-й этаж ≈ 283, чуть выше Nightmare 10-20). */
 export function towerStage(floor: number): number {
-  return Math.round(8 + floor * 1.18);
+  return Math.round(8 + floor * 0.55);
 }
 
 export const TOWER_SKIN_FLOORS: Record<number, string> = {
@@ -128,6 +129,7 @@ export const ARENA_BOT_NAMES = [
 ];
 
 // ——— Бездна ———
+/** Уровень силы врагов Бездны: продолжение после Nightmare 10-20 (≈270). */
 export function abyssStage(level: number): number {
-  return 600 + level;
+  return 270 + level;
 }

@@ -18,6 +18,7 @@ import {
   statText,
   towerReward,
   towerStage,
+  stageForLevel,
   weekKey,
   type StatKey,
 } from '@idle/shared';
@@ -88,7 +89,7 @@ function Tower() {
         <div className={css.row} style={{ margin: '10px 0', gap: 12, flexWrap: 'wrap' }}>
           <Icon name="tower" size={48} />
           <div className={css.grow}>
-            <div className={css.tiny}>≈ {stageText(towerStage(floor))} · {tl(ACTS[act - 1].name)}</div>
+            <div className={css.tiny}>≈ {stageText(stageForLevel(cfg, towerStage(floor)))} · {tl(ACTS[act - 1].name)}</div>
             <div className={css.row} style={{ gap: 10 }}>
               <span className={css.cost}>
                 <Icon name="crystals" size={18} />
@@ -140,7 +141,7 @@ function Dungeons() {
                   </button>
                 </div>
                 <div className={css.tiny}>
-                  ≈ {stageText(dungeonStage(level))} ·{' '}
+                  ≈ {stageText(stageForLevel(cfg, dungeonStage(level)))} ·{' '}
                   {'cur' in r && r.cur
                     ? Object.entries(r.cur).map(([k, v]) => `${formatNum(v as number)} ${t(`cur.${k}`)}`)
                     : `${(r as { gems: { count: number; lvl: number } }).gems.count}× ${t('gear.gems')} ${(r as { gems: { count: number; lvl: number } }).gems.lvl}`}
@@ -195,7 +196,7 @@ function Abyss() {
         <div className={css.row} style={{ gap: 12 }}>
           <Icon name="abyss" size={56} />
           <div className={css.grow}>
-            <div className={css.tiny}>n = {abyssStage(level)}</div>
+            <div className={css.tiny}>{t('mode.powerLevel', { n: abyssStage(level) })}</div>
             <div className={css.row} style={{ gap: 10 }}>
               <Cost cur="divineMats" amount={1 + Math.floor(level / 5)} />
               <Cost cur="crystals" amount={level % 10 === 0 ? 100 : 10} />

@@ -47,7 +47,7 @@ const SLOT_WEIGHTS: [ItemSlot, number][] = [
 ];
 
 export function rollRarity(cfg: Config, rng: Rng, lvl: number, diff: number, bonus = 0): ItemRarity {
-  const factor = 1 + cfg.gear.stageRarityBonus * Math.min(lvl, 600) + bonus;
+  const factor = 1 + cfg.gear.stageRarityBonus * Math.min(lvl, 300) + bonus;
   const w = cfg.gear.rarityWeights.map((x, r) => (r === 0 ? x : x * Math.pow(factor, r / 2)));
   let r = rng.weighted(w);
   r += cfg.gear.difficultyRarityShift[diff] ?? 0;
@@ -56,7 +56,7 @@ export function rollRarity(cfg: Config, rng: Rng, lvl: number, diff: number, bon
 
 function baseTier(base: BaseItemDef[], lvl: number): number {
   const maxTier = Math.max(...base.map((b) => b.tier));
-  const t = 1 + Math.floor(lvl / (600 / maxTier));
+  const t = 1 + Math.floor(lvl / (280 / maxTier));
   return Math.min(maxTier, t);
 }
 
@@ -87,7 +87,7 @@ export function mainValue(cfg: Config, stat: StatKey, lvl: number, rarity: numbe
   const mb = MAIN_BASE[stat] ?? { v: 0.02, exp: false };
   const rm = cfg.gear.rarityMain[rarity] ?? 1;
   if (mb.exp) return Math.max(1, Math.round(mb.v * gearCurve(cfg, lvl, stat) * rm * roll));
-  return round4(mb.v * (1 + Math.min(lvl, 600) / 300) * rm * roll);
+  return round4(mb.v * (1 + Math.min(lvl, 300) / 150) * rm * roll);
 }
 
 function round4(v: number): number {
@@ -105,7 +105,7 @@ export function affixValue(cfg: Config, id: string, tier: number, lvl: number, r
   if (a.stat === 'skillRank') return 1;
   const tm = TIER_MULT[tier - 1] ?? 1;
   if (a.exp) return Math.max(1, Math.round(a.base * gearCurve(cfg, lvl, a.stat) * tm * roll));
-  return round4(a.base * tm * (1 + Math.min(lvl, 600) / 400) * roll);
+  return round4(a.base * tm * (1 + Math.min(lvl, 300) / 200) * roll);
 }
 
 export function rollAffix(cfg: Config, rng: Rng, item: Pick<Item, 'slot' | 'main' | 'affixes' | 'lvl' | 'rarity'>, exclude: string[] = []): ItemAffix | null {

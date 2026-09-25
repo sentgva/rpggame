@@ -14,7 +14,7 @@ import {
   xpPerMin,
   type Ctx,
 } from '../core';
-import { bossUnits, heroUnits, waveUnits } from '../units';
+import { bossUnits, heroUnits, powerLevel, waveUnits } from '../units';
 import type { Action } from '../apply';
 
 export function nextBattleSeed(ctx: Ctx): number {
@@ -110,8 +110,9 @@ export const battleActions = {
     track(ctx, 'kills', b.kills);
     if (b.win) {
       s.progress.wave++;
-      const gold = Math.floor(goldPerMin(cfg, s, ref.n) * cfg.rewards.waveGoldMin);
-      const xp = Math.floor(xpPerMin(cfg, s, ref.n) * cfg.rewards.waveXpMin);
+      const L = powerLevel(cfg, ref.n);
+      const gold = Math.floor(goldPerMin(cfg, s, L) * cfg.rewards.waveGoldMin);
+      const xp = Math.floor(xpPerMin(cfg, s, L) * cfg.rewards.waveXpMin);
       give(ctx, { gold, xp });
       rewards = { gold, xp };
     }
@@ -163,18 +164,19 @@ export const battleActions = {
 function stageClearRewards(ctx: Ctx, ref: StageRef) {
   const { s, cfg } = ctx;
   const R = cfg.rewards;
-  const gold = Math.floor(goldPerMin(cfg, s, ref.n) * R.bossGoldMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
-  const xp = Math.floor(xpPerMin(cfg, s, ref.n) * R.bossXpMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
+  const L = powerLevel(cfg, ref.n);
+  const gold = Math.floor(goldPerMin(cfg, s, L) * R.bossGoldMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
+  const xp = Math.floor(xpPerMin(cfg, s, L) * R.bossXpMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
   const cur: Record<string, number> = { gold, xp };
   let crystals = 0;
   if (ref.kind === 'boss') crystals += R.actBossCrystals * (1 + ref.diff);
   else if (ref.stage % R.bossCrystalsEvery === 0) crystals += R.bossCrystals * (1 + ref.diff);
   if (crystals) cur.crystals = crystals;
-  const starDust = Math.floor((ref.kind === 'boss' ? R.actBossStarDust : ref.kind === 'mini' ? R.bossStarDust * 2 : ref.stage % 2 === 0 ? R.bossStarDust : 0) * (1 + ref.n / 100));
+  const starDust = Math.floor((ref.kind === 'boss' ? R.actBossStarDust : ref.kind === 'mini' ? R.bossStarDust * 2 : ref.stage % 2 === 0 ? R.bossStarDust : 0) * (1 + L / 50));
   if (starDust) cur.starDust = starDust;
   if (ref.kind !== 'normal') cur.forgeMats = ref.kind === 'boss' ? 10 : 3;
   give(ctx, cur);
-  addAccountXp(ctx, R.bossAccXp * (1 + ref.n / 10));
+  addAccountXp(ctx, R.bossAccXp * (1 + L / 10));
   s.lastBoss = { gold, xp, at: ctx.now };
 
   const act = ACTS[ref.act - 1];
@@ -182,7 +184,8 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
   const count = ref.kind === 'boss' ? R.actBossItems : ref.kind === 'mini' ? 2 : R.bossItems;
   for (let i = 0; i < count; i++) {
     const it = rollLoot(ctx, {
-      lvl: ref.n,
+      lvl: L,
+      diff: ref.diff,
       minRarity: ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1 : 0,
       setPool: act.sets,
       setChance: ref.kind === 'boss' ? 0.6 : 0.1,
@@ -190,8 +193,17 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
     const uid = addItem(ctx, it);
     if (uid) items.push(uid);
   }
-  // осколки владычицы на Кошмаре
+  // осколки владычицы на Кошмаре; на Normal/Hard владычица отдаёт осколки души самой «младшей» героине отряда
   let shards: { hero: string; n: number } | null = null;
+  if (ref.kind === 'boss' && ref.diff < 2 && R.actBossShards) {
+    const party = currentParty(ctx).filter((id): id is string => !!id && !!s.heroines[id]);
+    const hero = party.sort((a, b) => s.heroines[a].stars - s.heroines[b].stars || s.heroines[a].lvl - s.heroines[b].lvl)[0];
+    if (hero) {
+      const n = R.actBossShards * (1 + ref.diff);
+      s.shards[hero] = (s.shards[hero] ?? 0) + n;
+      shards = { hero, n };
+    }
+  }
   if (ref.kind === 'boss' && ref.diff === 2) {
     const boss = ACT_BOSSES.find((b) => b.id === act.boss);
     if (boss?.hero) {

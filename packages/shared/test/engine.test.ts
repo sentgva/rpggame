@@ -15,6 +15,13 @@ import {
   Rng,
   formatNum,
   capMinutes,
+  powerLevel,
+  stageForLevel,
+  enemyStats,
+  ENEMY_MAP,
+  legionMult,
+  BASE_ITEMS,
+  canWear,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -183,6 +190,57 @@ describe('действия', () => {
     expect(r.state.progress.maxGlobal).toBe(0);
     expect(r.state.heroines.lira.lvl).toBe(1);
     expect(r.state.progress.maxGlobalEver).toBe(100);
+    expect(legionMult(cfg, r.state)).toBeCloseTo(1 + cfg.ascension.cyclePower);
+  });
+
+  it('полный инвентарь: переплавляется самый слабый свободный предмет, а не новый', () => {
+    let s = fresh();
+    const cap = cfg.inventory.start;
+    // забиваем инвентарь слабыми предметами
+    for (let i = Object.keys(s.items).length; i < cap; i++) s = applyAction(s, { type: 'dev.item', slot: 'ring', rarity: 0, lvl: 1 }, { cfg, now: T0, dev: true }).state;
+    expect(Object.keys(s.items).length).toBe(cap);
+    const r = applyAction(s, { type: 'dev.item', slot: 'weapon', rarity: 3, lvl: 100 }, { cfg, now: T0, dev: true });
+    expect(r.result.uid).toBeTruthy();
+    expect(r.state.items[r.result.uid as string]).toBeTruthy();
+    expect(Object.keys(r.state.items).length).toBe(cap);
+  });
+
+  it('«Надеть лучшее» переносит заточку на более сильный предмет', () => {
+    let s = fresh();
+    s.cur.gold = 1e15;
+    s.cur.dust = 1e12;
+    const base = BASE_ITEMS.find((b) => b.slot === 'weapon' && canWear('sorceress', b))!.id;
+    const old = applyAction(s, { type: 'dev.item', slot: 'weapon', rarity: 2, lvl: 10, base }, { cfg, now: T0, dev: true });
+    s = old.state;
+    const oldUid = old.result.uid as string;
+    s = applyAction(s, { type: 'item.equip', hero: 'lira', uid: oldUid }, { cfg, now: T0 }).state;
+    for (let i = 0; i < 10; i++) s = applyAction(s, { type: 'item.enhance', uid: oldUid }, { cfg, now: T0 }).state;
+    const nu = applyAction(s, { type: 'dev.item', slot: 'weapon', rarity: 2, lvl: 40, base }, { cfg, now: T0, dev: true });
+    s = nu.state;
+    const newUid = nu.result.uid as string;
+    s = applyAction(s, { type: 'item.autoEquip', hero: 'lira' }, { cfg, now: T0 }).state;
+    expect(s.heroines.lira.gear.weapon).toBe(newUid);
+    expect(s.items[newUid].enh).toBe(10);
+    expect(s.items[oldUid].enh).toBe(0);
+  });
+});
+
+describe('уровень силы врагов', () => {
+  it('Normal совпадает с номером этапа, Hard = +log(25), Nightmare = +log(400)', () => {
+    expect(powerLevel(cfg, 150)).toBeCloseTo(150);
+    expect(powerLevel(cfg, 201)).toBeCloseTo(1 + Math.log(25) / Math.log(1.09));
+    expect(powerLevel(cfg, 600)).toBeCloseTo(200 + Math.log(400) / Math.log(1.09));
+  });
+
+  it('HP врага Hard = ×25 от того же этапа Normal', () => {
+    const def = ENEMY_MAP[Object.keys(ENEMY_MAP)[0]];
+    const normal = enemyStats(cfg, powerLevel(cfg, 50), def, 'normal');
+    const hard = enemyStats(cfg, powerLevel(cfg, 250), def, 'normal');
+    expect(hard.hp / normal.hp).toBeCloseTo(25, 0);
+  });
+
+  it('stageForLevel — обратное к powerLevel', () => {
+    for (const n of [1, 77, 200, 260, 600]) expect(powerLevel(cfg, stageForLevel(cfg, powerLevel(cfg, n)))).toBeCloseTo(powerLevel(cfg, n), 0);
   });
 });
 

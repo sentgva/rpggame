@@ -1,4 +1,4 @@
-import { ASCENSION_UPGRADES, ascensionCost, etherForStage, isUnlocked } from '@idle/shared';
+import { ASCENSION_UPGRADES, ascensionCost, etherForStage, isUnlocked, legionMult } from '@idle/shared';
 import { Button, Cost, Icon, Panel, confirmDialog, css } from '../../components/ui';
 import { t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
@@ -24,6 +24,12 @@ export function Ascension() {
       <BackHeader title={t('asc.title')} right={<Cost cur="ether" amount={s.cur.ether} />} />
       <Panel title={t('asc.count', { n: s.ascension.count })}>
         <p style={{ margin: '0 0 8px', lineHeight: 1.45, fontSize: 13 }}>{t('asc.desc')}</p>
+        <div className={css.tiny} style={{ marginBottom: 6 }}>
+          {t('asc.legion', {
+            now: `×${legionMult(cfg, s).toFixed(2)}`,
+            next: `×${legionMult(cfg, { ascension: { ...s.ascension, count: s.ascension.count + 1 } }).toFixed(2)}`,
+          })}
+        </div>
         {can ? <div className={css.gold}>{t('asc.ether', { n: ether })}</div> : <div className={css.muted}>{t('asc.need', { stage: stageText(cfg.ascension.unlockGlobal) })}</div>}
         <Button
           block

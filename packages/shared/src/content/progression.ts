@@ -42,8 +42,8 @@ export interface AscensionUpgradeDef {
 export const ASCENSION_UPGRADES: AscensionUpgradeDef[] = [
   { id: 'gold', name: { ru: 'Жила Эфира', en: 'Aether Vein' }, desc: { ru: '+25% золота за ранг', en: '+25% gold per rank' }, max: 5, costBase: 3, per: 0.25 },
   { id: 'xp', name: { ru: 'Память Легиона', en: 'Legion Memory' }, desc: { ru: '+25% опыта за ранг', en: '+25% XP per rank' }, max: 5, costBase: 3, per: 0.25 },
-  { id: 'atk', name: { ru: 'Клинок вечности', en: 'Eternal Blade' }, desc: { ru: '+10% ATK отряда за ранг', en: '+10% party ATK per rank' }, max: 5, costBase: 4, per: 0.1 },
-  { id: 'hp', name: { ru: 'Щит вечности', en: 'Eternal Shield' }, desc: { ru: '+10% HP отряда за ранг', en: '+10% party HP per rank' }, max: 5, costBase: 4, per: 0.1 },
+  { id: 'atk', name: { ru: 'Клинок вечности', en: 'Eternal Blade' }, desc: { ru: '+20% ATK отряда за ранг', en: '+20% party ATK per rank' }, max: 5, costBase: 4, per: 0.2 },
+  { id: 'hp', name: { ru: 'Щит вечности', en: 'Eternal Shield' }, desc: { ru: '+20% HP отряда за ранг', en: '+20% party HP per rank' }, max: 5, costBase: 4, per: 0.2 },
   { id: 'speed', name: { ru: 'Поток времени', en: 'Time Stream' }, desc: { ru: '+10% скорости боя и дохода за ранг', en: '+10% battle speed and income per rank' }, max: 5, costBase: 5, per: 0.1 },
   { id: 'start', name: { ru: 'Путь назад', en: 'The Way Back' }, desc: { ru: 'После Вознесения начинать дальше на 10 этапов за ранг', en: 'Start 10 stages further after Ascension per rank' }, max: 5, costBase: 6, per: 10 },
   { id: 'autoBoss', name: { ru: 'Воля Командора', en: "Commander's Will" }, desc: { ru: 'Автовызов босса этапа', en: 'Auto-summon stage boss' }, max: 1, costBase: 8, per: 1, req: { id: 'speed', rank: 1 } },

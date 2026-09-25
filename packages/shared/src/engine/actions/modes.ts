@@ -24,7 +24,7 @@ import type { Action } from '../apply';
 import type { UnitInit } from '../battle';
 import {
   assert,
-  farmStage,
+  farmLevel,
   give,
   goldPerMin,
   requireUnlocked,
@@ -112,7 +112,7 @@ function towerEnemies(ctx: Ctx, floor: number): UnitInit[] {
 export function towerReward(floor: number) {
   const boss = floor % 10 === 0;
   return {
-    crystals: (5 + Math.floor(floor / 20)) * (boss ? 5 : 1),
+    crystals: (2 + Math.floor(floor / 40)) * (boss ? 4 : 1),
     starDust: Math.floor((5 + floor / 5) * (boss ? 3 : 1)),
     skin: TOWER_SKIN_FLOORS[floor],
   };
@@ -162,8 +162,9 @@ function labExtras(run: LabyrinthRun): { extra: Stats; extraFx: SpecialEffect[] 
 
 function labEnemies(ctx: Ctx, run: LabyrinthRun, kind: string): UnitInit[] {
   const rng = new Rng(mixSeed(run.seed, run.floor, run.node, 0x1ab));
-  const n = Math.max(10, Math.floor(farmStage(ctx.s) * 0.92) + run.floor * 6 + run.node);
-  const act = ACTS[rng.int(Math.max(1, Math.min(10, Math.ceil(farmStage(ctx.s) / 20))))];
+  const L = farmLevel(ctx.cfg, ctx.s);
+  const n = Math.max(10, Math.floor(L * 0.92) + run.floor * 3 + run.node);
+  const act = ACTS[rng.int(Math.max(1, Math.min(10, Math.ceil(Math.min(200, L) / 20))))];
   const list: { id: string; tier: 'normal' | 'elite' | 'mini' | 'boss' }[] = [];
   if (kind === 'boss') list.push({ id: run.floor === LAB_FLOORS - 1 ? act.boss : act.minis[run.floor % 3], tier: run.floor === LAB_FLOORS - 1 ? 'boss' : 'mini' });
   if (kind === 'elite') list.push({ id: rng.pick(act.enemies), tier: 'elite' });

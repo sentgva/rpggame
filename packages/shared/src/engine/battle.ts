@@ -687,14 +687,16 @@ class Battle {
         }
         case 'heal': {
           for (const tg of targets) {
-            const base = eff.scale === 'hp' ? u.maxHp : eff.scale === 'def' ? this.effDef(u) : this.effAtk(u);
+            // щит от HP заклинателя не больше HP цели: иначе босс (HP ×14) делает свиту бессмертной
+            const base = eff.scale === 'hp' ? Math.min(u.maxHp, tg.maxHp) : eff.scale === 'def' ? this.effDef(u) : this.effAtk(u);
             this.heal(u, tg, Math.round(base * (eff.mult ?? 1) * u.healPower));
           }
           break;
         }
         case 'shield': {
           for (const tg of targets) {
-            const base = eff.scale === 'hp' ? u.maxHp : eff.scale === 'def' ? this.effDef(u) : this.effAtk(u);
+            // щит от HP заклинателя не больше HP цели: иначе босс (HP ×14) делает свиту бессмертной
+            const base = eff.scale === 'hp' ? Math.min(u.maxHp, tg.maxHp) : eff.scale === 'def' ? this.effDef(u) : this.effAtk(u);
             this.giveShield(u, tg, Math.round(base * (eff.mult ?? 1) * (1 + (u.bonus.shieldPower ?? 0))));
           }
           break;

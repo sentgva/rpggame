@@ -1,15 +1,17 @@
 import type { Config } from '../config';
-import { ACHIEVEMENTS, HEROINE_MAP, stageFromGlobal } from '../content';
+import { ACHIEVEMENTS, HEROINE_MAP } from '../content';
 import { Rng } from '../rng';
 import type { ClassId, Currency, GameEvent, Item, PlayerState, Reward } from '../types';
 import { CURRENCIES } from '../types';
 import { generateItem, type LootOpts } from './loot';
+import { diffOfGlobal, powerLevel } from './units';
 import {
   accountXpToNext,
   activeParty,
   ascensionValue,
   constellationStats,
   equippedIndex,
+  itemPower,
   goldToNext,
   inventoryCap,
   levelCap,
@@ -101,20 +103,26 @@ export function xpMult(s: PlayerState): number {
   return 1 + (cons.xpPct ?? 0) + ascensionValue(s, 'xp') + ascensionValue(s, 'speed');
 }
 
-export function goldPerMin(cfg: Config, s: PlayerState, n = farmStage(s)): number {
-  return cfg.income.goldBase * Math.pow(n + 1, cfg.income.goldExp) * goldMult(s, cfg);
+/** Уровень силы этапа фарма: от него зависят доход и уровень предметов. */
+export function farmLevel(cfg: Config, s: PlayerState): number {
+  return Math.round(powerLevel(cfg, farmStage(s)));
 }
 
-export function xpPerMin(cfg: Config, s: PlayerState, n = farmStage(s)): number {
-  return cfg.income.xpBase * Math.pow(n + 1, cfg.income.xpExp) * xpMult(s);
+/** Доход золота в минуту на уровне силы L. */
+export function goldPerMin(cfg: Config, s: PlayerState, L = farmLevel(cfg, s)): number {
+  return cfg.income.goldBase * Math.pow(L + 1, cfg.income.goldExp) * goldMult(s, cfg);
+}
+
+export function xpPerMin(cfg: Config, s: PlayerState, L = farmLevel(cfg, s)): number {
+  return cfg.income.xpBase * Math.pow(L + 1, cfg.income.xpExp) * xpMult(s);
 }
 
 export function accXpPerMin(cfg: Config, s: PlayerState): number {
-  return cfg.income.accXpPerMin * (1 + farmStage(s) / 60);
+  return cfg.income.accXpPerMin * (1 + farmLevel(cfg, s) / 60);
 }
 
 export function dustPerMin(cfg: Config, s: PlayerState): number {
-  return (cfg.income.dustPerHour / 60) * (1 + farmStage(s) / 40) * (1 + ascensionValue(s, 'dust'));
+  return (cfg.income.dustPerHour / 60) * (1 + farmLevel(cfg, s) / 40) * (1 + ascensionValue(s, 'dust'));
 }
 
 export function offlineBonus(s: PlayerState): number {
@@ -180,6 +188,17 @@ export function addItem(ctx: Ctx, item: Item, opts: { noAutoSmelt?: boolean } = 
   if (item.rarity >= 4) track(ctx, 'legendaryFound', 1);
   if (item.rarity >= 5) track(ctx, 'mythicFound', 1);
   const auto = !opts.noAutoSmelt && s.settings.autoSmelt >= 0 && item.rarity < s.settings.autoSmelt && !item.set;
+  if (!auto && inventoryCount(s) >= inventoryCap(cfg, s)) {
+    // инвентарь полон: переплавляем самый слабый свободный предмет, если новый сильнее
+    const weakest = weakestFreeItem(ctx);
+    if (weakest && cachedPower(cfg, weakest) < cachedPower(cfg, item)) {
+      smeltGain(ctx, weakest);
+      track(ctx, 'smelt', 1);
+      delete s.items[weakest.uid];
+      s.items[item.uid] = item;
+      return item.uid;
+    }
+  }
   if (auto || inventoryCount(s) >= inventoryCap(cfg, s)) {
     smeltGain(ctx, item);
     track(ctx, 'smelt', 1);
@@ -189,12 +208,37 @@ export function addItem(ctx: Ctx, item: Item, opts: { noAutoSmelt?: boolean } = 
   return item.uid;
 }
 
+const powerCache = new WeakMap<Item, { enh: number; p: number }>();
+function cachedPower(cfg: Config, it: Item): number {
+  const c = powerCache.get(it);
+  if (c && c.enh === it.enh) return c.p;
+  const p = itemPower(cfg, it);
+  powerCache.set(it, { enh: it.enh, p });
+  return p;
+}
+
+/** Самый слабый предмет, который можно переплавить без потерь: не надет, не заблокирован, без камней. */
+function weakestFreeItem(ctx: Ctx): Item | null {
+  const { s, cfg } = ctx;
+  const idx = equippedIndex(s);
+  let best: Item | null = null;
+  let bestP = Infinity;
+  for (const it of Object.values(s.items)) {
+    if (idx[it.uid] || it.lock || it.enh > 0 || it.gems.some(Boolean)) continue;
+    const p = cachedPower(cfg, it);
+    if (p < bestP) {
+      best = it;
+      bestP = p;
+    }
+  }
+  return best;
+}
+
+/** Предмет уровня lvl (уровень силы); сложность по умолчанию — текущего этапа фарма. */
 export function rollLoot(ctx: Ctx, o: Partial<LootOpts> & { lvl: number }): Item {
   const { s, cfg } = ctx;
-  const n = o.lvl;
-  const ref = stageFromGlobal(Math.max(1, Math.min(600, n)));
   return generateItem(cfg, ctx.rng, newUid(s), {
-    diff: ref.diff,
+    diff: diffOfGlobal(farmStage(s)) as 0 | 1 | 2,
     classes: partyClasses(s),
     rarityBonus: lootBonus(s),
     ...o,

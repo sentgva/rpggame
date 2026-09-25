@@ -76,7 +76,7 @@
     "xpBase": 60,
     "xpExp": 1.75,
     "maxLevel": 200,
-    "crystalsPer5": 100,
+    "crystalsPer5": 50,
     "partySlots": [
       [
         1,
@@ -131,8 +131,10 @@
     "retryMinutes": 10
   },
   "gear": {
-    "growth": 1.085,
-    "defGrowth": 1.07,
+    "growth": 1.02,
+    "growthLate": 1.06,
+    "growthRamp": 250,
+    "defGrowth": 1.03,
     "enhanceStep": 0.1,
     "rarityMain": [
       1.0,
@@ -229,10 +231,10 @@
     "combine": 3
   },
   "income": {
-    "goldBase": 25,
-    "goldExp": 1.35,
-    "xpBase": 40,
-    "xpExp": 1.45,
+    "goldBase": 2,
+    "goldExp": 1.6,
+    "xpBase": 2,
+    "xpExp": 1.7,
     "accXpPerMin": 2,
     "dustPerHour": 2,
     "itemEveryMin": 3,
@@ -254,13 +256,14 @@
     "bossXpMin": 10,
     "bossAccXp": 25,
     "bossCrystalsEvery": 5,
-    "bossCrystals": 30,
-    "actBossCrystals": 150,
+    "bossCrystals": 10,
+    "actBossCrystals": 60,
     "actBossSkillPoints": 1,
     "bossStarDust": 5,
     "actBossStarDust": 40,
     "bossItems": 1,
-    "actBossItems": 3
+    "actBossItems": 3,
+    "actBossShards": 10
   },
   "summon": {
     "rates": {
@@ -285,7 +288,8 @@
     "unlockGlobal": 81,
     "etherBase": 10,
     "etherDiv": 50,
-    "etherExp": 1.6
+    "etherExp": 1.6,
+    "cyclePower": 0.2
   },
   "modes": {
     "dungeonKeys": 3,
