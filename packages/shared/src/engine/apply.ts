@@ -9,7 +9,7 @@ import { heroActions } from './actions/heroes';
 import { itemActions } from './actions/items';
 import { metaActions } from './actions/meta';
 import { modeActions } from './actions/modes';
-import { purchaseActions } from './actions/purchase';
+import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
 
@@ -29,11 +29,11 @@ export const HANDLERS: Record<string, Handler> = {
   ...metaActions,
   ...modeActions,
   ...devActions,
-  ...purchaseActions,
+  ...serverActions,
 };
 
 /** Действия, которые может инициировать только сервер (платежи, рефералы…). */
-export const SERVER_ONLY = new Set(Object.keys(purchaseActions));
+export const SERVER_ONLY = new Set(Object.keys(serverActions));
 
 export interface ApplyOptions {
   cfg: Config;
@@ -41,7 +41,7 @@ export interface ApplyOptions {
   dev?: boolean;
   /** Выполняется на сервере: бои без записи событий. */
   server?: boolean;
-  /** Действие инициировано сервером (платежи, почта) — разрешены SERVER_ONLY. */
+  /** Действие инициировано сервером (почта, награды) — разрешены SERVER_ONLY. */
   trusted?: boolean;
   /** Не клонировать состояние (вызывающий уже передал копию). */
   mutate?: boolean;
@@ -94,11 +94,6 @@ export function tick(ctx: Ctx) {
     s.quests.dailyClaimed = [];
     s.quests.dailyChests = [];
     track(ctx, 'login', 1);
-    // месячная карта: 100 кристаллов в день
-    if (s.shop.monthlyUntil > now && s.shop.monthlyLastDay !== today) {
-      s.shop.monthlyLastDay = today;
-      give(ctx, { crystals: 100 });
-    }
     // чистим устаревшие ключи лимитов магазина
     for (const k of Object.keys(s.shop.bought)) {
       const parts = k.split('@');

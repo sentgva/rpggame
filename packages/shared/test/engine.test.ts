@@ -121,14 +121,23 @@ describe('действия', () => {
     expect(r.state.dev.used).toBe(true);
   });
 
-  it('платёжные действия доступны только серверу', () => {
+  it('серверные действия (почта) недоступны клиенту', () => {
     const s = fresh();
-    expect(() => applyAction(s, { type: 'purchase.grant', product: 'crystals_300' }, { cfg, now: T0 })).toThrow(GameError);
-    expect(() => applyAction(s, { type: 'purchase.grant', product: 'crystals_300' }, { cfg, now: T0, server: true })).toThrow(GameError);
-    const r = applyAction(s, { type: 'purchase.grant', product: 'crystals_300', charge: 'c1' }, { cfg, now: T0, trusted: true });
-    expect(r.state.cur.crystals).toBe(s.cur.crystals + 600); // первая покупка ×2
-    const r2 = applyAction(r.state, { type: 'purchase.grant', product: 'crystals_300', charge: 'c2' }, { cfg, now: T0, trusted: true });
-    expect(r2.state.cur.crystals).toBe(r.state.cur.crystals + 300);
+    const mail = { id: 'm1', title: { ru: 'т', en: 't' }, body: { ru: 'т', en: 't' }, at: T0, rewards: { cur: { crystals: 10 } } };
+    expect(() => applyAction(s, { type: 'mail.add', mail }, { cfg, now: T0 })).toThrow(GameError);
+    expect(() => applyAction(s, { type: 'mail.add', mail }, { cfg, now: T0, server: true })).toThrow(GameError);
+    const r = applyAction(s, { type: 'mail.add', mail }, { cfg, now: T0, trusted: true });
+    expect(r.state.mail.some((m) => m.id === 'm1')).toBe(true);
+  });
+
+  it('без рекламы: два бесплатных быстрых сбора и ускорения ×2 с дневным лимитом', () => {
+    let s = fresh();
+    s = applyAction(s, { type: 'chest.quick', method: 'free' }, { cfg, now: T0 }).state;
+    s = applyAction(s, { type: 'chest.quick', method: 'free' }, { cfg, now: T0 }).state;
+    expect(() => applyAction(s, { type: 'chest.quick', method: 'free' }, { cfg, now: T0 })).toThrow(GameError);
+    for (let i = 0; i < cfg.income.x2PerDay; i++) s = applyAction(s, { type: 'boost.x2' }, { cfg, now: T0 }).state;
+    expect(s.boosts.x2Until).toBe(T0 + cfg.income.x2PerDay * cfg.income.x2Minutes * 60000);
+    expect(() => applyAction(s, { type: 'boost.x2' }, { cfg, now: T0 })).toThrow(GameError);
   });
 
   it('офлайн-доход ограничен 12 часами', () => {

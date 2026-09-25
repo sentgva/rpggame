@@ -15,6 +15,7 @@ import {
   xpPerMin,
   xpToNext,
   type StageRef,
+  boostsLeft,
 } from '@idle/shared';
 import { useEffect, useState } from 'react';
 import { heroUrl } from '../art/runtime';
@@ -22,7 +23,6 @@ import { BattleView, getRenderer } from '../battle/BattleView';
 import { requestBoss, useBattle } from '../battle/director';
 import { Bar, Button, Cost, Icon, Panel, Sheet, css, cx, fmtTime, formatNum } from '../components/ui';
 import { t, tl } from '../i18n';
-import { adsAvailable, showRewardedAd } from '../net/ads';
 import { previewChest, useCfg, useGame, useGameState } from '../store/game';
 import { navigate, useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
@@ -149,10 +149,10 @@ function ChestPanel() {
   const cap = capMinutes(cfg, s, now);
   const items = Math.floor(chest.itemMin / cfg.income.itemEveryMin);
   const quickCost = s.day.quick < cfg.income.quickCrystals.length ? cfg.income.quickCrystals[s.day.quick] : null;
-  const ads = adsAvailable();
+  const freeLeft = (s.day.quickFree ? 0 : 1) + (s.day.quickAd ? 0 : 1);
+  const boosts = boostsLeft({ cfg, s });
 
-  const quick = async (method: 'free' | 'ad' | 'crystals') => {
-    if (method === 'ad' && !(await showRewardedAd())) return;
+  const quick = async (method: 'free' | 'crystals') => {
     const r = await useGame.getState().act('chest.quick', { method });
     if (r.ok) {
       sfx('loot');
@@ -195,15 +195,10 @@ function ChestPanel() {
       </div>
       <div className={css.divider} />
       <div className={st.quickRow}>
-        {!s.day.quickFree ? (
+        {freeLeft > 0 ? (
           <Button kind="good" size="small" onClick={() => void quick('free')}>
             <Icon name="speed" size={16} />
-            {t('battle.quick')} · {t('common.free')}
-          </Button>
-        ) : !s.day.quickAd && ads ? (
-          <Button kind="secondary" size="small" onClick={() => void quick('ad')}>
-            <Icon name="speed" size={16} />
-            {t('battle.quick')} · {t('common.watchAd')}
+            {t('battle.quick')} · {freeLeft}/2
           </Button>
         ) : quickCost !== null ? (
           <Button kind="secondary" size="small" onClick={() => void quick('crystals')}>
@@ -215,20 +210,18 @@ function ChestPanel() {
             {t('battle.quick')}
           </Button>
         )}
-        {ads && (
-          <Button
-            kind="secondary"
-            size="small"
-            onClick={async () => {
-              if (!(await showRewardedAd())) return;
-              const r = await useGame.getState().act('ad.reward', { kind: 'x2' });
-              if (r.ok) useUi.getState().toast(t('battle.x2Desc'), 'good');
-            }}
-          >
-            <Icon name="speed" size={16} />
-            {t('battle.x2')} ({t('common.watchAd').toLowerCase()})
-          </Button>
-        )}
+        <Button
+          kind="secondary"
+          size="small"
+          disabled={boosts <= 0}
+          onClick={async () => {
+            const r = await useGame.getState().act('boost.x2');
+            if (r.ok) useUi.getState().toast(t('battle.x2Desc'), 'good');
+          }}
+        >
+          <Icon name="speed" size={16} />
+          {t('battle.x2')} · {boosts}/{cfg.income.x2PerDay}
+        </Button>
       </div>
       <div className={css.tiny} style={{ marginTop: 6 }}>
         {t('battle.tip')}
@@ -348,27 +341,9 @@ function ResultWatcher() {
         <Sheet title={t('battle.bossWin', { stage: stage ? stageLabel(stage) : '' })} onClose={close}>
           <RewardList r={{ cur: r.cur, items: r.items, shards: r.shards ? { [r.shards.hero]: r.shards.n } : undefined }} />
           <div style={{ height: 10 }} />
-          <div className={css.row}>
-            {adsAvailable() && (
-              <Button
-                kind="secondary"
-                block
-                onClick={async () => {
-                  if (!(await showRewardedAd())) return;
-                  const d = await useGame.getState().act('ad.reward', { kind: 'bossDouble' });
-                  if (d.ok) {
-                    useUi.getState().toast(`+${formatNum(d.result.gold)} ${t('cur.gold')}`, 'good');
-                    close();
-                  }
-                }}
-              >
-                {t('battle.double')}
-              </Button>
-            )}
-            <Button block onClick={close}>
-              {t('common.ok')}
-            </Button>
-          </div>
+          <Button block onClick={close}>
+            {t('common.ok')}
+          </Button>
         </Sheet>
       ));
     } else {

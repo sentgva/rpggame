@@ -16,8 +16,6 @@ import { inTelegram, startParam, tg, tgUser } from '../tg/telegram';
 
 export interface Flags {
   social: boolean;
-  ads: boolean;
-  payments: boolean;
 }
 
 export interface InitResult {
@@ -40,7 +38,6 @@ export interface Backend {
   init(): Promise<InitResult>;
   action(id: string, action: Action): Promise<ActionResponse>;
   fetchState(): Promise<{ state: PlayerState; now: number }>;
-  invoice(product: string): Promise<string | null>;
   dev(op: string, body?: unknown): Promise<unknown>;
 }
 
@@ -80,7 +77,7 @@ export class LocalBackend implements Backend {
       cfg: this.cfg,
       now,
       isDev: this.isDev,
-      flags: { social: false, ads: false, payments: false },
+      flags: { social: false },
       mode: 'local',
     };
   }
@@ -100,15 +97,6 @@ export class LocalBackend implements Backend {
 
   async fetchState() {
     return { state: structuredClone(this.state), now: Date.now() };
-  }
-
-  async invoice(product: string): Promise<string | null> {
-    // без сервера платежей нет — в dev-режиме выдаём товар для проверки наград
-    if (!this.isDev) return null;
-    const r = applyAction(this.state, { type: 'purchase.grant', product, charge: `local-${Date.now()}` }, { cfg: this.cfg, now: Date.now(), trusted: true });
-    this.state = r.state;
-    this.persist();
-    return 'local:paid';
   }
 
   async dev(op: string, body?: any): Promise<unknown> {
@@ -212,7 +200,7 @@ export class RemoteBackend implements Backend {
       cfg: res.cfg,
       now: res.now,
       isDev: !!res.isDev,
-      flags: res.flags ?? { social: false, ads: false, payments: true },
+      flags: res.flags ?? { social: false },
       mode: 'remote',
       botUsername: res.botUsername,
       appName: res.appName,
@@ -230,11 +218,6 @@ export class RemoteBackend implements Backend {
 
   async fetchState() {
     return this.req<{ state: PlayerState; now: number }>('/state', undefined, 'GET');
-  }
-
-  async invoice(product: string): Promise<string | null> {
-    const r = await this.req<{ ok: boolean; url?: string }>('/invoice', { product });
-    return r.ok && r.url ? r.url : null;
   }
 
   async dev(op: string, body?: unknown): Promise<unknown> {

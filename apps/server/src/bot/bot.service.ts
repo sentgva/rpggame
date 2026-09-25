@@ -6,22 +6,20 @@ const TEXT = {
   ru: {
     welcome: 'Командор, Кристалл Эфира пробудился! Собери Легион Валькирий и освободи владычиц Аэриса.',
     play: 'Играть',
-    support: 'Поддержка по платежам: напишите сюда, указав ID платежа. Мы ответим в течение 24 часов. Возвраты Stars выполняются через Telegram.',
   },
   en: {
     welcome: 'Commander, the Aether Crystal has awakened! Gather the Valkyrie Legion and free the sovereigns of Aeris.',
     play: 'Play',
-    support: 'Payment support: message us here with your payment ID. We reply within 24 hours. Stars refunds are processed via Telegram.',
   },
 };
 
-const ALLOWED_UPDATES = ['message', 'pre_checkout_query', 'callback_query'] as const;
+const ALLOWED_UPDATES = ['message', 'callback_query'] as const;
 
 export function langOf(code?: string): 'ru' | 'en' {
   return code && /^(ru|uk|be|kk)/.test(code) ? 'ru' : 'en';
 }
 
-/** Telegram-бот: вход в Mini App, платежи Stars, уведомления, реферальные ссылки. */
+/** Telegram-бот: вход в Mini App, уведомления, реферальные ссылки. */
 @Injectable()
 export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly log = new Logger('Bot');
@@ -32,7 +30,6 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     if (!this.bot) return;
     this.bot.command('start', (ctx) => this.onStart(ctx));
     this.bot.command('play', (ctx) => this.onStart(ctx));
-    this.bot.command('paysupport', (ctx) => ctx.reply(TEXT[langOf(ctx.from?.language_code)].support));
     this.bot.catch((err) => this.log.error(`bot error: ${String(err.error)}`));
   }
 
@@ -98,7 +95,6 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   private async setCommands() {
     await this.bot!.api.setMyCommands([
       { command: 'start', description: 'Idle RPG' },
-      { command: 'paysupport', description: 'Payment support' },
     ]);
   }
 

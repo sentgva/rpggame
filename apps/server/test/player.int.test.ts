@@ -44,23 +44,24 @@ describe.skipIf(!url)('PlayerService + PostgreSQL', () => {
     expect(b).toEqual(a);
   });
 
-  it('dev-действия только для белого списка, платёжные — только от сервера', async () => {
+  it('dev-действия только для белого списка, серверные — только от сервера', async () => {
     const r1 = await players.applyClient('u1', 'd1', { type: 'dev.cur', cur: 'gold', op: 'max' });
     expect(r1.ok).toBe(false);
     await players.getOrCreate('dev1', { firstName: 'Dev', lang: 'ru' });
     const r2 = await players.applyClient('dev1', 'd2', { type: 'dev.cur', cur: 'gold', op: 'add', amount: 10 });
     expect(r2.ok).toBe(true);
-    const r3 = await players.applyClient('u1', 'p1', { type: 'purchase.grant', product: 'crystals_300' });
+    const mail = { id: 'gift1', title: { ru: 'Подарок', en: 'Gift' }, body: { ru: '', en: '' }, at: Date.now(), rewards: { cur: { crystals: 10 } } };
+    const r3 = await players.applyClient('u1', 'p1', { type: 'mail.add', mail });
     expect(r3.ok).toBe(false);
-    const r4 = await players.applyTrusted('u1', { type: 'purchase.grant', product: 'crystals_300', charge: 'c1' });
+    const r4 = await players.applyTrusted('u1', { type: 'mail.add', mail });
     expect(r4.ok).toBe(true);
   });
 
   it('состояние и ledger сохраняются в БД', async () => {
     await players.flush(true);
     const row = await db.one("SELECT state, max_stage FROM players WHERE id = 'u1'");
-    expect(row.state.cur.crystals).toBeGreaterThanOrEqual(900);
-    const ledger = await db.query("SELECT * FROM ledger WHERE player_id = 'u1' AND currency = 'crystals'");
+    expect(row.state.mail.some((m: { id: string }) => m.id === 'gift1')).toBe(true);
+    const ledger = await db.query("SELECT * FROM ledger WHERE player_id = 'u1'");
     expect(ledger.length).toBeGreaterThan(0);
   });
 });

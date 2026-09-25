@@ -7,7 +7,6 @@ import {
   MYTHICS,
   SETS,
   SKINS,
-  STARS_PRODUCTS,
   rollRarity,
   Rng,
   type Currency,
@@ -19,7 +18,7 @@ import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { BackHeader } from '../common';
 
-type DevTab = 'resources' | 'heroes' | 'items' | 'progress' | 'time' | 'battle' | 'balance' | 'account' | 'purchases' | 'log';
+type DevTab = 'resources' | 'heroes' | 'items' | 'progress' | 'time' | 'battle' | 'balance' | 'account' | 'log';
 
 async function dev(type: string, params: Record<string, unknown> = {}) {
   const r = await useGame.getState().act(type, params);
@@ -39,7 +38,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 /** Режим разработчика (раздел 16 ТЗ). Каждый запрос повторно проверяется сервером. */
 export function DevPanel() {
   const [tab, setTab] = useState<DevTab>('resources');
-  const tabs: DevTab[] = ['resources', 'heroes', 'items', 'progress', 'time', 'battle', 'balance', 'account', 'purchases', 'log'];
+  const tabs: DevTab[] = ['resources', 'heroes', 'items', 'progress', 'time', 'battle', 'balance', 'account', 'log'];
   return (
     <div className={css.col}>
       <BackHeader title={t('dev.title')} />
@@ -55,7 +54,6 @@ export function DevPanel() {
       {tab === 'battle' && <Battle />}
       {tab === 'balance' && <Balance />}
       {tab === 'account' && <Account />}
-      {tab === 'purchases' && <Purchases />}
       {tab === 'log' && <Log />}
     </div>
   );
@@ -388,30 +386,6 @@ function Account() {
   );
 }
 
-function Purchases() {
-  return (
-    <Panel title={t('dev.purchases')}>
-      <div className={css.list}>
-        {STARS_PRODUCTS.map((p) => (
-          <div key={p.id} className={css.listItem}>
-            <span className={css.grow}>{tl(p.name)}</span>
-            <Button size="small" onClick={() => void dev('dev.grantProduct', { product: p.id })}>
-              {t('dev.grant')}
-            </Button>
-          </div>
-        ))}
-        {SKINS.filter((x) => x.stars).map((x) => (
-          <div key={x.id} className={css.listItem}>
-            <span className={css.grow}>{tl(x.name)}</span>
-            <Button size="small" kind="secondary" onClick={() => void dev('dev.grantProduct', { product: `skin:${x.id}` })}>
-              {t('dev.grant')}
-            </Button>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
 
 function Log() {
   const [rows, setRows] = useState<{ at: number; op?: string; section?: string; body?: unknown; payload?: unknown }[]>([]);

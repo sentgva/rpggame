@@ -27,8 +27,6 @@ services:
   app:
     build:
       context: .
-      args:
-        VITE_ADSGRAM_BLOCK_ID: ${VITE_ADSGRAM_BLOCK_ID:-}
     restart: unless-stopped
     env_file: .env
     environment:

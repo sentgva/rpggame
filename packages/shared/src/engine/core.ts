@@ -129,14 +129,14 @@ export function offlineBonus(s: PlayerState): number {
   return constellationStats(s.constellation).offline + ascensionValue(s, 'offline');
 }
 
-export function capMinutes(cfg: Config, s: PlayerState, now: number): number {
-  let hours = cfg.income.capHours + constellationStats(s.constellation).capHours;
-  if (s.shop.monthlyUntil > now) hours = cfg.income.maxCapHours;
+/** Лимит накопления сундука: 12 ч базово, до 24 ч звёздами «Песочных часов». */
+export function capMinutes(cfg: Config, s: PlayerState, _now?: number): number {
+  const hours = cfg.income.capHours + constellationStats(s.constellation).capHours;
   return Math.min(cfg.income.maxCapHours, hours) * 60;
 }
 
 export function x2Active(s: PlayerState, now: number): boolean {
-  return s.boosts.x2Until > now || s.shop.passUntil > now;
+  return s.boosts.x2Until > now;
 }
 
 /** Начислить в сундук доход за прошедшее время (онлайн и офлайн одинаково). */
@@ -146,7 +146,7 @@ export function settleChest(ctx: Ctx) {
   if (now <= since) return;
   const realMin = (now - since) / 60000;
   // ускорение ×2: пересечение [since, now] с окном действия буста
-  const x2End = Math.max(s.boosts.x2Until, s.shop.passUntil);
+  const x2End = s.boosts.x2Until;
   const x2Min = Math.max(0, Math.min(now, x2End) - since) / 60000;
   let eff = realMin + Math.min(realMin, x2Min);
   const cap = capMinutes(cfg, s, now);

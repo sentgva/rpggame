@@ -31,7 +31,6 @@ interface WebApp {
   isFullscreen?: boolean;
   addToHomeScreen?(): void;
   shareToStory?(url: string, params?: { text?: string; widget_link?: { url: string; name?: string } }): void;
-  openInvoice(url: string, cb?: (status: 'paid' | 'cancelled' | 'failed' | 'pending') => void): void;
   openTelegramLink(url: string): void;
   openLink(url: string): void;
   switchInlineQuery?(query: string, types?: string[]): void;
@@ -143,17 +142,6 @@ export function pushBack(handler: () => void): () => void {
       tg.BackButton.hide();
     }
   };
-}
-
-export function openInvoice(url: string): Promise<'paid' | 'cancelled' | 'failed' | 'pending'> {
-  return new Promise((resolve) => {
-    if (!tg) {
-      window.open(url, '_blank');
-      resolve('pending');
-      return;
-    }
-    tg.openInvoice(url, (status) => resolve(status));
-  });
 }
 
 export function cloudGet(key: string): Promise<string | null> {

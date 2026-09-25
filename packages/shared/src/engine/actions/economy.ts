@@ -28,17 +28,9 @@ import { weekKey } from '../state';
 
 const HOUR = 3600000;
 
-function adsLeft(ctx: Ctx): number {
-  return ctx.cfg.income.adLimit - ctx.s.day.ads;
-}
-
-/** Реклама с месячной картой заменяется бесплатными наградами (не расходует лимит). */
-function useAd(ctx: Ctx) {
-  if (ctx.s.shop.monthlyUntil > ctx.now) return;
-  assert(adsLeft(ctx) > 0, 'adLimit');
-  ctx.s.day.ads++;
-  track(ctx, 'ad', 1);
-  ctx.events.push({ name: 'ad_view' });
+/** Бесплатные ускорения ×2: ограничены числом в день (счётчик day.ads). */
+export function boostsLeft(ctx: Pick<Ctx, 'cfg' | 's'>): number {
+  return ctx.cfg.income.x2PerDay - ctx.s.day.ads;
 }
 
 /** Сгенерировать предметы сундука; при переполнении — автопереплавка. */
@@ -76,17 +68,15 @@ export const economyActions = {
     return { gold, xp, dust, minutes, items: loot.items, smelted: loot.smelted, levels };
   },
 
-  /** Быстрый сбор: мгновенно 2 ч дохода. 1 бесплатно, 1 за рекламу, дальше 20 → 50 → 100 кристаллов. */
+  /** Быстрый сбор: мгновенно 2 ч дохода. 2 раза в день бесплатно, дальше 20 → 50 → 100 кристаллов. */
   'chest.quick': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
-    const method = vOneOf(a.method, ['free', 'ad', 'crystals'] as const, 'method');
+    const method = vOneOf(a.method, ['free', 'crystals'] as const, 'method');
     if (method === 'free') {
-      assert(!s.day.quickFree, 'usedToday');
-      s.day.quickFree = true;
-    } else if (method === 'ad') {
-      assert(!s.day.quickAd, 'usedToday');
-      useAd(ctx);
-      s.day.quickAd = true;
+      // второй бесплатный сбор хранится во флаге quickAd (раньше — сбор за рекламу)
+      assert(!s.day.quickFree || !s.day.quickAd, 'usedToday');
+      if (!s.day.quickFree) s.day.quickFree = true;
+      else s.day.quickAd = true;
     } else {
       const costs = cfg.income.quickCrystals;
       assert(s.day.quick < costs.length, 'usedToday');
@@ -106,25 +96,20 @@ export const economyActions = {
     return { gold, xp, dust, minutes, items: loot.items, smelted: loot.smelted, levels };
   },
 
-  'ad.reward': (ctx: Ctx, a: Action) => {
+  /** Ускорение ×2 на 30 минут: бесплатно, несколько раз в день. */
+  'boost.x2': (ctx: Ctx) => {
     const { s, cfg, now } = ctx;
-    const kind = vOneOf(a.kind, ['x2', 'bossDouble', 'freeSummon'] as const, 'kind');
-    if (kind === 'x2') {
-      useAd(ctx);
-      settleChest(ctx);
-      s.boosts.x2Until = Math.max(now, s.boosts.x2Until) + cfg.income.x2Minutes * 60000;
-      return { x2Until: s.boosts.x2Until };
-    }
-    if (kind === 'bossDouble') {
-      const lb = s.lastBoss;
-      assert(lb && !lb.doubled && now - lb.at < 10 * 60000, 'nothingToDouble');
-      useAd(ctx);
-      lb.doubled = true;
-      give(ctx, { gold: lb.gold, xp: lb.xp });
-      return { gold: lb.gold, xp: lb.xp };
-    }
+    assert(boostsLeft(ctx) > 0, 'usedToday');
+    s.day.ads++;
+    settleChest(ctx);
+    s.boosts.x2Until = Math.max(now, s.boosts.x2Until) + cfg.income.x2Minutes * 60000;
+    return { x2Until: s.boosts.x2Until };
+  },
+
+  /** Бесплатный призыв раз в день. */
+  'summon.free': (ctx: Ctx) => {
+    const { s } = ctx;
     assert(!s.day.freeSummon, 'usedToday');
-    useAd(ctx);
     s.day.freeSummon = true;
     return { pulls: doSummon(ctx, 1) };
   },

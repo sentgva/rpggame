@@ -209,13 +209,11 @@ export const metaActions = {
   'pass.claim': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     const level = vInt(a.level, 1, PASS_LEVELS, 'level');
-    const premium = !!a.premium;
     assert(passLevel(s) >= level, 'notDone');
-    if (premium) assert(s.shop.passUntil > ctx.now, 'noPass');
-    const list = premium ? s.shop.passPremiumClaimed : s.shop.passClaimed;
+    const list = s.shop.passClaimed;
     assert(!list.includes(level), 'claimed');
     list.push(level);
-    const r = passReward(level, premium);
+    const r = passReward(level);
     const out: Record<string, unknown> = {};
     if (r.cur) {
       const cur = scaleReward(cfg, s, r.cur);

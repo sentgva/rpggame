@@ -351,24 +351,25 @@ export interface SkinDef {
   name: L10n;
   look: Partial<Look>;
   source: 'shop' | 'tower' | 'labyrinth' | 'pass' | 'event' | 'arena';
-  stars?: number;
+  /** Цена в магазине обликов (кристаллы). */
+  crystals?: number;
 }
 
 export const SKINS: SkinDef[] = [
-  { id: 'lira_summer', hero: 'lira', name: { ru: 'Летний фестиваль', en: 'Summer Festival' }, look: { outfit: '#F2E6D8', trim: '#E0532A', acc: 'flower', accColor: '#F08A24' }, source: 'shop', stars: 150 },
+  { id: 'lira_summer', hero: 'lira', name: { ru: 'Летний фестиваль', en: 'Summer Festival' }, look: { outfit: '#F2E6D8', trim: '#E0532A', acc: 'flower', accColor: '#F08A24' }, source: 'shop', crystals: 1500 },
   { id: 'lira_crimson', hero: 'lira', name: { ru: 'Багровая ведьма', en: 'Crimson Witch' }, look: { hair: '#B8322C', outfit: '#1E1420', trim: '#E03A3A' }, source: 'pass' },
-  { id: 'astrid_night', hero: 'astrid', name: { ru: 'Ночная стража', en: 'Night Watch' }, look: { outfit: '#2A2E3A', trim: '#6FD0E0', hair: '#E0E6F0' }, source: 'shop', stars: 250 },
-  { id: 'nox_bunny', hero: 'nox', name: { ru: 'Лунный кролик', en: 'Moon Rabbit' }, look: { acc: 'catEars', accColor: '#EDEAF2', outfit: '#3A2E4A' }, source: 'shop', stars: 300 },
-  { id: 'velvet_bride', hero: 'velvet', name: { ru: 'Призрачная невеста', en: 'Ghost Bride' }, look: { outfit: '#E6E0F0', trim: '#9B4DE0', accColor: '#F2F0E6' }, source: 'shop', stars: 400 },
-  { id: 'isolde_spring', hero: 'isolde', name: { ru: 'Весенняя оттепель', en: 'Spring Thaw' }, look: { outfit: '#6FB07A', trim: '#F4B8CC', hair: '#F4E0F0' }, source: 'shop', stars: 400 },
+  { id: 'astrid_night', hero: 'astrid', name: { ru: 'Ночная стража', en: 'Night Watch' }, look: { outfit: '#2A2E3A', trim: '#6FD0E0', hair: '#E0E6F0' }, source: 'shop', crystals: 2500 },
+  { id: 'nox_bunny', hero: 'nox', name: { ru: 'Лунный кролик', en: 'Moon Rabbit' }, look: { acc: 'catEars', accColor: '#EDEAF2', outfit: '#3A2E4A' }, source: 'shop', crystals: 3000 },
+  { id: 'velvet_bride', hero: 'velvet', name: { ru: 'Призрачная невеста', en: 'Ghost Bride' }, look: { outfit: '#E6E0F0', trim: '#9B4DE0', accColor: '#F2F0E6' }, source: 'shop', crystals: 4000 },
+  { id: 'isolde_spring', hero: 'isolde', name: { ru: 'Весенняя оттепель', en: 'Spring Thaw' }, look: { outfit: '#6FB07A', trim: '#F4B8CC', hair: '#F4E0F0' }, source: 'shop', crystals: 4000 },
   { id: 'mirabel_pearl', hero: 'mirabel', name: { ru: 'Жемчужная', en: 'Pearl' }, look: { outfit: '#F2E0F0', trim: '#F2F0E6' }, source: 'tower' },
   { id: 'keira_winter', hero: 'keira', name: { ru: 'Зимняя руна', en: 'Winter Rune' }, look: { hair: '#E0E6F0', outfit: '#3A4A6A', trim: '#6FD0E0' }, source: 'tower' },
   { id: 'seyra_autumn', hero: 'seyra', name: { ru: 'Осенний лист', en: 'Autumn Leaf' }, look: { outfit: '#8A4A1E', trim: '#F08A24', accColor: '#8A4A1E' }, source: 'tower' },
   { id: 'hanna_star', hero: 'hanna', name: { ru: 'Звезда сцены', en: 'Stage Star' }, look: { outfit: '#9B4DE0', trim: '#F2D46B' }, source: 'labyrinth' },
   { id: 'rin_night', hero: 'rin', name: { ru: 'Ночная сакура', en: 'Night Sakura' }, look: { outfit: '#1E1A2A', trim: '#E890B0', hair: '#F2F0E6' }, source: 'labyrinth' },
-  { id: 'aurora_eclipse', hero: 'aurora', name: { ru: 'Затмение', en: 'Eclipse' }, look: { outfit: '#1E1A2A', trim: '#F2D46B', hair: '#2A2036' }, source: 'shop', stars: 400 },
+  { id: 'aurora_eclipse', hero: 'aurora', name: { ru: 'Затмение', en: 'Eclipse' }, look: { outfit: '#1E1A2A', trim: '#F2D46B', hair: '#2A2036' }, source: 'shop', crystals: 4000 },
   { id: 'seraphina_dark', hero: 'seraphina', name: { ru: 'Падший серафим', en: 'Fallen Seraph' }, look: { outfit: '#1E1420', trim: '#E03A3A', hair: '#EDEAF2', extra: 'darkWings' }, source: 'event' },
-  { id: 'lilith_maid', hero: 'lilith', name: { ru: 'Горничная ада', en: 'Infernal Maid' }, look: { outfit: '#1E1A1A', trim: '#F2F0E6' }, source: 'shop', stars: 300 },
+  { id: 'lilith_maid', hero: 'lilith', name: { ru: 'Горничная ада', en: 'Infernal Maid' }, look: { outfit: '#1E1A1A', trim: '#F2F0E6' }, source: 'shop', crystals: 3000 },
   { id: 'liora_sun', hero: 'liora', name: { ru: 'Полдень', en: 'High Noon' }, look: { outfit: '#F2D46B', trim: '#FFFFFF' }, source: 'arena' },
   { id: 'carmen_noir', hero: 'carmen', name: { ru: 'Нуар', en: 'Noir' }, look: { outfit: '#1E1A1A', trim: '#E03A3A' }, source: 'labyrinth' },
   { id: 'celestine_nova', hero: 'celestine', name: { ru: 'Сверхновая', en: 'Supernova' }, look: { outfit: '#F2F0E6', trim: '#9B4DE0' }, source: 'tower' },

@@ -3,7 +3,6 @@ import { BalanceService } from '../balance/balance.service';
 import { BotService } from '../bot/bot.service';
 import { DbService } from '../db/db.service';
 import { env } from '../env';
-import { PaymentsService } from '../payments/payments.service';
 import { PlayerService } from '../game/player.service';
 
 /**
@@ -15,7 +14,6 @@ export class AdminController {
   constructor(
     @Inject(DbService) private readonly db: DbService,
     @Inject(PlayerService) private readonly players: PlayerService,
-    @Inject(PaymentsService) private readonly payments: PaymentsService,
     @Inject(BotService) private readonly bots: BotService,
     @Inject(BalanceService) private readonly balance: BalanceService,
   ) {}
@@ -38,9 +36,8 @@ export class AdminController {
   async player(@Headers('x-admin-token') token: string, @Param('id') id: string) {
     this.check(token);
     const state = await this.players.getState(id);
-    const payments = await this.db.query('SELECT * FROM payments WHERE player_id = $1 ORDER BY created_at DESC LIMIT 50', [id]);
     const ledger = await this.db.query('SELECT * FROM ledger WHERE player_id = $1 ORDER BY at DESC LIMIT 100', [id]);
-    return { state, payments, ledger };
+    return { state, ledger };
   }
 
   /** Компенсация письмом одному игроку или всем. */
@@ -70,13 +67,6 @@ export class AdminController {
     return { ok: true, sent };
   }
 
-  @Post('refund')
-  @HttpCode(200)
-  async refund(@Headers('x-admin-token') token: string, @Body() body: { charge: string }) {
-    this.check(token);
-    return this.payments.refund(body.charge);
-  }
-
   @Post('config/reload')
   @HttpCode(200)
   reload(@Headers('x-admin-token') token: string) {
@@ -96,8 +86,7 @@ export class AdminController {
   async stats(@Headers('x-admin-token') token: string) {
     this.check(token);
     const [players] = await this.db.query("SELECT count(*)::int AS total, count(*) FILTER (WHERE last_seen_at > now() - interval '1 day')::int AS dau FROM players");
-    const [pay] = await this.db.query("SELECT coalesce(sum(stars),0)::int AS stars, count(*)::int AS n FROM payments WHERE status = 'paid'");
     const events = await this.db.query("SELECT name, count(*)::int AS n FROM analytics_events WHERE at > now() - interval '1 day' GROUP BY name ORDER BY n DESC LIMIT 30");
-    return { players, payments: pay, events };
+    return { players, events };
   }
 }

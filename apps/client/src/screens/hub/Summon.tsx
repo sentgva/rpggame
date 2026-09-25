@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { heroUrl } from '../../art/runtime';
 import { Button, Cost, Icon, Panel, css } from '../../components/ui';
 import { t, tl } from '../../i18n';
-import { adsAvailable, showRewardedAd } from '../../net/ads';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { haptic, share } from '../../tg/telegram';
@@ -48,20 +47,17 @@ export function Summon() {
               {t('summon.ten')} <Cost cur="scrolls" amount={10} />
             </Button>
           </div>
-          {adsAvailable() && (
-            <Button
-              kind="good"
-              block
-              disabled={s.day.freeSummon}
-              onClick={async () => {
-                if (!(await showRewardedAd())) return;
-                const r = await useGame.getState().act('ad.reward', { kind: 'freeSummon' });
-                if (r.ok) showPulls(r.result.pulls);
-              }}
-            >
-              {t('summon.free')} · {t('common.watchAd')}
-            </Button>
-          )}
+          <Button
+            kind="good"
+            block
+            disabled={s.day.freeSummon}
+            onClick={async () => {
+              const r = await useGame.getState().act('summon.free');
+              if (r.ok) showPulls(r.result.pulls);
+            }}
+          >
+            {t('summon.free')} · {s.day.freeSummon ? t('summon.freeUsed') : t('common.free')}
+          </Button>
         </div>
       </Panel>
       <Panel title={t('summon.rates')}>

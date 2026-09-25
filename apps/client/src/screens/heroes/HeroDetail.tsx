@@ -18,7 +18,7 @@ import {
 } from '@idle/shared';
 import { useState } from 'react';
 import { heroUrl } from '../../art/runtime';
-import { Button, Cost, ElementIcon, Icon, ItemSlot, Panel, Stars, Tabs, css, cx, elementName, formatNum } from '../../components/ui';
+import { Button, Cost, ElementIcon, Icon, ItemSlot, Panel, Stars, Tabs, css, cx, elementName, formatNum, confirmDialog } from '../../components/ui';
 import { getLang, t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
@@ -266,12 +266,14 @@ function HeroSkins({ heroId }: { heroId: string }) {
               style={h.skin === sk.id ? { outline: '2px solid var(--accent-2)' } : undefined}
               onClick={() => {
                 if (owned) void useGame.getState().act('hero.skin', { id: heroId, skin: sk.id });
+                else if (sk.crystals)
+                  confirmDialog(t('shop.buySkin', { name: tl(sk.name), n: sk.crystals }), () => void useGame.getState().act('shop.buy', { offer: `sk_${sk.id}` }));
                 else useUi.getState().toast(t('heroes.skinLocked'), 'info');
               }}
             >
               <img className={cx(css.heroSprite, !owned && css.dim)} src={heroUrl(heroId, sk.id)} alt="" />
               <div className={css.heroName}>{tl(sk.name)}</div>
-              <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.stars ? `${sk.stars} ★` : t('heroes.skinLocked')}</div>
+              <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : t('heroes.skinLocked')}</div>
             </div>
           );
         })}

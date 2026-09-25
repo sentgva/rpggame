@@ -5,7 +5,6 @@ import type { Action } from '../apply';
 import { addHeroine, addItem, assert, farmLevel, give, newUid, rollLoot, settleChest, vInt, vOneOf, vStr, type Ctx } from '../core';
 import { affixValue } from '../loot';
 import { createPlayer, dayKey, weekKey } from '../state';
-import { grantProduct } from './purchase';
 
 /** Режим разработчика (раздел 16 ТЗ). Доступ проверяет сервер по белому списку Telegram ID. */
 export const devActions = {
@@ -179,12 +178,6 @@ export const devActions = {
     fresh.dev.used = true;
     Object.assign(ctx.s, fresh);
     return {};
-  },
-
-  /** Тестовая выдача товара магазина без списания Stars. */
-  'dev.grantProduct': (ctx: Ctx, a: Action) => {
-    const product = vStr(a.product, 'product');
-    return grantProduct(ctx, product, `dev-${ctx.now}`);
   },
 
   'dev.mail': (ctx: Ctx, a: Action) => {

@@ -7,7 +7,6 @@ import { BalanceService } from '../balance/balance.service';
 import { RateLimiter } from '../common/rate-limit';
 import { DevService } from '../dev/dev.service';
 import { env, isDevUser } from '../env';
-import { PaymentsService } from '../payments/payments.service';
 import { PlayerService } from './player.service';
 
 @Controller('api')
@@ -15,7 +14,6 @@ export class GameController {
   constructor(
     @Inject(PlayerService) private readonly players: PlayerService,
     @Inject(BalanceService) private readonly balance: BalanceService,
-    @Inject(PaymentsService) private readonly payments: PaymentsService,
     @Inject(DevService) private readonly dev: DevService,
     @Inject(RateLimiter) private readonly limiter: RateLimiter,
   ) {}
@@ -60,7 +58,7 @@ export class GameController {
       cfg: this.balance.get(),
       now: Date.now(),
       isDev: isDevUser(uid),
-      flags: { social: env.socialEnabled, ads: env.adsEnabled, payments: env.paymentsEnabled && !!env.botToken },
+      flags: { social: env.socialEnabled },
       botUsername: env.botUsername || undefined,
       appName: env.appName || undefined,
     };
@@ -82,16 +80,6 @@ export class GameController {
     return { state: await this.players.getState(req.uid), now: Date.now() };
   }
 
-  @Post('invoice')
-  @HttpCode(200)
-  @UseGuards(AuthGuard)
-  async invoice(@Req() req: AuthedRequest, @Body() body: { product?: string }) {
-    try {
-      return await this.payments.createInvoice(req.uid, String(body?.product ?? ''));
-    } catch (e) {
-      return { ok: false, error: String(e) };
-    }
-  }
 
   @Post('dev')
   @HttpCode(200)

@@ -16,10 +16,6 @@ COPY tsconfig.base.json ./
 COPY packages packages
 COPY apps apps
 
-# переменные клиента вшиваются при сборке (Vite)
-ARG VITE_ADSGRAM_BLOCK_ID=""
-ENV VITE_ADSGRAM_BLOCK_ID=$VITE_ADSGRAM_BLOCK_ID
-
 RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:22-slim

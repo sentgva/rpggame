@@ -62,7 +62,7 @@ export const useGame = create<GameStore>((set, get) => ({
   fatal: null,
   mode: 'local',
   isDev: false,
-  flags: { social: false, ads: false, payments: false },
+  flags: { social: false },
   cfg: null,
   state: null,
   confirmed: null,

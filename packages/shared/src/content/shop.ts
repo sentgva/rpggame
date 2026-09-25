@@ -1,44 +1,10 @@
 import type { Currency, L10n } from '../types';
-
-/**
- * Товары за Telegram Stars (единственный способ оплаты).
- * Цены — стартовый ориентир для A/B-тестов, правятся в конфиге.
- */
-export interface StarsProduct {
-  id: string;
-  name: L10n;
-  desc: L10n;
-  stars: number;
-  kind: 'starter' | 'crystals' | 'monthly' | 'pass' | 'skin' | 'event' | 'convenience';
-  crystals?: number;
-  /** Удвоение первой покупки. */
-  firstDouble?: boolean;
-  limit?: number;
-  skin?: string;
-  /** Подписка: период в секундах. */
-  subscription?: number;
-}
-
-export const STARS_PRODUCTS: StarsProduct[] = [
-  { id: 'starter', name: { ru: 'Стартовый набор', en: 'Starter Pack' }, desc: { ru: 'SSR-героиня Астрид, 1 000 кристаллов и эпический сет', en: 'SSR heroine Astrid, 1,000 crystals and an epic set' }, stars: 99, kind: 'starter', crystals: 1000, limit: 1 },
-  { id: 'crystals_300', name: { ru: '300 кристаллов', en: '300 Crystals' }, desc: { ru: 'Первая покупка — ×2', en: 'First purchase ×2' }, stars: 50, kind: 'crystals', crystals: 300, firstDouble: true },
-  { id: 'crystals_1000', name: { ru: '1 000 кристаллов', en: '1,000 Crystals' }, desc: { ru: 'Первая покупка — ×2', en: 'First purchase ×2' }, stars: 150, kind: 'crystals', crystals: 1000, firstDouble: true },
-  { id: 'crystals_3200', name: { ru: '3 200 кристаллов', en: '3,200 Crystals' }, desc: { ru: 'Первая покупка — ×2', en: 'First purchase ×2' }, stars: 450, kind: 'crystals', crystals: 3200, firstDouble: true },
-  { id: 'crystals_7000', name: { ru: '7 000 кристаллов', en: '7,000 Crystals' }, desc: { ru: 'Первая покупка — ×2', en: 'First purchase ×2' }, stars: 950, kind: 'crystals', crystals: 7000, firstDouble: true },
-  { id: 'crystals_15000', name: { ru: '15 000 кристаллов', en: '15,000 Crystals' }, desc: { ru: 'Первая покупка — ×2', en: 'First purchase ×2' }, stars: 1950, kind: 'crystals', crystals: 15000, firstDouble: true },
-  { id: 'monthly', name: { ru: 'Месячная карта', en: 'Monthly Card' }, desc: { ru: '300 кристаллов сразу + 100 в день 30 дней, офлайн-лимит 24 ч, реклама заменяется наградами', en: '300 crystals now + 100 daily for 30 days, 24h offline cap, ads replaced by free rewards' }, stars: 250, kind: 'monthly', crystals: 300, subscription: 2592000 },
-  { id: 'pass', name: { ru: 'Боевой пропуск', en: 'Battle Pass' }, desc: { ru: '50 уровней наград, эксклюзивный облик, ускорение ×2 весь сезон', en: '50 reward levels, exclusive skin, ×2 speed all season' }, stars: 450, kind: 'pass' },
-  { id: 'inv100', name: { ru: '+100 ячеек инвентаря', en: '+100 Inventory Slots' }, desc: { ru: 'Разовая покупка', en: 'One-time purchase' }, stars: 100, kind: 'convenience', limit: 1 },
-  { id: 'presets', name: { ru: '+2 пресета отряда', en: '+2 Party Presets' }, desc: { ru: 'До 5 пресетов', en: 'Up to 5 presets' }, stars: 200, kind: 'convenience', limit: 1 },
-  { id: 'event_pack', name: { ru: 'Набор ивента', en: 'Event Pack' }, desc: { ru: '10 свитков призыва и 500 жетонов ивента', en: '10 summon scrolls and 500 event tokens' }, stars: 300, kind: 'event', limit: 1 },
-];
-
-export const STARS_PRODUCT_MAP: Record<string, StarsProduct> = Object.fromEntries(STARS_PRODUCTS.map((p) => [p.id, p]));
+import { SKINS } from './heroines';
 
 /** Магазины за игровые валюты. */
 export interface ShopOffer {
   id: string;
-  shop: 'shards' | 'arena' | 'guild' | 'labyrinth' | 'event' | 'daily';
+  shop: 'shards' | 'arena' | 'guild' | 'labyrinth' | 'event' | 'daily' | 'skins';
   name: L10n;
   cost: Partial<Record<Currency, number>>;
   give: { cur?: Partial<Record<Currency, number>>; shardsRarity?: 'R' | 'SR' | 'SSR' | 'UR'; shards?: number; skin?: string; item?: 'epic' | 'legendary' | 'mythic' };
@@ -76,10 +42,14 @@ export const SHOP_OFFERS: ShopOffer[] = [
   { id: 'ev_skin2', shop: 'event', name: { ru: 'Облик «Чёрная роза»', en: 'Skin "Black Rose"' }, cost: { eventTokens: 2000 }, give: { skin: 'belladonna_rose' }, limit: 1 },
   { id: 'ev_scroll', shop: 'event', name: { ru: 'Свиток призыва', en: 'Summon scroll' }, cost: { eventTokens: 200 }, give: { cur: { scrolls: 1 } }, limit: 10 },
   { id: 'ev_shards', shop: 'event', name: { ru: '10 осколков SSR', en: '10 SSR shards' }, cost: { eventTokens: 500 }, give: { shardsRarity: 'SSR', shards: 10 }, limit: 3 },
+  // облики за кристаллы
+  ...SKINS.filter((x) => x.source === 'shop' && x.crystals).map(
+    (x): ShopOffer => ({ id: `sk_${x.id}`, shop: 'skins', name: x.name, cost: { crystals: x.crystals! }, give: { skin: x.id }, limit: 1 }),
+  ),
 ];
 export const SHOP_OFFER_MAP: Record<string, ShopOffer> = Object.fromEntries(SHOP_OFFERS.map((o) => [o.id, o]));
 
-/** Боевой пропуск: 50 уровней, бесплатная и премиум-ветка. */
+/** Боевой пропуск сезона: 50 уровней наград за задания (без платной ветки). */
 export const PASS_LEVELS = 50;
 export const PASS_XP_PER_LEVEL = 100;
 export interface PassReward {
@@ -87,18 +57,11 @@ export interface PassReward {
   skin?: string;
   item?: 'epic' | 'legendary';
 }
-export function passReward(level: number, premium: boolean): PassReward {
-  if (premium) {
-    if (level === 50) return { skin: 'lira_crimson' };
-    if (level === 25) return { skin: 'sigrid_valk' };
-    if (level % 10 === 0) return { item: 'legendary', cur: { crystals: 200 } };
-    if (level % 5 === 0) return { cur: { scrolls: 2, crystals: 100 } };
-    return { cur: { crystals: 40, starDust: 15 } };
-  }
-  if (level % 10 === 0) return { cur: { scrolls: 1, crystals: 50 } };
-  if (level % 5 === 0) return { item: 'epic' };
-  return { cur: { dust: 40, gold: 30 } };
+export function passReward(level: number): PassReward {
+  if (level === 50) return { skin: 'lira_crimson', cur: { crystals: 200 } };
+  if (level === 25) return { skin: 'sigrid_valk', cur: { crystals: 100 } };
+  if (level % 10 === 0) return { item: 'legendary', cur: { scrolls: 1, crystals: 100 } };
+  if (level % 5 === 0) return { item: 'epic', cur: { scrolls: 1 } };
+  return { cur: { dust: 40, gold: 30, starDust: 10 } };
 }
 
-/** Реклама с наградой: виды наград. */
-export type AdRewardKind = 'quick' | 'x2' | 'bossDouble' | 'freeSummon';

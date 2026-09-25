@@ -12,7 +12,6 @@ import { CronController } from './game/cron.controller';
 import { GameController } from './game/game.controller';
 import { PlayerService } from './game/player.service';
 import { NotifyService } from './notify/notify.service';
-import { PaymentsService } from './payments/payments.service';
 import { SocialService } from './social/social.service';
 
 @Module({
@@ -26,7 +25,6 @@ import { SocialService } from './social/social.service';
     AnalyticsService,
     PlayerService,
     BotService,
-    PaymentsService,
     NotifyService,
     SocialService,
     DevService,

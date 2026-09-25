@@ -19,7 +19,7 @@ export const CONSTELLATIONS: ConstellationDef[] = [
   { id: 'clover', name: { ru: 'Клевер', en: 'Clover' }, perStar: {}, special: { loot: 0.02 }, desc: { ru: '+2% к шансу редкого лута за звезду', en: '+2% rare loot chance per star' } },
   { id: 'bag', name: { ru: 'Сумка', en: 'Bag' }, perStar: {}, special: { inv: 10 }, desc: { ru: '+10 ячеек инвентаря за звезду', en: '+10 inventory slots per star' } },
   { id: 'crown', name: { ru: 'Корона', en: 'Crown' }, perStar: { critDmg: 0.02 }, desc: { ru: '+2% крит. урона за звезду', en: '+2% crit damage per star' } },
-  { id: 'hourglass', name: { ru: 'Песочные часы', en: 'Hourglass' }, perStar: {}, special: { capHours: 0.3 }, desc: { ru: '+18 мин к лимиту офлайна за звезду', en: '+18 min offline cap per star' } },
+  { id: 'hourglass', name: { ru: 'Песочные часы', en: 'Hourglass' }, perStar: {}, special: { capHours: 0.6 }, desc: { ru: '+36 мин к лимиту офлайна за звезду (до 24 ч)', en: '+36 min offline cap per star (up to 24h)' } },
   { id: 'wings', name: { ru: 'Крылья', en: 'Wings' }, perStar: { spd: 0.5 }, desc: { ru: '+0,5 SPD отряда за звезду', en: '+0.5 party SPD per star' } },
   { id: 'heart', name: { ru: 'Сердце', en: 'Heart' }, perStar: { healPower: 0.02, lifesteal: 0.002 }, desc: { ru: '+2% силы лечения за звезду', en: '+2% healing power per star' } },
   { id: 'lightning', name: { ru: 'Молния', en: 'Lightning' }, perStar: { energyRegen: 0.015, crit: 0.002 }, desc: { ru: '+1,5% регена энергии за звезду', en: '+1.5% energy regen per star' } },

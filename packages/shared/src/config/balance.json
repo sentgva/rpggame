@@ -246,7 +246,7 @@
       50,
       100
     ],
-    "adLimit": 10,
+    "x2PerDay": 4,
     "x2Minutes": 30
   },
   "rewards": {

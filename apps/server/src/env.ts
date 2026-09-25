@@ -39,8 +39,6 @@ export const env = {
   allowInsecureAuth: bool(process.env.ALLOW_INSECURE_AUTH, false),
   authMaxAgeSec: Number(process.env.AUTH_MAX_AGE_SEC ?? 86400),
   socialEnabled: bool(process.env.SOCIAL_ENABLED, false),
-  adsEnabled: bool(process.env.ADS_ENABLED, false),
-  paymentsEnabled: bool(process.env.PAYMENTS_ENABLED, true),
   notificationsEnabled: bool(process.env.NOTIFICATIONS_ENABLED, true),
   balanceConfigPath: process.env.BALANCE_CONFIG_PATH ?? '',
   adminToken: process.env.ADMIN_TOKEN ?? '',
