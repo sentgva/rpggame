@@ -207,9 +207,5 @@
   color: var(--text-2);
 }
 .quickRow button {
-  white-space: normal;
-  line-height: 1.05;
-  text-align: center;
-  font-size: 14px;
   min-width: 0;
 }

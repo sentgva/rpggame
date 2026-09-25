@@ -2,7 +2,7 @@ import { accountXpToNext, formatNum } from '@idle/shared';
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import styles from './App.module.css';
 import { heroUrl, portraitUrl } from './art/runtime';
-import { Bar, Icon, ModalHost, Toasts, cx } from './components/ui';
+import { Bar, Button, Icon, ModalHost, Toasts, cx } from './components/ui';
 import { t } from './i18n';
 import { BattleTab } from './screens/BattleTab';
 import { WelcomeBack, shouldWelcome } from './screens/WelcomeBack';
@@ -47,12 +47,7 @@ function Loading({ error }: { error: string | null }) {
         <img className={styles.loadingSprite} src={heroUrl('lira')} alt="" />
         <div style={{ color: error ? 'var(--bad)' : 'var(--text-2)' }}>{error ?? t('app.loading')}</div>
         {error && (
-          <button
-            style={{ padding: '8px 16px', background: 'var(--accent)', border: 0, borderRadius: 4, fontWeight: 800, color: '#2a1606' }}
-            onClick={() => void useGame.getState().init()}
-          >
-            {t('app.retry')}
-          </button>
+          <Button onClick={() => void useGame.getState().init()}>{t('app.retry')}</Button>
         )}
       </div>
     </div>
@@ -137,15 +132,6 @@ function TopBar() {
       <div className={styles.res}>
         <Icon name="crystals" size={22} />
         {formatNum(s.cur.crystals)}
-        <button
-          className={styles.plus}
-          onClick={() => {
-            haptic.tap();
-            navigate('hub', { id: 'shop', params: { tab: 'stars' } });
-          }}
-        >
-          <Icon name="plus" size={20} />
-        </button>
       </div>
     </div>
   );

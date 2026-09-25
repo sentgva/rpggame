@@ -229,28 +229,44 @@ function pickFor(heroId: string, slot: EquipSlot) {
 }
 
 function smeltDialog() {
-  openSheet(t('gear.smelt'), (close) => (
+  openSheet(t('gear.smelt'), () => <SmeltDialog />);
+}
+
+/** Массовая переплавка: сетка редкостей с числом предметов, которые уйдут в пыль. */
+function SmeltDialog() {
+  const s = useGameState();
+  const idx = equippedIndex(s);
+  const free = Object.values(s.items).filter((it) => !it.lock && !idx[it.uid]);
+  return (
     <div className={css.col}>
-      {[1, 2, 3, 4].map((r) => (
-        <Button
-          key={r}
-          kind="secondary"
-          block
-          onClick={() =>
-            confirmDialog(t('gear.smeltBelow', { r: tl(ITEM_RARITY_NAMES[r]) }), async () => {
-              const res = await useGame.getState().act('item.smeltFilter', { below: r });
-              if (res.ok) {
-                useUi.getState().toast(t('gear.smeltDone', { n: res.result.count, dust: formatNum(res.result.dust) }), 'good');
-                close();
+      <div className={css.muted} style={{ fontSize: 13 }}>
+        {t('gear.smeltHint')}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {[1, 2, 3, 4].map((r) => {
+          const n = free.filter((it) => it.rarity < r).length;
+          const name = tl(ITEM_RARITY_NAMES[r]);
+          return (
+            <Button
+              key={r}
+              kind="secondary"
+              disabled={n === 0}
+              onClick={() =>
+                confirmDialog(t('gear.smeltBelow', { r: name, n }), async () => {
+                  const res = await useGame.getState().act('item.smeltFilter', { below: r });
+                  if (res.ok) useUi.getState().toast(t('gear.smeltDone', { n: res.result.count, dust: formatNum(res.result.dust) }), 'good');
+                })
               }
-            })
-          }
-        >
-          <span style={{ color: rarityColor(r) }}>{t('gear.smeltBelow', { r: tl(ITEM_RARITY_NAMES[r]) })}</span>
-        </Button>
-      ))}
+            >
+              <span style={{ width: 8, height: 8, background: rarityColor(r), boxShadow: '0 0 0 1px #000', flex: 'none' }} />
+              <span style={{ color: rarityColor(r) }}>{name}</span>
+              <span className={css.tiny}>· {n}</span>
+            </Button>
+          );
+        })}
+      </div>
     </div>
-  ));
+  );
 }
 
 function openForge() {

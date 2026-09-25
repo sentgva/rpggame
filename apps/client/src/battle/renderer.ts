@@ -16,6 +16,7 @@ import { sfx } from '../audio/sfx';
 import { ACTS } from '@idle/shared';
 import { BG_H, BG_W, drawLayer, drawSky, weatherParams, type Particle } from './backdrop';
 import type { Playback } from './director';
+import { PIXEL_FONT, loadPixelFont } from '../styles/pixelFont';
 
 TextureSource.defaultOptions.scaleMode = 'nearest';
 
@@ -152,9 +153,9 @@ function whiteSilhouette(src: HTMLCanvasElement): HTMLCanvasElement {
 
 const numStyle = (size: number, fill: string) =>
   new TextStyle({
-    fontFamily: 'Tiny5, Manrope, sans-serif',
+    fontFamily: `${PIXEL_FONT}, Manrope, sans-serif`,
     fontSize: Math.round(size * 1.25),
-    fontWeight: '700',
+    fontWeight: '600',
     fill,
     stroke: { color: '#1a1016', width: 4 },
     align: 'center',
@@ -202,6 +203,7 @@ export class BattleRenderer {
   async init(host?: HTMLElement) {
     const w = host?.clientWidth || 360;
     const h = host?.clientHeight || 260;
+    await loadPixelFont();
     await this.app.init({
       width: w,
       height: h,

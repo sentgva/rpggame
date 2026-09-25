@@ -55,6 +55,7 @@ function HubRoot() {
   const s = useGameState();
   const cfg = useCfg();
   const isDev = useGame((g) => g.isDev);
+  const social = useGame((g) => g.flags.social);
   const items: { id: string; icon: string; label: string; badge?: boolean; locked?: boolean }[] = [
     { id: 'summon', icon: 'summon', label: t('hub.summon'), badge: !s.day.freeSummon || s.cur.scrolls > 0 },
     { id: 'shop', icon: 'shop', label: t('hub.shop') },
@@ -64,7 +65,7 @@ function HubRoot() {
     { id: 'achievements', icon: 'trophy', label: t('hub.achievements'), badge: achievementClaimable(s) > 0 },
     { id: 'constellation', icon: 'constellation', label: t('hub.constellation'), locked: !isUnlocked({ s, cfg }, 'constellation') },
     { id: 'ascension', icon: 'ascension', label: t('hub.ascension'), locked: !isUnlocked({ s, cfg }, 'ascension') },
-    { id: 'guild', icon: 'guildCoins', label: t('hub.guild') },
+    ...(social ? [{ id: 'guild', icon: 'guildCoins', label: t('hub.guild') }] : []),
     { id: 'story', icon: 'xp', label: t('hub.story') },
     { id: 'settings', icon: 'settings', label: t('hub.settings') },
   ];
