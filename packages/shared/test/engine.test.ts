@@ -53,6 +53,11 @@ import {
   bondTraits,
   bondTopic,
   BOND_HEROES,
+  BOND_SLEEP_SKIN,
+  BATH_GAIN,
+  ROOM_BONUS,
+  ROOM_MAX,
+  SLEEP_GAIN,
   CHANGELOG,
   CHANGELOG_LATEST,
   buildHeroine,
@@ -501,6 +506,52 @@ describe('уход за героинями', () => {
     expect(c.state.skins).toContain('velvet_bond');
     expect(c.state.bondHearts).toBe(0);
     expect(SKIN_MAP.velvet_bond.set).toBe('bond');
+  });
+
+  it('резиденция: комнаты строятся и улучшаются до 5; гостиная усиливает разговоры', () => {
+    let s = withUr();
+    const plain = (A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).result as { xp: number }).xp;
+    const gold0 = s.cur.gold;
+    for (let i = 0; i < ROOM_MAX; i++) s = A(s, { type: 'home.build', room: 'living' }).state;
+    expect(s.home!.rooms.living).toBe(ROOM_MAX);
+    expect(s.cur.gold).toBeLessThan(gold0);
+    expect(() => A(s, { type: 'home.build', room: 'living' })).toThrow('maxLevel');
+    expect(() => A(s, { type: 'home.build', room: 'attic' })).toThrow(GameError);
+    const boosted = (A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).result as { xp: number }).xp;
+    expect(boosted).toBe(Math.round(plain * (1 + ROOM_BONUS * ROOM_MAX)));
+  });
+
+  it('ванна — только с ванной комнатой и раз в день', () => {
+    let s = withUr();
+    expect(() => A(s, { type: 'bond.bath', hero: 'velvet' })).toThrow('locked');
+    s = A(s, { type: 'home.build', room: 'bath' }).state;
+    const r = A(s, { type: 'bond.bath', hero: 'velvet' });
+    expect((r.result as { xp: number }).xp).toBe(BATH_GAIN.base + BATH_GAIN.perLvl);
+    s = r.state;
+    expect(() => A(s, { type: 'bond.bath', hero: 'velvet' })).toThrow('usedToday');
+    expect(() => A(s, { type: 'bond.bath', hero: 'velvet' }, T0 + 86400000)).not.toThrow();
+  });
+
+  it('ночёвка: спальня, близость 5, одна героиня за ночь; утром — подарок', () => {
+    let s = withUr();
+    s = applyAction(s, { type: 'dev.hero', id: 'isolde', lvl: 10 }, { cfg, now: T0, dev: true }).state;
+    expect(() => A(s, { type: 'bond.sleep', hero: 'velvet' })).toThrow('locked'); // нет спальни
+    s = A(s, { type: 'home.build', room: 'bedroom' }).state;
+    expect(() => A(s, { type: 'bond.sleep', hero: 'velvet' })).toThrow('locked'); // близость мала
+    s = { ...s, bond: { velvet: { lvl: 5, xp: 0, day: 'x', talk: 0, treat: 0, spa: false, date: false }, isolde: { lvl: 6, xp: 0, day: 'x', talk: 0, treat: 0, spa: false, date: false } } };
+    const gold0 = s.cur.gold;
+    const r = A(s, { type: 'bond.sleep', hero: 'velvet' });
+    const res = r.result as { xp: number; gift: { gold: number; xp: number } };
+    expect(res.xp).toBe(SLEEP_GAIN.base + SLEEP_GAIN.perLvl);
+    expect(res.gift.gold).toBeGreaterThan(0);
+    expect(r.state.cur.gold).toBe(gold0 + res.gift.gold);
+    s = r.state;
+    expect(s.home!.sleptWith).toBe('velvet');
+    expect(() => A(s, { type: 'bond.sleep', hero: 'isolde' })).toThrow('usedToday'); // одна за ночь
+    expect(() => A(s, { type: 'bond.sleep', hero: 'isolde' }, T0 + 86400000)).not.toThrow();
+    // пижама — скрытый облик
+    expect(SKIN_MAP[BOND_SLEEP_SKIN.velvet].look.wear).toBe('silk');
+    expect(SKINS.some((x) => x.id === BOND_SLEEP_SKIN.velvet)).toBe(false);
   });
 
   it('темы разговоров детерминированы и есть у всех UR', () => {

@@ -321,6 +321,16 @@ export interface BondState {
   treat: number;
   spa: boolean;
   date: boolean;
+  /** ванна в резиденции (раз в день) */
+  bath?: boolean;
+}
+
+/** Резиденция героинь: уровни комнат и последняя ночёвка. */
+export interface HomeState {
+  rooms: Partial<Record<'living' | 'kitchen' | 'bath' | 'bedroom', number>>;
+  /** день последней ночёвки (одна героиня за ночь) */
+  slept?: string;
+  sleptWith?: string;
 }
 
 /** Активная встреча на экране боя. */
@@ -340,6 +350,7 @@ export interface PlayerState {
   /** Близость с UR-героинями (режим «Уход») и Сердца Эфира для нарядов близости. */
   bond?: Record<string, BondState>;
   bondHearts?: number;
+  home?: HomeState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

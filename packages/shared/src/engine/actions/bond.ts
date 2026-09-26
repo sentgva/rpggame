@@ -1,5 +1,7 @@
 import {
+  BATH_GAIN,
   BOND_COSTUME_HEARTS,
+  BOND_SLEEP_LVL,
   BOND_DATE_LVL,
   BOND_GAIN,
   BOND_HEROES,
@@ -9,15 +11,22 @@ import {
   BOND_SPA_COST,
   BOND_XP,
   PLACES,
+  ROOMS,
+  ROOM_BONUS,
+  ROOM_MAX,
+  SLEEP_GAIN,
+  SLEEP_GIFT_MIN,
   TREATS,
   bondTopic,
   bondTraits,
+  roomCost,
   type Place,
+  type RoomId,
   type Treat,
 } from '../../content';
-import type { BondState } from '../../types';
+import type { BondState, HomeState } from '../../types';
 import type { Action } from '../apply';
-import { assert, give, goldPerMin, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
+import { assert, give, goldPerMin, scaleReward, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
 import { dayKey } from '../state';
 
 /** Цены угощения и свидания — от дохода (минуты золота). */
@@ -30,8 +39,22 @@ export function bondCosts(ctx: Pick<Ctx, 'cfg' | 's'>) {
 export function bondState(ctx: Pick<Ctx, 's' | 'now'>, hero: string): BondState {
   const today = dayKey(ctx.now);
   const b = ctx.s.bond?.[hero];
-  if (!b) return { lvl: 0, xp: 0, day: today, talk: 0, treat: 0, spa: false, date: false };
-  return b.day === today ? b : { ...b, day: today, talk: 0, treat: 0, spa: false, date: false };
+  if (!b) return { lvl: 0, xp: 0, day: today, talk: 0, treat: 0, spa: false, date: false, bath: false };
+  return b.day === today ? b : { ...b, day: today, talk: 0, treat: 0, spa: false, date: false, bath: false };
+}
+
+/** Резиденция: уровни комнат (0 — не обустроена). */
+export function homeState(ctx: Pick<Ctx, 's'>): HomeState {
+  return ctx.s.home ?? { rooms: {} };
+}
+
+function roomLvl(ctx: Pick<Ctx, 's'>, room: RoomId): number {
+  return homeState(ctx).rooms[room] ?? 0;
+}
+
+/** Ночёвка уже была этой ночью (одна героиня за ночь). */
+export function sleptToday(ctx: Pick<Ctx, 's' | 'now'>): boolean {
+  return homeState(ctx).slept === dayKey(ctx.now);
 }
 
 function heroFor(ctx: Ctx, a: Action): string {
@@ -76,7 +99,8 @@ export const bondActions = {
     const answer = vInt(a.answer, 0, 2, 'answer');
     const { index } = bondTopic(hero, b.day, b.talk);
     b.talk++;
-    return { hero, topic: index, answer, ...gain(ctx, hero, b, BOND_GAIN.talk[answer]) };
+    const xp = Math.round(BOND_GAIN.talk[answer] * (1 + ROOM_BONUS * roomLvl(ctx, 'living')));
+    return { hero, topic: index, answer, ...gain(ctx, hero, b, xp) };
   },
 
   'bond.treat': (ctx: Ctx, a: Action) => {
@@ -88,7 +112,8 @@ export const bondActions = {
     const t = bondTraits(hero);
     const like = treat === t.treat ? 0 : treat === t.dislike ? 2 : 1;
     b.treat++;
-    return { hero, treat, like, ...gain(ctx, hero, b, [BOND_GAIN.treatFav, BOND_GAIN.treat, BOND_GAIN.treatBad][like]) };
+    const xp = Math.round([BOND_GAIN.treatFav, BOND_GAIN.treat, BOND_GAIN.treatBad][like] * (1 + ROOM_BONUS * roomLvl(ctx, 'kitchen')));
+    return { hero, treat, like, ...gain(ctx, hero, b, xp) };
   },
 
   /** Горячие источники (в купальниках): раз в день, за кристаллы. */
@@ -112,6 +137,44 @@ export const bondActions = {
     const fav = place === bondTraits(hero).place;
     b.date = true;
     return { hero, place, fav, ...gain(ctx, hero, b, fav ? BOND_GAIN.dateFav : BOND_GAIN.date) };
+  },
+
+  /** Обустроить комнату резиденции (или улучшить её). */
+  'home.build': (ctx: Ctx, a: Action) => {
+    const room = vOneOf(a.room, ROOMS.map((r) => r.id), 'room') as RoomId;
+    const lvl = roomLvl(ctx, room);
+    assert(lvl < ROOM_MAX, 'maxLevel');
+    spend(ctx, roomCost(lvl + 1, goldPerMin(ctx.cfg, ctx.s)));
+    const home = homeState(ctx);
+    ctx.s.home = { ...home, rooms: { ...home.rooms, [room]: lvl + 1 } };
+    track(ctx, 'homeBuild', 1);
+    return { room, lvl: lvl + 1 };
+  },
+
+  /** Ванна в резиденции: раз в день каждой героине. */
+  'bond.bath': (ctx: Ctx, a: Action) => {
+    const hero = heroFor(ctx, a);
+    const lvl = roomLvl(ctx, 'bath');
+    assert(lvl > 0, 'locked', { feature: 'bath' });
+    const b = { ...bondState(ctx, hero) };
+    assert(!b.bath, 'usedToday');
+    b.bath = true;
+    return { hero, ...gain(ctx, hero, b, BATH_GAIN.base + BATH_GAIN.perLvl * lvl) };
+  },
+
+  /** Ночёвка в спальне: с близости 5, одна героиня за ночь; утром — подарок (минуты дохода). */
+  'bond.sleep': (ctx: Ctx, a: Action) => {
+    const hero = heroFor(ctx, a);
+    const lvl = roomLvl(ctx, 'bedroom');
+    assert(lvl > 0, 'locked', { feature: 'bedroom' });
+    const b = { ...bondState(ctx, hero) };
+    assert(b.lvl >= BOND_SLEEP_LVL, 'locked', { feature: 'sleep' });
+    assert(!sleptToday(ctx), 'usedToday');
+    const minutes = SLEEP_GIFT_MIN.base + SLEEP_GIFT_MIN.perLvl * lvl;
+    const gift = scaleReward(ctx.cfg, ctx.s, { gold: minutes, xp: minutes });
+    give(ctx, gift);
+    ctx.s.home = { ...homeState(ctx), slept: b.day, sleptWith: hero };
+    return { hero, gift, ...gain(ctx, hero, b, SLEEP_GAIN.base + SLEEP_GAIN.perLvl * lvl) };
   },
 
   /** Наряд близости: только на 10-м уровне и за Сердца Эфира. */

@@ -49,7 +49,7 @@ export default function HubTab() {
     case 'story':
       return <Story />;
     case 'care':
-      return <Care hero={top.params?.hero} />;
+      return <Care hero={top.params?.hero} home={top.params?.home} />;
     default:
       return <HubRoot />;
   }

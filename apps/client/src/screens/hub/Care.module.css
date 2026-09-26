@@ -235,3 +235,216 @@
 .answer:active {
   background: #3e2232;
 }
+
+/* ——— Резиденция ——— */
+.homeBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid #7a4a5a;
+  background: linear-gradient(90deg, #3a2030, #2a1a28);
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.homeRoom {
+  position: relative;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.homeRoom small {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd9a0;
+  text-shadow: 0 0 3px #000;
+}
+
+.roomPanel {
+  border-color: #6a4a4a;
+}
+
+.roomIcon {
+  font-size: 40px;
+  width: 52px;
+  text-align: center;
+}
+
+.rooms {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.roomChip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 16px;
+  border: 1.5px solid #5a3448;
+  background: #24141e;
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.roomChipOn {
+  border-color: #ff9cc8;
+  background: #4a2238;
+}
+
+.furniture {
+  position: absolute;
+  z-index: 0;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+.window {
+  position: absolute;
+  right: 18px;
+  top: 88px;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  border: 4px solid #6a5a7a;
+  border-radius: 6px;
+  background: rgba(20, 30, 70, 0.7);
+}
+
+/* ванна: плитка, ванна с пеной до плеч */
+.tiles {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
+  background-color: #2a4a58 !important;
+}
+
+.tub {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 112px;
+  z-index: 1;
+  border-radius: 46px 46px 10px 10px;
+  background: linear-gradient(180deg, #f6fafc, #b8ccd6);
+  border: 3px solid #e0eef4;
+  box-shadow: inset 0 -12px 18px rgba(0, 60, 90, 0.25);
+}
+
+.foam {
+  position: absolute;
+  bottom: 96px;
+  z-index: 2;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff, #dfeef6 70%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+.duck {
+  position: absolute;
+  right: 16%;
+  bottom: 112px;
+  z-index: 3;
+  font-size: 24px;
+  animation: bob 1.8s ease-in-out infinite;
+}
+
+/* ночёвка: героиня спит под одеялом */
+.bed {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 12px;
+  height: 90px;
+  border-radius: 12px 12px 6px 6px;
+  background: linear-gradient(180deg, #e8e0f0 0 30%, #7a4a3a 30% 100%);
+  border: 3px solid #5a3428;
+}
+
+.bed::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 150px;
+  border-radius: 8px 8px 0 0;
+  background: #6a3a2a;
+  border: 3px solid #4a2418;
+}
+
+.pillow {
+  position: absolute;
+  left: calc(6% + 18px);
+  bottom: 88px;
+  width: 74px;
+  height: 30px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, #d8d0e8);
+  border: 2px solid #b8a8c8;
+}
+
+.sleeper {
+  position: absolute;
+  left: calc(6% + 22px);
+  bottom: 18px;
+  width: 170px;
+  height: 170px;
+  rotate: -90deg;
+  image-rendering: pixelated;
+}
+
+.blanket {
+  position: absolute;
+  left: calc(6% + 76px);
+  right: 7%;
+  bottom: 16px;
+  height: 112px;
+  border-radius: 26px 14px 8px 8px;
+  background: repeating-linear-gradient(135deg, #d04a8a 0 14px, #e070a8 14px 28px);
+  border: 3px solid #9a2a62;
+  box-shadow: inset 0 10px 0 rgba(255, 255, 255, 0.25);
+}
+
+.zzz {
+  position: absolute;
+  left: calc(6% + 50px);
+  bottom: 150px;
+  z-index: 3;
+  font-weight: 800;
+  font-size: 22px;
+  color: #cfd8ff;
+  animation: zzz 2.7s ease-out infinite;
+  opacity: 0;
+}
+
+@keyframes zzz {
+  from {
+    opacity: 0;
+    translate: 0 0;
+    scale: 0.6;
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    translate: 40px -70px;
+    scale: 1.4;
+  }
+}

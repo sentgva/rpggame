@@ -11,6 +11,17 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-26b',
+    date: '26.09.2026',
+    title: { ru: 'Резиденция героинь', en: 'The heroines\' residence' },
+    items: [
+      { ru: '🏠 В «Уходе» — Резиденция: гостиная, кухня, ванная и спальня. Обустраивай и улучшай комнаты до 5 уровня', en: '🏠 Residence in Care: living room, kitchen, bathroom and bedroom. Build and upgrade rooms up to level 5' },
+      { ru: '🛋️ Гостиная и 🍳 кухня усиливают разговоры и угощения (+15% близости за уровень)', en: '🛋️ The living room and 🍳 kitchen boost talks and treats (+15% bond per level)' },
+      { ru: '🛁 Ванна — раз в день для каждой героини, пена до подбородка', en: '🛁 Bath — once a day per heroine, foam up to the chin' },
+      { ru: '🌙 Ночёвка в спальне — с близости 5, одна героиня за ночь: пижама, одеяло и утренний подарок (золото и опыт)', en: '🌙 Sleepover in the bedroom — from bond 5, one heroine per night: pajamas, a blanket and a morning gift (gold and XP)' },
+    ],
+  },
+  {
     id: '2026-09-26',
     date: '26.09.2026',
     title: { ru: 'Близость и уход за героинями', en: 'Bonds and heroine care' },

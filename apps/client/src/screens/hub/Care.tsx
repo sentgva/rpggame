@@ -1,10 +1,14 @@
 import {
+  BATH_GAIN,
+  BATH_LINES,
   BOND_COSTUME_HEARTS,
   BOND_DATE_LVL,
   BOND_HEROES,
   BOND_LIMITS,
   BOND_MAX,
   BOND_MILESTONES,
+  BOND_SLEEP_LVL,
+  BOND_SLEEP_SKIN,
   BOND_SPA_SKIN,
   BOND_STAT,
   BOND_XP,
@@ -14,7 +18,14 @@ import {
   PERSONALITY_NAMES,
   PLACES,
   REACTIONS,
+  ROOMS,
+  ROOM_BONUS,
+  ROOM_MAP,
+  ROOM_MAX,
   SKIN_MAP,
+  SLEEP_GAIN,
+  SLEEP_GIFT_MIN,
+  SLEEP_LINES,
   SPA_LINES,
   TREATS,
   TREAT_LINES,
@@ -22,10 +33,16 @@ import {
   bondState,
   bondTopic,
   bondTraits,
+  goldPerMin,
+  homeState,
+  roomCost,
+  sleptToday,
   type Place,
+  type RoomId,
   type Treat,
 } from '@idle/shared';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { heroUrl } from '../../art/runtime';
 import { HeroImg } from '../../components/HeroImg';
 import { Bar, Button, Cost, Icon, Panel, css, cx, openSheet } from '../../components/ui';
 import { t, tl } from '../../i18n';
@@ -47,8 +64,76 @@ interface Gain {
 const KNOW_TREAT = 2;
 const KNOW_PLACE = 4;
 
-export function Care({ hero }: { hero?: string }) {
+export function Care({ hero, home }: { hero?: string; home?: boolean }) {
+  if (home) return <CareHome />;
   return hero && HEROINE_MAP[hero] ? <CareHero hero={hero} /> : <CareList />;
+}
+
+/** Что даёт комната на уровне lvl. */
+function roomEffect(room: RoomId, lvl: number): string {
+  const text = tl(ROOM_MAP[room].effect);
+  const v = {
+    pct: Math.round(ROOM_BONUS * 100 * lvl),
+    n: room === 'bath' ? BATH_GAIN.base + BATH_GAIN.perLvl * lvl : SLEEP_GAIN.base + SLEEP_GAIN.perLvl * lvl,
+    lvl: BOND_SLEEP_LVL,
+  };
+  return text.replace('{pct}', String(v.pct)).replace('{n}', String(v.n)).replace('{lvl}', String(v.lvl));
+}
+
+/** Резиденция: обустройство и улучшение комнат. */
+function CareHome() {
+  const s = useGameState();
+  const cfg = useCfg();
+  const rooms = homeState({ s }).rooms;
+  const gpm = goldPerMin(cfg, s);
+  return (
+    <div className={css.col}>
+      <BackHeader title={t('home.title')} right={<Hearts />} />
+      <div className={css.inset} style={{ fontSize: 13, lineHeight: 1.45 }}>
+        {t('home.intro')}
+      </div>
+      {ROOMS.map((r) => {
+        const lvl = rooms[r.id] ?? 0;
+        const cost = lvl < ROOM_MAX ? roomCost(lvl + 1, gpm) : null;
+        return (
+          <Panel key={r.id} className={st.roomPanel} style={{ background: `linear-gradient(135deg, ${r.bg[0]}, ${r.bg[1]})` }}>
+            <div className={css.row} style={{ alignItems: 'center' }}>
+              <span className={st.roomIcon} style={lvl ? undefined : { filter: 'grayscale(1)', opacity: 0.6 }}>
+                {r.icon}
+              </span>
+              <div className={css.grow}>
+                <b>{tl(r.name)}</b> <span className={css.tiny}>{lvl ? t('home.lvl', { lvl, max: ROOM_MAX }) : t('home.notBuilt')}</span>
+                <div className={css.tiny} style={{ marginTop: 3 }}>
+                  {lvl > 0 && <div>{t('home.now', { text: roomEffect(r.id, lvl) })}</div>}
+                  {cost && <div style={{ color: '#ffd9a0' }}>{t('home.next', { text: roomEffect(r.id, lvl + 1) })}</div>}
+                </div>
+              </div>
+            </div>
+            <div className={css.row} style={{ marginTop: 8, justifyContent: 'flex-end' }}>
+              {cost ? (
+                <Button
+                  size="small"
+                  onClick={async () => {
+                    const res = await useGame.getState().act<{ lvl: number }>('home.build', { room: r.id });
+                    if (res.ok) {
+                      haptic.success();
+                      useUi.getState().toast(t(lvl ? 'home.upgraded' : 'home.built', { name: tl(r.name), lvl: lvl + 1 }), 'good');
+                    }
+                  }}
+                >
+                  {lvl ? t('home.upgrade') : t('home.build')}
+                  <Cost cur="gold" amount={cost.gold} size={14} />
+                  {cost.crystals && <Cost cur="crystals" amount={cost.crystals} size={14} />}
+                </Button>
+              ) : (
+                <span className={st.lvl}>{t('home.max')}</span>
+              )}
+            </div>
+          </Panel>
+        );
+      })}
+    </div>
+  );
 }
 
 function Hearts() {
@@ -67,12 +152,25 @@ function CareList() {
   const list = [...BOND_HEROES].sort((a, b) => Number(!!s.heroines[b]) - Number(!!s.heroines[a]) || (s.bond?.[b]?.lvl ?? 0) - (s.bond?.[a]?.lvl ?? 0));
   const owned = list.filter((id) => s.heroines[id]).length;
   const hearts = s.bondHearts ?? 0;
+  const home = homeState({ s });
+  const rooms = home.rooms;
+  const sleptWith = sleptToday({ s, now }) ? home.sleptWith : undefined;
   return (
     <div className={css.col}>
       <BackHeader title={t('care.title')} right={<Hearts />} />
       <div className={css.inset} style={{ fontSize: 13, lineHeight: 1.45 }}>
         {t('care.intro', { pct: Math.round(BOND_STAT * 100) })}
       </div>
+      <button className={st.homeBar} onClick={() => useUi.getState().push({ id: 'care', params: { home: true } })}>
+        <span className={st.actionName}>🏠 {t('home.title')}</span>
+        <span className={css.grow} />
+        {ROOMS.map((r) => (
+          <span key={r.id} className={st.homeRoom} style={(rooms[r.id] ?? 0) ? undefined : { filter: 'grayscale(1)', opacity: 0.45 }}>
+            {r.icon}
+            <small>{rooms[r.id] ?? 0}</small>
+          </span>
+        ))}
+      </button>
       {owned === 0 && <div className={css.muted} style={{ textAlign: 'center', padding: 12 }}>{t('care.none')}</div>}
       <div className={css.grid4}>
         {list.map((id) => {
@@ -94,7 +192,7 @@ function CareList() {
             >
               <HeroImg id={id} skin={s.heroines[id]?.skin} still={!has} />
               <span style={{ fontSize: 12, fontWeight: 700 }}>{tl(HEROINE_MAP[id].name)}</span>
-              {has ? <span className={st.lvl}>♥ {b.lvl}</span> : <Icon name="lock" size={14} />}
+              {has ? <span className={st.lvl}>♥ {b.lvl}{sleptWith === id ? ' 🌙' : ''}</span> : <Icon name="lock" size={14} />}
               {costumeReady && <span className={css.dot} style={{ top: 4, right: 4 }} />}
             </button>
           );
@@ -104,7 +202,44 @@ function CareList() {
   );
 }
 
-type Scene = { kind: 'camp' } | { kind: 'spa' } | { kind: 'date'; place: Place };
+type Scene =
+  | { kind: 'camp' }
+  | { kind: 'spa' }
+  | { kind: 'date'; place: Place }
+  | { kind: 'room'; room: RoomId }
+  | { kind: 'bath' }
+  | { kind: 'sleep' }
+  | { kind: 'morning' };
+
+/** Обстановка комнат: эмодзи-мебель (x, y — % сцены, размер в px). */
+const FURNITURE: Record<RoomId, { e: string; x: number; y: number; size: number }[]> = {
+  living: [
+    { e: '🛋️', x: 3, y: 64, size: 46 },
+    { e: '🖼️', x: 76, y: 32, size: 30 },
+    { e: '🪴', x: 84, y: 66, size: 34 },
+  ],
+  kitchen: [
+    { e: '🍳', x: 5, y: 66, size: 34 },
+    { e: '🥖', x: 80, y: 36, size: 28 },
+    { e: '🍲', x: 83, y: 68, size: 34 },
+  ],
+  bath: [
+    { e: '🕯️', x: 5, y: 38, size: 26 },
+    { e: '🧴', x: 87, y: 40, size: 26 },
+  ],
+  bedroom: [
+    { e: '🛏️', x: 3, y: 64, size: 48 },
+    { e: '🧸', x: 85, y: 68, size: 30 },
+  ],
+};
+
+/** В какой комнате проходит сцена. */
+function sceneRoom(sc: Scene): RoomId | null {
+  if (sc.kind === 'room') return sc.room;
+  if (sc.kind === 'bath') return 'bath';
+  if (sc.kind === 'sleep' || sc.kind === 'morning') return 'bedroom';
+  return null;
+}
 
 function greetingTier(lvl: number) {
   return lvl >= 8 ? 2 : lvl >= 4 ? 1 : 0;
@@ -124,6 +259,23 @@ function CareHero({ hero }: { hero: string }) {
   const costume = `${hero}_bond`;
   const hasCostume = s.skins.includes(costume);
   const hearts = s.bondHearts ?? 0;
+  const home = homeState({ s });
+  const rooms = home.rooms;
+  const slept = sleptToday({ s, now });
+  const [gift, setGift] = useState<Record<string, number> | null>(null);
+
+  // ночь проходит — наступает утро с подарком
+  useEffect(() => {
+    if (scene.kind !== 'sleep') return;
+    const id = setTimeout(() => {
+      setScene({ kind: 'morning' });
+      setLine(tl(SLEEP_LINES[tr.p][1]));
+      if (gift) showReward(t('care.morning'), { cur: gift });
+    }, 3600);
+    return () => clearTimeout(id);
+  }, [scene.kind, gift, tr.p]);
+
+  const roomOr = (room: RoomId): Scene => (rooms[room] ? { kind: 'room', room } : { kind: 'camp' });
 
   function done(text: string, r: Gain, next: Scene) {
     setScene(next);
@@ -163,7 +315,7 @@ function CareHero({ hero }: { hero: string }) {
             onClick={async () => {
               close();
               const r = await useGame.getState().act<Gain>('bond.talk', { hero, answer: i });
-              if (r.ok && r.result) done(tl(REACTIONS[tr.p][i]), r.result, { kind: 'camp' });
+              if (r.ok && r.result) done(tl(REACTIONS[tr.p][i]), r.result, roomOr('living'));
             }}
           >
             {tl(topic.answers[i])}
@@ -190,7 +342,7 @@ function CareHero({ hero }: { hero: string }) {
               onClick={async () => {
                 close();
                 const r = await useGame.getState().act<Gain & { like: number; treat: Treat }>('bond.treat', { hero, treat: x.id });
-                if (r.ok && r.result) done(`${x.icon} ${tl(TREAT_LINES[tr.p][r.result.like])}`, r.result, { kind: 'camp' });
+                if (r.ok && r.result) done(`${x.icon} ${tl(TREAT_LINES[tr.p][r.result.like])}`, r.result, roomOr('kitchen'));
               }}
             >
               <Cost cur="gold" amount={costs.treat.gold} size={14} />
@@ -204,6 +356,41 @@ function CareHero({ hero }: { hero: string }) {
   async function spa() {
     const r = await useGame.getState().act<Gain>('bond.spa', { hero });
     if (r.ok && r.result) done(tl(SPA_LINES[tr.p]), r.result, { kind: 'spa' });
+  }
+
+  async function bath() {
+    const r = await useGame.getState().act<Gain>('bond.bath', { hero });
+    if (r.ok && r.result) done(tl(BATH_LINES[tr.p]), r.result, { kind: 'bath' });
+  }
+
+  function sleep() {
+    const lvl = rooms.bedroom ?? 0;
+    openSheet(t('care.sleep'), (close) => (
+      <div className={css.col}>
+        <div className={css.row} style={{ alignItems: 'center' }}>
+          <HeroImg id={hero} skin={BOND_SLEEP_SKIN[hero]} width={72} height={72} className="pixel" unarmed />
+          <div className={css.grow} style={{ lineHeight: 1.45 }}>
+            {t('care.sleepAsk', { name: tl(def.name) })}
+            <div className={css.tiny} style={{ marginTop: 4 }}>
+              {t('care.sleepGives', { n: SLEEP_GAIN.base + SLEEP_GAIN.perLvl * lvl, min: SLEEP_GIFT_MIN.base + SLEEP_GIFT_MIN.perLvl * lvl })}
+            </div>
+          </div>
+        </div>
+        <Button
+          block
+          onClick={async () => {
+            close();
+            const r = await useGame.getState().act<Gain & { gift: Record<string, number> }>('bond.sleep', { hero });
+            if (r.ok && r.result) {
+              setGift(r.result.gift);
+              done(tl(SLEEP_LINES[tr.p][0]), r.result, { kind: 'sleep' });
+            }
+          }}
+        >
+          🌙 {t('care.sleepYes')}
+        </Button>
+      </div>
+    ));
   }
 
   function date() {
@@ -242,21 +429,82 @@ function CareHero({ hero }: { hero: string }) {
   }
 
   const place = scene.kind === 'date' ? PLACES.find((p) => p.id === scene.place)! : null;
-  const sceneStyle: CSSProperties | undefined = place ? { background: `linear-gradient(180deg, ${place.bg[0]} 0%, ${place.bg[1]} 100%)` } : undefined;
-  const skin = scene.kind === 'spa' ? BOND_SPA_SKIN[hero] : s.heroines[hero]?.skin;
+  const room = sceneRoom(scene);
+  const bg = place?.bg ?? (scene.kind === 'sleep' ? ['#08081a', '#1c1c40'] : scene.kind === 'morning' ? ['#4a4a88', '#c8b0d8'] : room ? ROOM_MAP[room].bg : null);
+  const sceneStyle: CSSProperties | undefined = bg ? { background: `linear-gradient(180deg, ${bg[0]} 0%, ${bg[1]} 100%)` } : undefined;
+  const skin = scene.kind === 'spa' || scene.kind === 'bath' ? BOND_SPA_SKIN[hero] : scene.kind === 'sleep' || scene.kind === 'morning' ? BOND_SLEEP_SKIN[hero] : s.heroines[hero]?.skin;
+  const sleptWith = slept ? home.sleptWith : undefined;
+  const locations: { id: 'camp' | RoomId; icon: string; name: string; built: boolean }[] = [
+    { id: 'camp', icon: '🔥', name: t('care.camp'), built: true },
+    ...ROOMS.map((r) => ({ id: r.id, icon: r.icon, name: tl(r.name), built: (rooms[r.id] ?? 0) > 0 })),
+  ];
+  const here = room ?? (scene.kind === 'camp' ? 'camp' : null);
   const need = b.lvl < BOND_MAX ? BOND_XP[b.lvl] : 0;
 
   return (
     <div className={css.col}>
       <BackHeader title={tl(def.name)} right={<Hearts />} />
 
-      <div className={cx(st.scene, scene.kind === 'spa' && st.spa)} style={sceneStyle}>
+      <div className={st.rooms}>
+        {locations.map((l) => (
+          <button
+            key={l.id}
+            className={cx(st.roomChip, here === l.id && st.roomChipOn)}
+            style={l.built ? undefined : { opacity: 0.45 }}
+            onClick={() => {
+              haptic.select();
+              if (!l.built) {
+                useUi.getState().toast(t('care.roomLocked', { name: l.name }));
+                return;
+              }
+              setScene(l.id === 'camp' ? { kind: 'camp' } : { kind: 'room', room: l.id });
+            }}
+          >
+            <span style={{ fontSize: 18 }}>{l.icon}</span>
+            {l.name}
+          </button>
+        ))}
+      </div>
+
+      <div className={cx(st.scene, scene.kind === 'spa' && st.spa, scene.kind === 'bath' && st.tiles)} style={sceneStyle}>
         <div className={st.bubble}>
           <b>{tl(def.name)}:</b> {line}
         </div>
         {scene.kind === 'camp' && <span className={st.fire}>🔥</span>}
         {place && <span className={st.deco}>{place.icon}</span>}
-        <HeroImg id={hero} skin={skin} className={st.hero} unarmed />
+        {room &&
+          scene.kind !== 'sleep' &&
+          FURNITURE[room].map((f) => (
+            <span key={f.e} className={st.furniture} style={{ left: `${f.x}%`, top: `${f.y}%`, fontSize: f.size }}>
+              {f.e}
+            </span>
+          ))}
+        {(scene.kind === 'sleep' || scene.kind === 'morning') && <span className={st.window}>{scene.kind === 'sleep' ? '🌙' : '☀️'}</span>}
+        {scene.kind === 'sleep' ? (
+          <>
+            <div className={st.bed} />
+            <div className={st.pillow} />
+            <img className={st.sleeper} src={heroUrl(hero, skin, { eyes: 'closed' }, true)} alt="" draggable={false} />
+            <div className={st.blanket} />
+            <span className={st.zzz}>z</span>
+            <span className={st.zzz} style={{ animationDelay: '0.9s' }}>z</span>
+            <span className={st.zzz} style={{ animationDelay: '1.8s' }}>Z</span>
+          </>
+        ) : (
+          <HeroImg id={hero} skin={skin} className={st.hero} unarmed />
+        )}
+        {scene.kind === 'bath' && (
+          <>
+            <div className={st.tub} />
+            {[14, 24, 34, 44, 54, 64, 74, 82].map((x, i) => (
+              <span key={x} className={st.foam} style={{ left: `${x}%`, width: 30 + (i % 3) * 8, height: 30 + (i % 3) * 8 }} />
+            ))}
+            <span className={st.duck}>🦆</span>
+            {[30, 150, 260].map((x, i) => (
+              <span key={x} className={st.steam} style={{ left: `${(x / 330) * 100}%`, animationDelay: `${i * 1.1}s` }} />
+            ))}
+          </>
+        )}
         {scene.kind === 'spa' && (
           <>
             <div className={st.water} />
@@ -306,6 +554,30 @@ function CareHero({ hero }: { hero: string }) {
           sub={b.lvl < BOND_DATE_LVL ? t('care.fromLvl', { lvl: BOND_DATE_LVL }) : b.date ? t('care.doneToday') : t('care.left', { n: 1, max: 1 })}
           disabled={b.lvl < BOND_DATE_LVL || b.date}
           onClick={date}
+        />
+        <Action
+          icon="🛁"
+          name={t('care.bath')}
+          sub={!rooms.bath ? t('care.needRoom', { name: tl(ROOM_MAP.bath.name) }) : b.bath ? t('care.doneToday') : `+${BATH_GAIN.base + BATH_GAIN.perLvl * rooms.bath} ♥`}
+          disabled={!rooms.bath || !!b.bath}
+          onClick={() => void bath()}
+        />
+        <Action
+          icon="🌙"
+          name={t('care.sleep')}
+          sub={
+            !rooms.bedroom
+              ? t('care.needRoom', { name: tl(ROOM_MAP.bedroom.name) })
+              : b.lvl < BOND_SLEEP_LVL
+                ? t('care.fromLvl', { lvl: BOND_SLEEP_LVL })
+                : sleptWith
+                  ? sleptWith === hero
+                    ? t('care.sleptHere')
+                    : t('care.sleptOther', { name: tl(HEROINE_MAP[sleptWith]?.name) })
+                  : t('care.oneNight')
+          }
+          disabled={!rooms.bedroom || b.lvl < BOND_SLEEP_LVL || slept}
+          onClick={sleep}
         />
       </div>
 

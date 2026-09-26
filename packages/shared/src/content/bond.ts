@@ -250,3 +250,60 @@ for (const id of BOND_HEROES) {
   SKIN_MAP[skin.id] = skin;
   BOND_SPA_SKIN[id] = skin.id;
 }
+
+// ——— Резиденция: общие комнаты героинь ———
+
+export type RoomId = 'living' | 'kitchen' | 'bath' | 'bedroom';
+export const ROOM_MAX = 5;
+
+export const ROOMS: { id: RoomId; icon: string; name: L10n; effect: L10n; bg: [string, string] }[] = [
+  { id: 'living', icon: '🛋️', name: L('Гостиная', 'Living room'), effect: L('Разговоры: +{pct}% близости', 'Talks: +{pct}% bond'), bg: ['#3a2420', '#7a4a34'] },
+  { id: 'kitchen', icon: '🍳', name: L('Кухня', 'Kitchen'), effect: L('Угощения: +{pct}% близости', 'Treats: +{pct}% bond'), bg: ['#3a3020', '#8a6a3a'] },
+  { id: 'bath', icon: '🛁', name: L('Ванная', 'Bathroom'), effect: L('Ванна раз в день: +{n} близости', 'Daily bath: +{n} bond'), bg: ['#1e3440', '#5a8a9a'] },
+  { id: 'bedroom', icon: '🛏️', name: L('Спальня', 'Bedroom'), effect: L('Ночёвка (с близости {lvl}): +{n} близости и утренний подарок', 'Sleepover (from bond {lvl}): +{n} bond and a morning gift'), bg: ['#141430', '#3a3a70'] },
+];
+export const ROOM_MAP = Object.fromEntries(ROOMS.map((r) => [r.id, r])) as Record<RoomId, (typeof ROOMS)[number]>;
+
+/** Бонус гостиной и кухни к близости за уровень комнаты. */
+export const ROOM_BONUS = 0.15;
+/** Ванна: база + за уровень ванной. */
+export const BATH_GAIN = { base: 20, perLvl: 6 } as const;
+/** Ночёвка: с близости 5, одна героиня за ночь. */
+export const BOND_SLEEP_LVL = 5;
+export const SLEEP_GAIN = { base: 40, perLvl: 10 } as const;
+/** Утренний подарок — минуты дохода золота и опыта. */
+export const SLEEP_GIFT_MIN = { base: 30, perLvl: 15 } as const;
+
+/** Цена обустройства комнаты до уровня lvl (золото — от дохода, с 3-го уровня ещё кристаллы). */
+export function roomCost(lvl: number, gpm: number): { gold: number; crystals?: number } {
+  const gold = Math.max(1000, Math.floor(gpm * 60 * lvl));
+  return lvl >= 3 ? { gold, crystals: 100 * (lvl - 2) } : { gold };
+}
+
+export const BATH_LINES: Record<Personality, L10n> = {
+  proud: L('Пена до самого подбородка — как и подобает. Подай полотенце и отвернись.', 'Foam up to my chin, as it should be. Hand me the towel and turn around.'),
+  playful: L('Смотри, какая борода из пены! Ха-ха, тебе тоже сделать?', 'Look, a foam beard! Haha, want one too?'),
+  gentle: L('Тёплая вода и лавандовое масло… Спасибо, что обустроил ванную.', 'Warm water and lavender oil… Thank you for the bathroom.'),
+  mysterious: L('В тишине ванной слышно, как шепчут свечи.', 'In the quiet of the bath you can hear the candles whisper.'),
+  fierce: L('Горячее! Ещё горячее! Вот теперь мышцы отдыхают.', 'Hot! Hotter! Now my muscles can rest.'),
+  shy: L('Я… я под пеной, ничего не видно. Но ты всё равно постучи в следующий раз!', 'I… I\'m under the foam, you can\'t see anything. But knock next time anyway!'),
+};
+
+/** Ночёвка: [перед сном, утро]. Только сон — уютно и мило. */
+export const SLEEP_LINES: Record<Personality, [L10n, L10n]> = {
+  proud: [L('Можешь остаться. Но только спать, командор. И не храпи.', 'You may stay. Only to sleep, Commander. And no snoring.'), L('Доброе утро. Ты… спал спокойно. Мне понравилось.', 'Good morning. You… slept peacefully. I liked that.')],
+  playful: [L('Битва подушками! …Ладно-ладно, спим. Спокойной ночи!', 'Pillow fight! …Okay, okay, sleeping. Good night!'), L('Подъём, соня! Я уже испекла блинчики!', 'Wake up, sleepyhead! I already made pancakes!')],
+  gentle: [L('Посиди со мной, пока я не усну… Спокойной ночи.', 'Stay with me until I fall asleep… Good night.'), L('Доброе утро. Чай уже заварен.', 'Good morning. The tea is ready.')],
+  mysterious: [L('Мне снятся звёзды. Может, этой ночью приснишься и ты.', 'I dream of stars. Perhaps tonight I\'ll dream of you.'), L('Ты был в моём сне. Не спрашивай, что там было.', 'You were in my dream. Don\'t ask what happened.')],
+  fierce: [L('Храплю? Я?! Никогда. Всё, спи давай.', 'Me? Snore?! Never. Now go to sleep.'), L('Утро! Разминка — и в бой!', 'Morning! Warm-up — then battle!')],
+  shy: [L('Т-только спать, да? …Хорошо. Спокойной ночи.', 'O-only sleep, right? …Okay. Good night.'), L('Д-доброе утро… Ты укрыл меня одеялом? Спасибо…', 'G-good morning… You tucked me in? Thank you…')],
+};
+
+/** Пижама для ночёвки — скрытый облик (в бою не надеть). */
+export const BOND_SLEEP_SKIN: Record<string, string> = {};
+for (const id of BOND_HEROES) {
+  const h = HEROINE_MAP[id];
+  const skin: SkinDef = { id: `${id}_sleep`, hero: id, name: L('Пижама', 'Pajamas'), look: { wear: 'silk', outfit: h.look.trim, trim: h.look.outfit }, source: 'bond' };
+  SKIN_MAP[skin.id] = skin;
+  BOND_SLEEP_SKIN[id] = skin.id;
+}
