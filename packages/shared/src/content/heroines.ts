@@ -22,7 +22,7 @@ export type Accessory =
   | 'maidBand';
 
 /** Сменный наряд облика: купальники (swim*), бельё (lace*), маскарадные (bunny, maid) вместо классового костюма. */
-export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia' | 'bunny' | 'maid';
+export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia' | 'bunny' | 'maid' | 'yukata' | 'gown' | 'silk';
 
 export interface Look {
   hair: string;
@@ -432,7 +432,7 @@ for (const x of HEROINES) if (!x.boss && !x.herald) SUMMON_POOL[x.rarity].push(x
 /** Стартовые героини: Лира выдаётся в обучении. */
 export const STARTER_HEROINES = ['lira', 'coral', 'seyra', 'hanna'];
 
-export type SkinSet = 'summer' | 'lingerie' | 'masquerade';
+export type SkinSet = 'summer' | 'lingerie' | 'masquerade' | 'bond';
 export const SKIN_SETS: SkinSet[] = ['summer', 'lingerie', 'masquerade'];
 
 /** Облики (скины): +3% к статам, альтернативная палитра. */
@@ -441,7 +441,7 @@ export interface SkinDef {
   hero: string;
   name: L10n;
   look: Partial<Look>;
-  source: 'shop' | 'tower' | 'labyrinth' | 'pass' | 'event' | 'arena' | 'spire' | 'horde';
+  source: 'shop' | 'tower' | 'labyrinth' | 'pass' | 'event' | 'arena' | 'spire' | 'horde' | 'bond';
   /** Цена в магазине обликов (кристаллы). */
   crystals?: number;
   /** Коллекция: летние купальники, бельё или «Маскарад». */
@@ -560,7 +560,7 @@ const SET_SOURCE: Record<string, SkinDef['source']> = {
   yuki_masq: 'arena', aegis_masq: 'arena', thalassia_masq: 'labyrinth', nyx_masq: 'labyrinth',
 };
 
-const SET_SUFFIX: Record<SkinSet, string> = { summer: 'beach', lingerie: 'lace', masquerade: 'masq' };
+const SET_SUFFIX: Record<SkinSet, string> = { summer: 'beach', lingerie: 'lace', masquerade: 'masq', bond: 'bond' };
 
 for (const [set, list] of [
   ['summer', SUMMER],

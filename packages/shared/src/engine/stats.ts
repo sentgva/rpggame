@@ -11,8 +11,7 @@ import {
   SET_MAP,
   SKIN_MAP,
   TREES,
-  parseGem,
-} from '../content';
+  parseGem, BOND_STAT } from '../content';
 import type { SkillMod } from '../content/effects';
 import type {
   ClassId,
@@ -313,6 +312,9 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
     const b = cfg.stat.skinBonus;
     addStats(add, { hpPct: b, atkPct: b, defPct: b });
   }
+  // близость (режим «Уход»): +2% за уровень
+  const bond = s.bond?.[h.id]?.lvl ?? 0;
+  if (bond > 0) addStats(add, { hpPct: BOND_STAT * bond, atkPct: BOND_STAT * bond, defPct: BOND_STAT * bond });
 
   // общие бонусы аккаунта
   addStats(add, constellationStats(s.constellation).stats);

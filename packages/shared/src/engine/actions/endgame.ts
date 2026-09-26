@@ -30,6 +30,7 @@ import { dayKey, weekKey } from '../state';
 import { activeParty, addStats, buildHeroine } from '../stats';
 import { customEnemies, heroUnits } from '../units';
 import { currentParty, runBattle, stripRaw } from './battle';
+import { grantHeart } from './bond';
 import { onExpedition } from './heroes';
 
 type Cur = Record<string, number>;
@@ -198,6 +199,8 @@ export const endgameActions = {
       const uid = grantModeSetPiece(ctx, 'rift', tier >= 10 ? 5 : 4);
       if (uid) reward.items = [uid];
     }
+    // Сердце Эфира — за ярус 8+ (наряды близости)
+    const hearts = tier >= 8 ? grantHeart(ctx) : 0;
     r.used++;
     r.bestTierToday = Math.max(r.bestTierToday, tier);
     r.bestDmgToday = Math.max(r.bestDmgToday, dmg);
@@ -206,7 +209,7 @@ export const endgameActions = {
     s.modes.rift = r;
     track(ctx, 'riftFight', 1);
     ctx.events.push({ name: 'rift', props: { boss: boss.id, dmg, tier, tactic } });
-    return { battle: stripRaw(b), win: b.win, dmg, hp: boss.hp, tier, reward, boss: boss.id, tactic };
+    return { battle: stripRaw(b), win: b.win, dmg, hp: boss.hp, tier, reward: { ...reward, hearts: hearts || undefined }, boss: boss.id, tactic };
   },
 
   /** Быстрая зачистка: оставшиеся попытки дня с лучшим ярусом, уже достигнутым сегодня. */
@@ -255,7 +258,8 @@ export const endgameActions = {
       const skin = floor >= SPIRE_SKIN_FLOOR ? grantSkin(ctx, SPIRE_SKINS[el]) : undefined;
       // Стихийная призма: часть сета на каждом 10-м этаже
       const uid = floor % 10 === 0 ? grantModeSetPiece(ctx, 'spires') : null;
-      reward = { cur, shards, skins: skin ? [skin] : undefined, items: uid ? [uid] : undefined };
+      const hearts = floor % 25 === 0 ? grantHeart(ctx) : 0;
+      reward = { cur, shards, skins: skin ? [skin] : undefined, items: uid ? [uid] : undefined, hearts: hearts || undefined };
       track(ctx, 'spireWin', 1);
       trackMax(ctx, 'spireBest', floor);
     }
@@ -306,7 +310,8 @@ export const endgameActions = {
         .filter((x): x is string => !!x);
       // Знамя Орды: часть сета каждые 10 волн
       const uid = wave % 10 === 0 ? grantModeSetPiece(ctx, 'horde') : null;
-      reward = { cur, shards, skins: skins.length ? skins : undefined, items: uid ? [uid] : undefined };
+      const hearts = wave % 25 === 0 ? grantHeart(ctx) : 0;
+      reward = { cur, shards, skins: skins.length ? skins : undefined, items: uid ? [uid] : undefined, hearts: hearts || undefined };
       trackMax(ctx, 'hordeBest', wave);
       track(ctx, 'hordeWave', 1);
     } else next.active = false;

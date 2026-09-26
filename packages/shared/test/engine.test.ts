@@ -49,6 +49,13 @@ import {
   SPIRE_SKINS,
   ENCOUNTER_MAP,
   encounterOffer,
+  bondState,
+  bondTraits,
+  bondTopic,
+  BOND_HEROES,
+  CHANGELOG,
+  CHANGELOG_LATEST,
+  buildHeroine,
   artStyleOf,
   hordeBonus,
   hordeWaveReward,
@@ -425,6 +432,95 @@ describe('встречи', () => {
   });
 });
 
+describe('уход за героинями', () => {
+  function withUr() {
+    let s = fresh();
+    s = applyAction(s, { type: 'dev.hero', id: 'velvet', lvl: 10 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'add', amount: 1e9 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'crystals', op: 'add', amount: 100000 }, { cfg, now: T0, dev: true }).state;
+    return s;
+  }
+
+  it('купальник для источников есть у каждой UR-героини, скрытые облики не продаются и не носятся', async () => {
+    const { BOND_HEROES, BOND_SPA_SKIN, SKINS, SKIN_MAP } = await import('../src');
+    for (const id of BOND_HEROES) {
+      const skin = BOND_SPA_SKIN[id];
+      expect(SKIN_MAP[skin]?.hero).toBe(id);
+      expect(SKIN_MAP[skin].look.wear).toMatch(/^swim/);
+      if (skin.endsWith('_spa')) expect(SKINS.some((x) => x.id === skin)).toBe(false);
+    }
+    let s = withUr();
+    expect(() => applyAction(s, { type: 'hero.skin', id: 'velvet', skin: 'velvet_spa' }, { cfg, now: T0 })).toThrow('noSkin');
+    s = applyAction(s, { type: 'bond.spa', hero: 'velvet' }, { cfg, now: T0 }).state;
+    expect(s.heroines.velvet.skin).toBeUndefined();
+  });
+
+  const A = (s: PlayerState, a: Record<string, unknown>, now = T0 + 1000) => applyAction(s, { type: 'x', ...a } as never, { cfg, now });
+
+  it('только UR и только свои; дневные лимиты; новый день — снова можно', () => {
+    let s = withUr();
+    expect(() => A(s, { type: 'bond.spa', hero: 'lira' })).toThrow(GameError); // не UR
+    expect(() => A(s, { type: 'bond.spa', hero: 'isolde' })).toThrow(GameError); // нет героини
+    for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).state;
+    expect(() => A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 })).toThrow(GameError);
+    s = A(s, { type: 'bond.spa', hero: 'velvet' }).state;
+    expect(() => A(s, { type: 'bond.spa', hero: 'velvet' })).toThrow(GameError);
+    // свидания — с 3-го уровня
+    expect(() => A(s, { type: 'bond.date', hero: 'velvet', place: 'lake' })).toThrow(GameError);
+    expect(bondState({ s, now: T0 + 86400000 }, 'velvet').talk).toBe(0);
+    expect(() => A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }, T0 + 86400000)).not.toThrow();
+  });
+
+  it('ответы и угощения: любимое даёт больше; уровни, награды и бонус к статам', () => {
+    let s = withUr();
+    const best = A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).result as { xp: number };
+    const bad = A(s, { type: 'bond.talk', hero: 'velvet', answer: 2 }).result as { xp: number };
+    expect(best.xp).toBeGreaterThan(bad.xp);
+    const t = bondTraits('velvet');
+    const fav = A(s, { type: 'bond.treat', hero: 'velvet', treat: t.treat }).result as { like: number; xp: number };
+    const dis = A(s, { type: 'bond.treat', hero: 'velvet', treat: t.dislike }).result as { like: number; xp: number };
+    expect(fav.like).toBe(0);
+    expect(fav.xp).toBeGreaterThan(dis.xp);
+    const before = buildHeroine(cfg, s, s.heroines.velvet).power;
+    // много дней заботы: до 10-го уровня
+    const crystals0 = s.cur.crystals;
+    for (let d = 0; d < 40 && (s.bond?.velvet?.lvl ?? 0) < 10; d++) {
+      const now = T0 + d * 86400000 + 1000;
+      for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }, now).state;
+      for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.treat', hero: 'velvet', treat: t.treat }, now).state;
+      s = A(s, { type: 'bond.spa', hero: 'velvet' }, now).state;
+      if ((s.bond?.velvet?.lvl ?? 0) >= 3) s = A(s, { type: 'bond.date', hero: 'velvet', place: t.place }, now).state;
+    }
+    expect(s.bond!.velvet.lvl).toBe(10);
+    expect(s.cur.crystals).toBeGreaterThan(crystals0 - 40 * 30); // награды пиков покрыли источники
+    expect(buildHeroine(cfg, s, s.heroines.velvet).power).toBeGreaterThan(before * 1.15);
+    // наряд близости — только за 10 Сердец Эфира
+    expect(() => A(s, { type: 'bond.costume', hero: 'velvet' })).toThrow(GameError);
+    s = { ...s, bondHearts: 10 };
+    const c = A(s, { type: 'bond.costume', hero: 'velvet' });
+    expect(c.state.skins).toContain('velvet_bond');
+    expect(c.state.bondHearts).toBe(0);
+    expect(SKIN_MAP.velvet_bond.set).toBe('bond');
+  });
+
+  it('темы разговоров детерминированы и есть у всех UR', () => {
+    for (const id of BOND_HEROES) {
+      const a = bondTopic(id, '2026-09-26', 0);
+      expect(a).toEqual(bondTopic(id, '2026-09-26', 0));
+      expect(a.topic.answers).toHaveLength(3);
+      expect(SKIN_MAP[`${id}_bond`]).toBeTruthy();
+    }
+  });
+
+  it('«Что нового»: новичкам уже прочитано, отметка сохраняется', () => {
+    const s = fresh();
+    expect(s.settings.news).toBe(CHANGELOG_LATEST);
+    const r = applyAction({ ...s, settings: { ...s.settings, news: undefined } }, { type: 'news.seen', id: CHANGELOG[1].id }, { cfg, now: T0 });
+    expect(r.state.settings.news).toBe(CHANGELOG[1].id);
+    expect(() => applyAction(s, { type: 'news.seen', id: 'nope' }, { cfg, now: T0 })).toThrow(GameError);
+  });
+});
+
 describe('уровень силы врагов', () => {
   it('Normal совпадает с номером этапа, Hard = +log(25), Nightmare = +log(400)', () => {
     expect(powerLevel(cfg, 150)).toBeCloseTo(150);
@@ -462,7 +558,9 @@ describe('облики и боевой пропуск', () => {
     const exclusive = setSkins.filter((x) => x.source === 'shop');
     expect(exclusive.length).toBeGreaterThan(0);
     expect(exclusive.length).toBeLessThanOrEqual(10);
-    for (const sk of setSkins) expect(SHOP_OFFERS.some((o) => o.shop === 'skins' && o.give.skin === sk.id)).toBe(true);
+    // все облики коллекций продаются за кристаллы — кроме нарядов близости (только уход и Сердца Эфира)
+    for (const sk of setSkins.filter((x) => x.set !== 'bond')) expect(SHOP_OFFERS.some((o) => o.shop === 'skins' && o.give.skin === sk.id)).toBe(true);
+    for (const sk of setSkins.filter((x) => x.set === 'bond')) expect(SHOP_OFFERS.some((o) => o.give.skin === sk.id)).toBe(false);
     expect(new Set(SKINS.map((x) => x.id)).size).toBe(SKINS.length);
   });
 

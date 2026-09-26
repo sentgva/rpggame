@@ -1,5 +1,5 @@
 import type { Config } from '../config';
-import { HEROINE_MAP, STARTER_HEROINES } from '../content';
+import { HEROINE_MAP, STARTER_HEROINES, CHANGELOG_LATEST } from '../content';
 import { hashStr, mixSeed } from '../rng';
 import type { Currency, HeroineState, PlayerState } from '../types';
 import { CURRENCIES } from '../types';
@@ -133,6 +133,8 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
       },
     ],
     settings: {
+      // новичкам «Что нового» не показываем — всё и так новое
+      news: CHANGELOG_LATEST,
       lang,
       music: 0.6,
       sfx: 0.8,

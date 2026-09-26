@@ -296,6 +296,8 @@ export interface PlayerSettings {
   artStyle?: ArtStyle;
   /** Ручные ульты в боях с боссами и в режимах (по умолчанию включены). */
   manualUlt?: boolean;
+  /** Последняя прочитанная запись «Что нового» (id из CHANGELOG). */
+  news?: string;
 }
 
 export type ArtStyle = 'vector' | 'pixel';
@@ -308,6 +310,17 @@ export const VECTOR_ART: boolean = false;
 /** Стиль, которым рисуем на деле: без VECTOR_ART — всегда пиксели. */
 export function artStyleOf(s?: ArtStyle): ArtStyle {
   return VECTOR_ART ? (s ?? 'vector') : 'pixel';
+}
+
+/** Близость с героиней: уровень, опыт и счётчики действий за день. */
+export interface BondState {
+  lvl: number;
+  xp: number;
+  day: string;
+  talk: number;
+  treat: number;
+  spa: boolean;
+  date: boolean;
 }
 
 /** Активная встреча на экране боя. */
@@ -324,6 +337,9 @@ export interface PlayerState {
   createdAt: number;
   rng: number;
   battleSeed: number;
+  /** Близость с UR-героинями (режим «Уход») и Сердца Эфира для нарядов близости. */
+  bond?: Record<string, BondState>;
+  bondHearts?: number;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

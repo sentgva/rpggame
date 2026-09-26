@@ -17,4 +17,5 @@ export { dungeonReward, towerReward, expeditionSlots, expeditionBoard } from './
 export { doSummon, boostsLeft, type SummonPull } from './engine/actions/economy';
 export { onExpedition } from './engine/actions/heroes';
 export { encounterOffer } from './engine/actions/encounters';
+export { bondCosts, bondState } from './engine/actions/bond';
 export { riftState, riftBoss, riftReward, riftThresholds, spireParty, spireReward, hordeState, hordeWaveReward, hordeBonus } from './engine/actions/endgame';

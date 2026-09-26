@@ -108,7 +108,7 @@ function Tower() {
   const done = floor > cfg.modes.towerFloors;
   const fight = (hard: boolean) =>
     void fightAction('tower.fight', { hard }, `${t('mode.towerFloor', { n: floor })}${hard ? ' · ' + t('mode.towerHard') : ''}`, act, (res) => (
-      <RewardList r={{ cur: { crystals: res.reward.crystals, starDust: res.reward.starDust }, skin: res.reward.skin, items: res.reward.items }} />
+      <RewardList r={{ cur: { crystals: res.reward.crystals, starDust: res.reward.starDust }, skin: res.reward.skin, items: res.reward.items, hearts: res.reward.hearts }} />
     ));
   return (
     <div className={css.col}>

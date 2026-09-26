@@ -1,4 +1,4 @@
-import { HEROINE_MAP, SHOP_OFFER_MAP, SUMMON_POOL } from '../../content';
+import { CHANGELOG, HEROINE_MAP, SHOP_OFFER_MAP, SUMMON_POOL } from '../../content';
 import type { HeroRarity, Item, PlayerSettings } from '../../types';
 import { ART_STYLES } from '../../types';
 import type { Action } from '../apply';
@@ -220,6 +220,14 @@ export const economyActions = {
     for (const k of Object.keys(s) as (keyof typeof s)[]) if (!(k in fresh)) delete s[k];
     Object.assign(s, fresh);
     ctx.events.push({ name: 'account_reset', props: {} });
+    return {};
+  },
+
+  /** Прочитана запись «Что нового». */
+  'news.seen': (ctx: Ctx, a: Action) => {
+    const id = vStr(a.id, 'id');
+    assert(CHANGELOG.some((c) => c.id === id), 'badParam', { name: 'id' });
+    ctx.s.settings.news = id;
     return {};
   },
 

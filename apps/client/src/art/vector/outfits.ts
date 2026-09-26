@@ -543,6 +543,12 @@ export function outfitLayers(kind: OutfitKind | Wear, sv: Svg, p: Pal, rig: Rig)
       return outfitLayers('lace3', sv, p, rig);
     case 'maid':
       return outfitLayers('lace', sv, p, rig);
+    case 'yukata':
+      return outfitLayers('lace2', sv, p, rig);
+    case 'gown':
+      return outfitLayers('lace3', sv, p, rig);
+    case 'silk':
+      return outfitLayers('swim2', sv, p, rig);
     case 'regalia':
       return {
         legs: () => {

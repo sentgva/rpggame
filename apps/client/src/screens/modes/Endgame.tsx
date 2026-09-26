@@ -148,7 +148,7 @@ export function Rift() {
                     {t('mode.riftTier', { n: res.tier })} · {formatNum(res.dmg)} ({((100 * res.dmg) / res.hp).toFixed(1)}%)
                   </span>
                 ),
-                result: <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, items: res.reward.items }} />,
+                result: <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, items: res.reward.items, hearts: res.reward.hearts }} />,
               }))
             }
           >
@@ -265,7 +265,7 @@ export function Spires() {
           disabled={!open || !party.length || floor > cfg.modes.spireFloors}
           onClick={() =>
             void playMode('spire.fight', { element: sel }, `${elementName(sel)} · ${t('mode.spireFloor', { n: floor })}`, 1, (res) => ({
-              result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items }} /> : undefined,
+              result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items, hearts: res.reward.hearts }} /> : undefined,
             }))
           }
         >
@@ -297,7 +297,7 @@ export function Horde() {
   const fight = () =>
     void playMode('horde.fight', {}, t('mode.hordeWave', { n: next }), act, (res) => ({
       outcome: res.win ? t('mode.hordeCleared', { n: res.wave }) : t('mode.hordeFallen', { n: res.wave - 1 }),
-      result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items }} /> : undefined,
+      result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items, hearts: res.reward.hearts }} /> : undefined,
     }));
   const bless = (i: number) => void useGame.getState().act('horde.bless', { index: i });
   return (

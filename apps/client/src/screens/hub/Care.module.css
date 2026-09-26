@@ -1,0 +1,237 @@
+/* «Уход»: сцена с героиней — лагерь, горячие источники или место свидания */
+.scene {
+  position: relative;
+  height: 280px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #4a2e3a;
+  background: linear-gradient(180deg, #2a1830 0%, #4a2a38 62%, #3a2418 62%, #24160e 100%);
+}
+
+.hero {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 210px;
+  height: 210px;
+  translate: -50% 0;
+  image-rendering: pixelated;
+}
+
+.fire {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  font-size: 34px;
+  animation: bob 1.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 150, 60, 0.8));
+}
+
+.deco {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  font-size: 34px;
+  opacity: 0.9;
+}
+
+.bubble {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(20, 10, 16, 0.86);
+  border: 1.5px solid #f2a8c8;
+  color: #ffe8f2;
+  font-size: 14px;
+  line-height: 1.35;
+  animation: fade-in 0.25s ease-out;
+}
+
+.bubble b {
+  color: #ffb4d4;
+}
+
+.gain {
+  position: absolute;
+  right: 18px;
+  bottom: 70px;
+  z-index: 3;
+  font-weight: 800;
+  font-size: 20px;
+  color: #ff9cc8;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+  animation: float-up 1.6s ease-out forwards;
+}
+
+@keyframes float-up {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -60px;
+  }
+}
+
+/* горячие источники: пар и вода по пояс */
+.spa {
+  background: linear-gradient(180deg, #1c2a3a 0%, #34506a 55%, #5a6a78 55%, #3a4650 100%);
+}
+
+.water {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 92px;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(120, 200, 230, 0.72), rgba(40, 110, 150, 0.9));
+  border-top: 2px solid rgba(220, 250, 255, 0.8);
+}
+
+.steam {
+  position: absolute;
+  bottom: 70px;
+  width: 70px;
+  height: 70px;
+  z-index: 2;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 70%);
+  animation: steam 3.2s ease-in infinite;
+  pointer-events: none;
+}
+
+@keyframes steam {
+  from {
+    opacity: 0;
+    translate: 0 0;
+    scale: 0.6;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -150px;
+    scale: 1.6;
+  }
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  border: 2px solid #5a3448;
+  background: linear-gradient(180deg, #3a2030, #24141e);
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.actionIcon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.actionName {
+  font-family: var(--font-pixel);
+  font-size: 15px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 8px;
+  border-radius: 10px;
+  border: 2px solid #5a3448;
+  background: linear-gradient(180deg, #34202c, #1e1218);
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+}
+
+.card img {
+  width: 72px;
+  height: 72px;
+  image-rendering: pixelated;
+}
+
+.cardLocked img {
+  filter: grayscale(1) brightness(0.45);
+}
+
+.lvl {
+  font-weight: 800;
+  font-size: 13px;
+  color: #ff9cc8;
+}
+
+.hearts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+  color: #ffb4d4;
+}
+
+.milestones {
+  display: flex;
+  gap: 6px;
+}
+
+.milestone {
+  flex: 1;
+  text-align: center;
+  padding: 6px 2px;
+  border-radius: 8px;
+  border: 1.5px solid #4a2e3a;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+}
+
+.milestoneDone {
+  border-color: #ff9cc8;
+  background: rgba(255, 120, 180, 0.12);
+}
+
+.answer {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1.5px solid #6a4058;
+  background: #2a1822;
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.answer:active {
+  background: #3e2232;
+}

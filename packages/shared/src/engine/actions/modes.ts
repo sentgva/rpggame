@@ -49,6 +49,7 @@ import { dayKey, weekKey } from '../state';
 import { activeParty, addStats, buildHeroine, partyPower } from '../stats';
 import { customEnemies, heroUnits, modEnemies } from '../units';
 import { currentParty, runBattle, stripRaw } from './battle';
+import { grantHeart } from './bond';
 import { onExpedition } from './heroes';
 
 // ——— подземелья ———
@@ -332,11 +333,13 @@ export const modeActions = {
       const r = towerReward(floor, hard);
       give(ctx, { crystals: r.crystals, starDust: r.starDust });
       if (r.skin && !s.skins.includes(r.skin)) s.skins.push(r.skin);
-      reward = { ...r, items: undefined as string[] | undefined };
+      reward = { ...r, items: undefined as string[] | undefined, hearts: undefined as number | undefined };
       // Наряд арлекина: за «Испытание» на этаже стража
       if (hard && floor % 10 === 0) {
         const uid = grantModeSetPiece(ctx, 'tower');
         if (uid) reward.items = [uid];
+        // и Сердце Эфира — для нарядов близости
+        reward.hearts = grantHeart(ctx);
       }
       track(ctx, 'towerWin', 1);
     }

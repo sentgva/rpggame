@@ -11,6 +11,7 @@ import { metaActions } from './actions/meta';
 import { modeActions } from './actions/modes';
 import { endgameActions } from './actions/endgame';
 import { encounterActions, rollEncounter } from './actions/encounters';
+import { bondActions } from './actions/bond';
 import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
@@ -32,6 +33,7 @@ export const HANDLERS: Record<string, Handler> = {
   ...modeActions,
   ...endgameActions,
   ...encounterActions,
+  ...bondActions,
   ...devActions,
   ...serverActions,
 };

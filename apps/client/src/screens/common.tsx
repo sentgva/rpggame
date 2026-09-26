@@ -17,6 +17,8 @@ export interface RewardLike {
   skin?: string;
   skins?: string[];
   levels?: Record<string, number>;
+  /** Сердца Эфира (уход за героинями) */
+  hearts?: number;
 }
 
 /** Список наград: валюты, предметы, осколки. */
@@ -34,6 +36,12 @@ export function RewardList({ r }: { r: RewardLike }) {
               <span className={css.num}>{formatNum(v ?? 0)}</span>
             </div>
           ))}
+        </div>
+      )}
+      {(r.hearts ?? 0) > 0 && (
+        <div className={css.row}>
+          <Icon name="hearts" size={24} />
+          <span>{t('care.heartReward', { n: r.hearts! })}</span>
         </div>
       )}
       {r.shards &&

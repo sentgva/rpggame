@@ -29,8 +29,9 @@
   --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --nav-h: 64px;
   --top-h: 52px;
-  --safe-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
-  --safe-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  /* полноэкранный Telegram: системная зона (часы, «чёлка») + зона кнопок Telegram («✕» и «•••») */
+  --safe-top: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
+  --safe-bottom: calc(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 

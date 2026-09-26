@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Bot, InlineKeyboard, InputFile, type Context } from 'grammy';
-import { VECTOR_ART } from '@idle/shared';
+import { CHANGELOG, VECTOR_ART, type ChangelogEntry } from '@idle/shared';
 import { DbService } from '../db/db.service';
 import { IdeasService, type Idea } from './ideas.service';
 import { env } from '../env';
@@ -18,6 +18,7 @@ const TEXT = {
       '• Снаряжение, заточка, самоцветы и созвездия',
       '• Башня с испытаниями, Разлом, Нашествие, шпили, лабиринт и арена',
       '• Облики: «Лето», «Будуар» и «Маскарад», боевой пропуск',
+      '• Уход за героинями: разговоры, угощения, горячие источники и свидания',
       '',
       '🎁 Лира уже ждёт в отряде — жми <b>«Играть»</b>!',
     ].join('\n'),
@@ -31,6 +32,7 @@ const TEXT = {
       '5️⃣ Застрял — загляни в Башню, подземелья и экспедиции за ресурсами.',
       '',
       ...(VECTOR_ART ? ['🎨 Графика: <code>/style</code> — вектор или пиксели (или в настройках игры).'] : []),
+      '📰 Что нового в игре: <code>/news</code>.',
       '🌐 Язык бота: <code>/lang</code> · 🧹 очистить чат: <code>/clear</code>.',
       '🐞 Нашёл ошибку? Напиши <code>/bug что случилось</code> или нажми кнопку в настройках игры.',
     ].join('\n'),
@@ -40,6 +42,8 @@ const TEXT = {
     play: '▶️ Играть',
     howTo: '📖 Как играть',
     bug: '🐞 Сообщить о баге',
+    news: '📰 Что нового',
+    newsMore: 'Весь список обновлений — в игре: Лагерь → «Что нового».',
     langAsk: '🌐 <b>Язык бота</b>\n\nВыбери, на каком языке мне писать.',
     langSet: '✅ Готово! Теперь я пишу на русском.\n\nЯзык самой игры меняется в «Настройках» игры.',
     ideaAsk: '💡 <b>Новая идея</b>\n\nОпиши её одним сообщением — я сохраню. Передумал — /cancel.',
@@ -86,6 +90,7 @@ const TEXT = {
       '• Gear, enhancing, gems and constellations',
       '• Tower challenges, Rift, Horde, Spires, labyrinth and arena',
       '• Skins: Summer, Boudoir and Masquerade collections, battle pass',
+      '• Heroine care: talks, treats, hot springs and dates',
       '',
       '🎁 Lira is already in your squad — tap <b>“Play”</b>!',
     ].join('\n'),
@@ -99,6 +104,7 @@ const TEXT = {
       '5️⃣ Stuck? Farm the Tower, dungeons and expeditions.',
       '',
       ...(VECTOR_ART ? ['🎨 Art style: <code>/style</code> — vector or pixel (also in game settings).'] : []),
+      "📰 What's new in the game: <code>/news</code>.",
       '🌐 Bot language: <code>/lang</code> · 🧹 clear the chat: <code>/clear</code>.',
       '🐞 Found a bug? Send <code>/bug what happened</code> or use the button in game settings.',
     ].join('\n'),
@@ -108,6 +114,8 @@ const TEXT = {
     play: '▶️ Play',
     howTo: '📖 How to play',
     bug: '🐞 Report a bug',
+    news: "📰 What's new",
+    newsMore: "The full update history is in the game: Camp → “What's new”.",
     langAsk: '🌐 <b>Bot language</b>\n\nChoose the language I should write in.',
     langSet: '✅ Done! I will write in English now.\n\nThe game language itself is changed in the game Settings.',
     ideaAsk: '💡 <b>New idea</b>\n\nDescribe it in one message and I will save it. Changed your mind — /cancel.',
@@ -159,6 +167,12 @@ export function langOf(code?: string): Lang {
 /** Сколько последних сообщений чата пытается удалить /clear. */
 const CLEAR_DEPTH = 300;
 
+/** Последние записи «Что нового» для /news. */
+export function newsText(lang: Lang, count = 3): string {
+  const entry = (e: ChangelogEntry) => [`<b>${escapeHtml(e.title[lang])}</b> · <i>${e.date}</i>`, ...e.items.map((i) => escapeHtml(i[lang]))].join('\n');
+  return [`<b>${TEXT[lang].news}</b>`, '', CHANGELOG.slice(0, count).map(entry).join('\n\n'), '', `<i>${TEXT[lang].newsMore}</i>`].join('\n');
+}
+
 /** Кнопка выбора языка подписана на обоих языках — её найдёт любой. */
 const LANG_BUTTON = '🌐 Язык · Language';
 const LANG_NAMES: Record<Lang, string> = { ru: '🇷🇺 Русский', en: '🇬🇧 English' };
@@ -182,6 +196,7 @@ function baseCommands(lang: Lang) {
     ? [
         { command: 'start', description: 'Играть в Idle RPG' },
         { command: 'help', description: 'Как играть' },
+        { command: 'news', description: 'Что нового в игре' },
         { command: 'lang', description: 'Язык бота · Language' },
         { command: 'clear', description: 'Очистить чат с ботом' },
         ...(VECTOR_ART ? [{ command: 'style', description: 'Графика: вектор или пиксели' }] : []),
@@ -190,6 +205,7 @@ function baseCommands(lang: Lang) {
     : [
         { command: 'start', description: 'Play Idle RPG' },
         { command: 'help', description: 'How to play' },
+        { command: 'news', description: "What's new in the game" },
         { command: 'lang', description: 'Bot language · Язык' },
         { command: 'clear', description: 'Clear the chat with the bot' },
         ...(VECTOR_ART ? [{ command: 'style', description: 'Art style: vector or pixel' }] : []),
@@ -219,6 +235,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     this.bot.command('start', (ctx) => this.onStart(ctx));
     this.bot.command('play', (ctx) => this.onStart(ctx));
     this.bot.command('help', (ctx) => this.onHelp(ctx));
+    this.bot.command(['news', 'changelog'], (ctx) => this.onNews(ctx));
     this.bot.command('bug', (ctx) => this.onBug(ctx));
     this.bot.command('lang', (ctx) => this.onLangCommand(ctx));
     this.bot.command('clear', (ctx) => this.onClear(ctx));
@@ -244,6 +261,10 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
       });
       this.bot.callbackQuery(/^style:(vector|pixel)$/, (ctx) => this.onStylePick(ctx, ctx.match[1]));
     }
+    this.bot.callbackQuery('news', async (ctx) => {
+      await ctx.answerCallbackQuery();
+      await this.onNews(ctx);
+    });
     this.bot.callbackQuery('help', async (ctx) => {
       await ctx.answerCallbackQuery();
       await this.onHelp(ctx);
@@ -268,8 +289,8 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     if (extras) {
       kb ??= new InlineKeyboard();
       kb.row().text(TEXT[lang].howTo, 'help').text(LANG_BUTTON, 'lang');
-      if (VECTOR_ART) kb.row().text(TEXT[lang].style, 'style').text(TEXT[lang].bug, 'bug');
-      else kb.row().text(TEXT[lang].bug, 'bug');
+      if (VECTOR_ART) kb.row().text(TEXT[lang].news, 'news').text(TEXT[lang].style, 'style').row().text(TEXT[lang].bug, 'bug');
+      else kb.row().text(TEXT[lang].news, 'news').text(TEXT[lang].bug, 'bug');
     }
     return kb;
   }
@@ -308,6 +329,12 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     const lang = await this.langFor(ctx.from);
     const extra = this.ideas.isOwner(ctx.from?.id) ? '\n' + TEXT[lang].ideaHelp : '';
     await ctx.reply(TEXT[lang].help + extra, { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang) });
+  }
+
+  /** /news — последние обновления игры (весь список — в лагере). */
+  private async onNews(ctx: Context) {
+    const lang = await this.langFor(ctx.from);
+    await ctx.reply(newsText(lang), { parse_mode: 'HTML', reply_markup: this.playKeyboard(lang), link_preview_options: { is_disabled: true } });
   }
 
   private async onBug(ctx: Context) {

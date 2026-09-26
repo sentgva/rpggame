@@ -1,4 +1,5 @@
-import { achievementClaimable, isUnlocked } from '@idle/shared';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, achievementClaimable, bondState, isUnlocked } from '@idle/shared';
+import { openNews } from '../components/News';
 import { Icon, css } from '../components/ui';
 import { t } from '../i18n';
 import { questClaimable } from '../store/badges';
@@ -7,6 +8,7 @@ import { useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
 import { Achievements } from './hub/Achievements';
 import { Ascension } from './hub/Ascension';
+import { Care } from './hub/Care';
 import { Constellation } from './hub/Constellation';
 import { DevPanel } from './hub/DevPanel';
 import { Guild } from './hub/Guild';
@@ -46,6 +48,8 @@ export default function HubTab() {
       return <DevPanel />;
     case 'story':
       return <Story />;
+    case 'care':
+      return <Care hero={top.params?.hero} />;
     default:
       return <HubRoot />;
   }
@@ -56,6 +60,12 @@ function HubRoot() {
   const cfg = useCfg();
   const isDev = useGame((g) => g.isDev);
   const social = useGame((g) => g.flags.social);
+  const now = useGame.getState().now();
+  // уход: сегодня ещё никого не навещали — или можно открыть наряд близости
+  const care = BOND_HEROES.filter((id) => s.heroines[id]).map((id) => bondState({ s, now }, id));
+  const careBadge =
+    (care.length > 0 && care.every((b) => b.talk === 0 && b.treat === 0 && !b.spa && !b.date)) ||
+    ((s.bondHearts ?? 0) >= BOND_COSTUME_HEARTS && BOND_HEROES.some((id) => s.heroines[id] && (s.bond?.[id]?.lvl ?? 0) >= BOND_MAX && !s.skins.includes(`${id}_bond`)));
   const items: { id: string; icon: string; label: string; badge?: boolean; locked?: boolean }[] = [
     { id: 'summon', icon: 'summon', label: t('hub.summon'), badge: !s.day.freeSummon || s.cur.scrolls > 0 },
     { id: 'shop', icon: 'shop', label: t('hub.shop') },
@@ -66,7 +76,9 @@ function HubRoot() {
     { id: 'constellation', icon: 'constellation', label: t('hub.constellation'), locked: !isUnlocked({ s, cfg }, 'constellation') },
     { id: 'ascension', icon: 'ascension', label: t('hub.ascension'), locked: !isUnlocked({ s, cfg }, 'ascension') },
     ...(social ? [{ id: 'guild', icon: 'guildCoins', label: t('hub.guild') }] : []),
+    { id: 'care', icon: 'care', label: t('hub.care'), badge: careBadge },
     { id: 'story', icon: 'xp', label: t('hub.story') },
+    { id: 'news', icon: 'news', label: t('hub.news') },
     { id: 'settings', icon: 'settings', label: t('hub.settings') },
   ];
   if (isDev) items.push({ id: 'dev', icon: 'dev', label: t('hub.dev') });
@@ -84,7 +96,8 @@ function HubRoot() {
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '14px 6px', opacity: it.locked ? 0.5 : 1, color: 'inherit' }}
             onClick={() => {
               haptic.tap();
-              useUi.getState().push({ id: it.id });
+              if (it.id === 'news') openNews(true);
+              else useUi.getState().push({ id: it.id });
             }}
           >
             <Icon name={it.icon} size={44} />

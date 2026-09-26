@@ -105,6 +105,7 @@ export const CUR_ICON: Record<string, string> = {
   divineMats: 'divineMats',
   labCoins: 'labCoins',
   eventTokens: 'eventTokens',
+  hearts: 'hearts',
 };
 
 /** Стоимость: иконка + число, красным — если не хватает. */

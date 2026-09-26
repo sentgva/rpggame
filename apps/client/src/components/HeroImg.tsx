@@ -34,10 +34,12 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   skin?: string;
   /** без анимации (например, неоткрытая героиня) */
   still?: boolean;
+  /** без оружия в руках */
+  unarmed?: boolean;
 };
 
 /** Героиня, которая дышит, моргает и иногда подмигивает. */
-export function HeroImg({ id, skin, still, alt = '', style, ...rest }: Props) {
+export function HeroImg({ id, skin, still, unarmed, alt = '', style, ...rest }: Props) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
   useArt((a) => a.version);
   const grow = useArt((a) => a.style === 'vector') ? VECTOR_GROW : undefined;
@@ -64,7 +66,7 @@ export function HeroImg({ id, skin, still, alt = '', style, ...rest }: Props) {
         animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', '),
       }
     : { ...grow, ...style };
-  return <img {...rest} style={st} alt={alt} src={heroUrl(id, skin, frame ?? {})} draggable={false} />;
+  return <img {...rest} style={st} alt={alt} src={heroUrl(id, skin, frame ?? {}, unarmed)} draggable={false} />;
 }
 
 /** Враг с «живой» анимацией; Колоссы машут крыльями/хвостом и светятся своей стихией. */

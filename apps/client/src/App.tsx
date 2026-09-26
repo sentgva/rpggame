@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import styles from './App.module.css';
 import { portraitUrl } from './art/runtime';
 import { HeroImg } from './components/HeroImg';
+import { newsPending, openNews } from './components/News';
 import { Bar, Button, Icon, ModalHost, Toasts, cx } from './components/ui';
 import { t } from './i18n';
 import { BattleTab } from './screens/BattleTab';
@@ -64,6 +65,8 @@ function Game() {
     const stop = startDirector();
     initAudio();
     const g = useGame.getState();
+    // «Что нового» — один раз после обновления (под окном «Пока вас не было»)
+    if (newsPending(g.state!.settings.news)) openNews();
     if (shouldWelcome(g.state!, g.cfg!, g.sessionLastSeen, g.now())) {
       useUi.getState().open((close) => <WelcomeBack onClose={close} />, { sticky: true });
     }

@@ -126,7 +126,7 @@ export function enemySpec(enemyId: string, opts: Partial<SpriteSpec> = {}): Figu
 }
 
 function specKey(kind: string, id: string, spec: Partial<SpriteSpec> & { skin?: string }, pose: Pose = {}): string {
-  return `${kind}:${id}:${spec.skin ?? ''}:${spec.shadow ? 1 : 0}:${spec.tint ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
+  return `${kind}:${id}:${spec.skin ?? ''}:${spec.shadow ? 1 : 0}:${spec.tint ?? ''}:${spec.weapon ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
 }
 
 /** Кадр героини: поза рук и состояние глаз (кадры рисуются лениво и кэшируются). */
@@ -174,12 +174,15 @@ function vectorUrl(key: string, make: () => string): string {
   return u;
 }
 
-export function heroUrl(heroId: string, skin?: string, pose: Pose = {}): string {
-  if (artStyle() === 'vector') return vectorUrl(`vurl:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`, () => renderVectorSvg(toVSpec(heroSpec(heroId, skin)), pose));
-  const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
+/** unarmed — без оружия в руках (сцены «Ухода»). */
+export function heroUrl(heroId: string, skin?: string, pose: Pose = {}, unarmed = false): string {
+  const opts: Partial<SpriteSpec> = unarmed ? { weapon: 'none' } : {};
+  const u0 = unarmed ? ':u' : '';
+  if (artStyle() === 'vector') return vectorUrl(`vurl:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}${u0}`, () => renderVectorSvg(toVSpec(heroSpec(heroId, skin, opts)), pose));
+  const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}${u0}`;
   let u = urlCache.get(key);
   if (!u) {
-    u = heroCanvas(heroId, skin, {}, pose).toDataURL();
+    u = heroCanvas(heroId, skin, opts, pose).toDataURL();
     urlCache.set(key, u);
     // заранее декодируем, чтобы смена кадра в <img> не мигала
     if (pose.arms || pose.eyes || pose.flap) {
