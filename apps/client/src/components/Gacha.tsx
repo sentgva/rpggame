@@ -223,7 +223,7 @@ function GachaReveal({ title, items, colors, share, onClose }: GachaOptions & { 
             <div className={st.spotRays} />
             <div className={st.spotArt}>{best.art({ big: true, live: true })}</div>
             <div className={st.spotRar}>
-              {best.rarity}
+              <span className={st.spotRarText}>{best.rarity}</span>
               <span className={st.spotStars}>{'★'.repeat(bestRank + 2)}</span>
             </div>
             <div className={st.spotName}>{best.name}</div>

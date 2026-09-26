@@ -269,22 +269,28 @@
 .spotRar {
   position: relative;
   margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: popIn 0.5s 0.9s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+/* разрядка добавляет отступ справа от последней буквы — компенсируем слева, чтобы текст стоял ровно по центру */
+.spotRarText {
   font-family: var(--font-pixel);
   font-size: 34px;
+  line-height: 1;
   color: var(--c);
   text-shadow:
     0 0 10px var(--c),
     0 0 22px var(--c);
   letter-spacing: 4px;
   padding-left: 4px;
-  animation: popIn 0.5s 0.9s cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
-
 .spotStars {
-  display: block;
-  text-align: center;
+  margin-top: 2px;
   font-size: 16px;
   letter-spacing: 2px;
+  padding-left: 2px;
   color: #ffe070;
 }
 
