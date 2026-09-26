@@ -20,6 +20,7 @@ import { Settings } from './hub/Settings';
 import { Shop } from './hub/Shop';
 import { Story } from './hub/Story';
 import { Summon } from './hub/Summon';
+import { Festival, FestivalBanner } from './modes/Festival';
 import st from './HubTab.module.css';
 
 export default function HubTab() {
@@ -52,6 +53,8 @@ export default function HubTab() {
       return <Story />;
     case 'care':
       return <Care hero={top.params?.hero} home={top.params?.home} />;
+    case 'festival':
+      return <Festival />;
     default:
       return <HubRoot />;
   }
@@ -109,6 +112,8 @@ function HubRoot() {
         </div>
         <HeroImg id={leader} skin={s.heroines[leader]?.skin} className={st.leader} />
       </div>
+
+      <FestivalBanner onOpen={() => open('festival')} />
 
       <div className={st.main}>
         {main.map((it) => (

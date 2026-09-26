@@ -37,8 +37,10 @@ import { BackHeader, RewardList, showReward } from '../common';
 import { stageText } from '../MapTab';
 import { Shop } from '../hub/Shop';
 import { Horde, Rift, Spires } from './Endgame';
+import { Festival } from './Festival';
 
 export const MODES = [
+  { id: 'festival', icon: 'festival', title: 'mode.festival', desc: 'mode.festivalDesc', feature: 'events' },
   { id: 'expeditions', icon: 'expedition', title: 'mode.expeditions', desc: 'mode.expeditionsDesc', feature: 'expeditions' },
   { id: 'dungeons', icon: 'dungeon', title: 'mode.dungeons', desc: 'mode.dungeonsDesc', feature: 'dungeons' },
   { id: 'tower', icon: 'tower', title: 'mode.tower', desc: 'mode.towerDesc', feature: 'tower' },
@@ -70,6 +72,8 @@ export function ModeScreen({ id }: { id: string }) {
       return <Spires />;
     case 'horde':
       return <Horde />;
+    case 'festival':
+      return <Festival />;
     case 'shopArena':
       return <Shop initial="arena" />;
     case 'shopLab':

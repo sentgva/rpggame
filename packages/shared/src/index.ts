@@ -20,3 +20,4 @@ export { encounterOffer } from './engine/actions/encounters';
 export { bondCosts, bondState, homeState, sleptToday } from './engine/actions/bond';
 export { activeArtifacts, artifactFreeReady, artifactState, type ArtifactPull } from './engine/actions/artifacts';
 export { riftState, riftBoss, riftReward, riftThresholds, spireParty, spireReward, hordeState, hordeWaveReward, hordeBonus } from './engine/actions/endgame';
+export { festivalState, festBoss, festStageEnemies, festGoalValue, festTaskValue, festClaimable, festBought, festShopNow } from './engine/actions/festival';

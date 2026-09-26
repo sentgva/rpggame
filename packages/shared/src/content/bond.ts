@@ -74,6 +74,9 @@ const TRAITS: Record<string, { p: Personality; treat?: Treat; place?: Place }> =
   sylphide: { p: 'shy' },
   aurelia: { p: 'proud', place: 'garden' },
   nocturna: { p: 'mysterious', treat: 'sweets' },
+  selene: { p: 'proud', treat: 'wine', place: 'tower' },
+  amphitrite: { p: 'gentle', treat: 'fruit', place: 'lake' },
+  tsubaki: { p: 'shy', treat: 'sweets', place: 'garden' },
 };
 
 export function bondTraits(hero: string): { p: Personality } & Taste {

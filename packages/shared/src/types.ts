@@ -344,6 +344,32 @@ export interface HomeState {
   sleptWith?: string;
 }
 
+/** Праздник Легиона: прогресс текущего праздника (с началом следующего начинается заново). */
+export interface FestivalState {
+  /** номер праздника (цикла) */
+  cycle: number;
+  /** уровень силы на старте праздника — от него считаются враги пути и босса */
+  lvl: number;
+  points: number;
+  /** забранные ступени шкалы наград (индексы) */
+  claimed: number[];
+  /** звёзды этапов пути (индекс этапа − 1 → 0–3) */
+  stars: number[];
+  /** день, к которому относятся билеты, задания и попытки босса */
+  day: string;
+  tickets: number;
+  /** задания праздника, награда за которые забрана сегодня */
+  tasks: string[];
+  /** всего заданий праздника выполнено за праздник */
+  tasksDone: number;
+  /** цели праздника, награда за которые забрана */
+  goals: string[];
+  /** общие счётчики на старте праздника (для целей) */
+  base: Record<string, number>;
+  /** босс праздника: уровень, снятое HP текущего уровня, попытки сегодня, победы, лучший урон */
+  boss: { lvl: number; dmg: number; used: number; kills: number; best: number };
+}
+
 /** Активная встреча на экране боя. */
 export interface EncounterState {
   kind: string;
@@ -363,6 +389,7 @@ export interface PlayerState {
   bondHearts?: number;
   home?: HomeState;
   artifacts?: ArtifactState;
+  festival?: FestivalState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

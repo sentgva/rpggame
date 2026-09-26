@@ -7,7 +7,7 @@ export const SCENE_H = 100;
 const W = SCENE_W;
 const H = SCENE_H;
 
-export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden';
+export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura';
 
 type C = string | RGBA;
 type Pt = [number, number];
@@ -936,6 +936,177 @@ const SCENES: Record<SceneBg, (p: Painter) => void> = {
       p.set(x + 2, y, c);
       p.set(x + 1, y + 1, '#2a1a10');
     }
+  },
+
+  // ——— праздники Легиона ———
+
+  bloodmoon(p) {
+    p.vgrad(0, 0, W, 64, '#12040a', '#5a0e1e');
+    p.stars(40, 0, 0, W, 40, ['#ffd8d8', '#ffb0b0', '#fff0e0']);
+    // алая луна
+    p.glow(88, 26, 30, '#ff3a3a', 0.35);
+    p.circle(88, 26, 13, '#c81e2a');
+    p.circle(88, 26, 12, '#e8303a');
+    p.circle(84, 22, 4, '#c81e2a', 0.6);
+    p.circle(93, 30, 3, '#b01a24', 0.6);
+    p.circle(91, 20, 2, '#b01a24', 0.5);
+    // летучие мыши
+    for (const [x, y] of [
+      [30, 18],
+      [44, 12],
+      [58, 22],
+      [110, 12],
+    ] as Pt[]) {
+      p.set(x, y, '#12040a');
+      p.hl(x - 3, x - 1, y - 1, '#12040a');
+      p.hl(x + 1, x + 3, y - 1, '#12040a');
+      p.set(x - 4, y, '#12040a');
+      p.set(x + 4, y, '#12040a');
+    }
+    // готический город: шпили и окна
+    const town = '#1a0810';
+    for (const [x, w, h, spire] of [
+      [0, 14, 30, 8],
+      [12, 10, 22, 0],
+      [22, 16, 40, 14],
+      [38, 12, 26, 6],
+      [50, 20, 34, 0],
+      [70, 10, 44, 16],
+      [80, 14, 28, 0],
+      [94, 12, 36, 10],
+      [106, 22, 24, 0],
+    ] as [number, number, number, number][]) {
+      p.rect(x, 70 - h, w, h, town);
+      if (spire) p.poly([[x, 70 - h], [x + w / 2, 70 - h - spire], [x + w, 70 - h]], town);
+      for (let yy = 72 - h; yy < 66; yy += 6) for (let xx = x + 2; xx < x + w - 2; xx += 4) if (p.rng.next() < 0.35) p.rect(xx, yy, 1, 2, '#ffb040');
+    }
+    p.glow(64, 70, 60, '#ff2a3a', 0.12);
+    // мостовая и туман
+    p.vgrad(0, 70, W, 30, '#2a0e16', '#1a080e', 3);
+    for (let y = 72; y < H; y += 4) for (let x = (y / 4) % 2 ? 0 : 3; x < W; x += 7) p.hl(x, x + 4, y, '#3a1620', 0.7);
+    for (let i = 0; i < 5; i++) p.ellipse(10 + i * 28, 74 + (i % 2) * 3, 18, 3, '#ff5a6a', 0.08);
+    // фонари-свечи
+    for (const x of [8, 118]) {
+      p.rect(x, 62, 2, 30, '#140408');
+      p.rect(x - 2, 58, 6, 6, '#ffb040');
+      frame(p, x - 2, 58, 6, 6, '#140408');
+      p.glow(x + 1, 61, 14, '#ff9a40', 0.3);
+    }
+  },
+
+  tides(p) {
+    p.vgrad(0, 0, W, 50, '#140a30', '#3a4a8a');
+    p.stars(45, 0, 0, W, 34);
+    p.glow(30, 20, 18, '#e8f4ff', 0.3);
+    p.circle(30, 20, 7, '#eef6ff');
+    p.circle(32, 18, 6, '#d8e8f8', 0.35);
+    // дворец на горизонте
+    for (const [x, w, h] of [
+      [86, 6, 14],
+      [92, 10, 20],
+      [102, 6, 12],
+      [108, 4, 16],
+    ] as [number, number, number][]) {
+      p.rect(x, 50 - h, w, h, '#24305a');
+      p.poly([[x - 1, 50 - h], [x + w / 2, 50 - h - 5], [x + w + 1, 50 - h]], '#2a3a6a');
+      p.set(x + Math.floor(w / 2), 50 - h + 4, '#9fe8ff');
+    }
+    // море и волны
+    p.vgrad(0, 50, W, 30, '#1e4a8a', '#0e2a5a', 3);
+    for (let y = 52; y < 80; y += 3) {
+      const off = (y * 5) % 11;
+      for (let x = -off; x < W; x += 11) p.hl(x, x + 4, y, '#5aa0e0', 0.45);
+    }
+    for (let y = 52; y < 78; y += 2) {
+      const w = 2 + ((y * 3) % 4);
+      p.hl(30 - w, 30 + w, y, '#eef6ff', 0.45 - (y - 52) / 70);
+    }
+    // гребень волны
+    p.poly([[0, 80], [18, 72], [36, 78], [58, 70], [80, 78], [104, 71], [128, 77], [128, 84], [0, 84]], '#3a8ac8');
+    for (let x = 0; x < W; x += 3) p.set(x, 73 + ((x * 7) % 6), '#e6f6ff', 0.8);
+    // песок, ракушки, кораллы
+    p.vgrad(0, 84, W, 16, '#e0c890', '#b89a64', 3);
+    for (let i = 0; i < 30; i++) p.set(p.rng.int(W), 86 + p.rng.int(14), '#f4e0b0');
+    for (const [x, c] of [
+      [12, '#ff7a8a'],
+      [22, '#ffb07a'],
+      [108, '#ff7ab0'],
+      [118, '#ff9a6a'],
+    ] as [number, string][]) {
+      p.vl(x, 80, 92, c);
+      p.line(x, 86, x - 3, 82, c);
+      p.line(x, 88, x + 3, 83, c);
+    }
+    for (const x of [40, 70, 92]) {
+      p.ellipse(x, 94, 3, 2, '#f8e8f0');
+      p.set(x, 93, '#e0a0b0');
+    }
+    // гирлянда фонариков
+    for (let x = 0; x <= W; x++) {
+      const y = 8 + Math.round(Math.sin((x / W) * Math.PI) * 10);
+      p.set(x, y, '#2a1a3a');
+      if (x % 12 === 6) {
+        const c = ['#ffd24a', '#6ff0e0', '#ff8ac0'][(x / 12) % 3 | 0];
+        p.rect(x - 1, y + 1, 3, 4, c);
+        p.glow(x, y + 3, 6, c, 0.3);
+      }
+    }
+  },
+
+  sakura(p) {
+    p.vgrad(0, 0, W, 56, '#3a1e4a', '#f0a0a0');
+    p.glow(64, 52, 40, '#ffd0a0', 0.3);
+    // горы
+    p.poly([[0, 46], [22, 26], [40, 40], [62, 18], [86, 38], [104, 24], [128, 40], [128, 60], [0, 60]], '#6a3a6a');
+    p.poly([[56, 24], [62, 18], [68, 24], [64, 25]], '#f8e8f0');
+    p.poly([[0, 54], [30, 42], [60, 50], [92, 40], [128, 50], [128, 64], [0, 64]], '#4a2a4a');
+    // тории
+    const red = '#c8243a';
+    p.rect(50, 34, 28, 3, red);
+    p.rect(48, 32, 32, 2, '#2a1418');
+    p.rect(52, 40, 24, 2, red);
+    p.rect(54, 34, 3, 40, red);
+    p.rect(71, 34, 3, 40, red);
+    p.rect(62, 37, 4, 3, '#2a1418');
+    // сакуры по краям
+    for (const [tx, flip] of [
+      [12, 1],
+      [116, -1],
+    ] as [number, number][]) {
+      p.rect(tx - 2, 44, 5, 40, '#5a3024');
+      p.line(tx, 52, tx + 12 * flip, 40, '#5a3024');
+      p.line(tx, 48, tx - 8 * flip, 36, '#5a3024');
+      for (const [dx, dy, r] of [
+        [0, 32, 11],
+        [12, 36, 9],
+        [-8, 38, 8],
+        [6, 24, 9],
+        [-4, 26, 7],
+      ] as [number, number, number][]) {
+        p.circle(tx + dx * flip, dy, r, '#e888b0');
+        p.circle(tx + dx * flip - 2, dy - 2, r - 3, '#ffc4d8');
+      }
+    }
+    // земля и каменная дорожка
+    p.vgrad(0, 64, W, 36, '#6a8a4a', '#3e5a30', 3);
+    p.poly([[56, 64], [72, 64], [92, 100], [36, 100]], '#b8aca0');
+    for (let y = 68; y < H; y += 6) {
+      const half = 8 + (y - 64) * 0.55;
+      p.hl(64 - half, 64 + half, y, '#9a8e80');
+    }
+    // бумажные фонари
+    for (const [x, y] of [
+      [30, 56],
+      [98, 56],
+    ] as Pt[]) {
+      p.vl(x + 2, y + 6, y + 30, '#3a2418');
+      p.ellipse(x + 2, y + 2, 4, 5, '#ff5a4a');
+      p.hl(x - 1, x + 5, y - 3, '#2a1418');
+      p.hl(x - 1, x + 5, y + 7, '#2a1418');
+      p.glow(x + 2, y + 2, 12, '#ffb070', 0.3);
+    }
+    // лепестки
+    for (let i = 0; i < 60; i++) p.set(p.rng.int(W), p.rng.int(H), p.rng.next() < 0.5 ? '#ffc4d8' : '#ff9ac0', 0.9);
   },
 };
 

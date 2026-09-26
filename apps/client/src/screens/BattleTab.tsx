@@ -2,6 +2,9 @@ import {
   ACTS,
   ENEMY_MAP,
   MECHANIC_TEXT,
+  AFFIX_REWARD,
+  ELITE_AFFIX_MAP,
+  stageAffixes,
   activeParty,
   capMinutes,
   farmStage,
@@ -319,18 +322,37 @@ function BossHint() {
   if (!target) return null;
   const act = ACTS[target.act - 1];
   const boss = ENEMY_MAP[act.boss];
-  if (target.stage < 15 || !boss.mechanic) return null;
+  const affixes = stageAffixes(target);
+  const mech = target.stage >= 15 && !!boss.mechanic;
+  if (!mech && !affixes.length) return null;
   return (
     <Panel>
-      <div className={st.mech}>
-        <img className="pixel" src={heroUrl(boss.hero!)} width={40} height={40} alt="" />
-        <div>
-          <div style={{ color: 'var(--text)', fontWeight: 800 }}>
-            {t('battle.mechanic')}: {tl(boss.name)}
+      {mech && (
+        <div className={st.mech}>
+          <img className="pixel" src={heroUrl(boss.hero!)} width={40} height={40} alt="" />
+          <div>
+            <div style={{ color: 'var(--text)', fontWeight: 800 }}>
+              {t('battle.mechanic')}: {tl(boss.name)}
+            </div>
+            {tl(MECHANIC_TEXT[boss.mechanic!])}
           </div>
-          {tl(MECHANIC_TEXT[boss.mechanic])}
         </div>
-      </div>
+      )}
+      {affixes.length > 0 && (
+        <div className={st.affixes} style={mech ? { marginTop: 8 } : undefined}>
+          <Icon name="skull" size={18} />
+          <div className={css.grow}>
+            <div style={{ color: 'var(--text)', fontWeight: 800 }}>
+              {t('battle.affixes')} <span className={st.affixBonus}>{t('battle.affixBonus', { n: Math.round(affixes.length * AFFIX_REWARD * 100) })}</span>
+            </div>
+            {affixes.map((id) => (
+              <div key={id} className={st.affix}>
+                <b>{tl(ELITE_AFFIX_MAP[id].name)}</b> — {tl(ELITE_AFFIX_MAP[id].desc)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Panel>
   );
 }

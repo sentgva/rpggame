@@ -83,6 +83,35 @@ import {
   towerMod,
   towerReward,
   VECTOR_ART,
+  FESTIVALS,
+  FESTIVAL_DAYS,
+  FESTIVAL_EPOCH,
+  FESTIVAL_SKILLS,
+  FEST_GOALS,
+  FEST_MILESTONES,
+  FEST_STAGES,
+  FEST_STAR_POINTS,
+  FEST_TASKS_FEST,
+  FEST_TASK_MAP,
+  FEST_TASK_REWARD,
+  FEST_TICKETS,
+  SKILL_MAP,
+  dayKey,
+  festBoss,
+  festBossReward,
+  festBought,
+  festClaimable,
+  festDailyTasks,
+  festFirstReward,
+  festGoalValue,
+  festShopNow,
+  festStageEnemies,
+  festStageLevel,
+  festivalAt,
+  festivalState,
+  ELITE_AFFIX_MAP,
+  stageAffixes,
+  withAffixes,
   type PlayerState,
 } from '../src';
 
@@ -1003,5 +1032,220 @@ describe('артефакты', () => {
     expect(artifactText('war_drum', 2, 'ru')).toContain('11');
     expect(artifactSlots(1)).toBe(2);
     expect(artifactSlots(ARTIFACT_SLOT3_LVL)).toBe(3);
+  });
+});
+
+describe('праздники Легиона', () => {
+  const DAY = 86400000;
+  const T1 = FESTIVAL_EPOCH + 10 * 3600000;
+  const D = { cfg, now: T1, dev: true };
+  function ready(oneShot = true): PlayerState {
+    let s = fresh();
+    for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 30 }, D).state;
+    s = { ...s, account: { ...s.account, lvl: 12 }, party: { ...s.party, presets: [['lira', 'astrid', 'seyra', 'keira', null, null], ...s.party.presets.slice(1)] } };
+    return { ...s, dev: { ...s.dev, oneShot } };
+  }
+  const act = (s: PlayerState, a: Record<string, unknown>, now = T1) => applyAction(s, a as never, { cfg, now, dev: true });
+
+  it('праздники сменяются каждые 14 дней по кругу', () => {
+    const ids = [0, 1, 2, 3].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000).def.id);
+    expect(ids).toEqual(['bloodmoon', 'tides', 'sakura', 'bloodmoon']);
+    const f = festivalAt(T1);
+    expect(f.end - f.start).toBe(FESTIVAL_DAYS * DAY);
+    expect(f.start).toBeLessThanOrEqual(T1);
+    // и до «эпохи» — тоже по кругу, без дыр
+    expect(festivalAt(FESTIVAL_EPOCH - 1000).def.id).toBe('sakura');
+  });
+
+  it('героини праздников: не в призыве, с врагами, обликами и лавкой', () => {
+    for (const fd of FESTIVALS) {
+      const h = HEROINE_MAP[fd.hero];
+      expect(h.festival).toBe(fd.id);
+      expect(h.rarity).toBe('UR');
+      expect(Object.values(SUMMON_POOL).flat()).not.toContain(fd.hero);
+      expect(ENEMY_MAP[fd.boss]?.colossus).toBe(true);
+      expect(ENEMY_MAP[fd.trialBoss]?.look).toEqual(h.look);
+      for (const sk of [fd.finalSkin, ...fd.shopSkins]) expect(SKIN_MAP[sk]?.source).toBe('event');
+      expect(SKIN_MAP[fd.finalSkin].hero).toBe(fd.hero);
+      // облики праздников — не за кристаллы
+      expect(SHOP_OFFERS.some((o) => o.give.skin === fd.finalSkin)).toBe(false);
+      for (const sk of FESTIVAL_SKILLS) expect(SKILL_MAP[sk.id]).toBeDefined();
+    }
+    expect(FEST_MILESTONES.filter((m) => m.skin)).toHaveLength(1);
+    expect(FEST_MILESTONES.every((m, i) => i === 0 || m.at > FEST_MILESTONES[i - 1].at)).toBe(true);
+  });
+
+  it('путь: закрыт до 10-го уровня, этапы по порядку, повтор — за билет, 3★ — быстрый рейд', () => {
+    expect(() => act(fresh(), { type: 'fest.stage', stage: 1 })).toThrow('locked');
+    let s = ready();
+    expect(() => act(s, { type: 'fest.stage', stage: 2 })).toThrow('locked');
+    const t0 = s.cur.eventTokens;
+    let r = act(s, { type: 'fest.stage', stage: 1 });
+    s = r.state;
+    const res = r.result as { win: boolean; stars: number; reward: { points: number; first: boolean } };
+    expect(res.win).toBe(true);
+    expect(res.stars).toBe(3);
+    expect(res.reward.first).toBe(true);
+    expect(s.cur.eventTokens - t0).toBe(festFirstReward(1).tokens);
+    expect(s.festival!.points).toBe(festFirstReward(1).points + 3 * FEST_STAR_POINTS);
+    expect(s.festival!.tickets).toBe(FEST_TICKETS);
+    // повтор пройденного этапа тратит билет
+    r = act(s, { type: 'fest.stage', stage: 1 });
+    s = r.state;
+    expect(s.festival!.tickets).toBe(FEST_TICKETS - 1);
+    expect(s.quests.daily.festRaid).toBe(1);
+    // быстрый рейд
+    s = act(s, { type: 'fest.sweep', stage: 1, times: FEST_TICKETS - 1 }).state;
+    expect(s.festival!.tickets).toBe(0);
+    expect(() => act(s, { type: 'fest.sweep', stage: 1 })).toThrow('noTickets');
+    expect(() => act(s, { type: 'fest.stage', stage: 1 })).toThrow('noTickets');
+    // этап 2 открылся; на следующий день билеты снова полные
+    expect(() => act(s, { type: 'fest.stage', stage: 2 })).not.toThrow();
+    expect(festivalState({ s, cfg, now: T1 + DAY }).tickets).toBe(FEST_TICKETS);
+    // быстрый рейд — только на 3★
+    const two = { ...s, festival: { ...s.festival!, stars: [2, ...s.festival!.stars.slice(1)], tickets: 3 } };
+    expect(() => act(two, { type: 'fest.sweep', stage: 1 })).toThrow('notDone');
+  });
+
+  it('последний этап — испытание героини праздника, дающее её осколки', () => {
+    let s = ready();
+    const hero = festivalAt(T1).def.hero;
+    for (let st = 1; st <= FEST_STAGES; st++) s = act(s, { type: 'fest.stage', stage: st }).state;
+    expect(s.festival!.stars.every((x) => x === 3)).toBe(true);
+    const total = [6, 12, 18].reduce((a, st) => a + festFirstReward(st).shards, 0);
+    expect(s.shards[hero]).toBe(total);
+    const units = festStageEnemies(cfg, festivalAt(T1).def, s.festival!.lvl, FEST_STAGES);
+    expect(units.some((u) => u.kind === 'boss' && u.ref === festivalAt(T1).def.trialBoss)).toBe(true);
+    expect(festGoalValue(s, s.festival!, 'stars')).toBe(54);
+  });
+
+  it('босс праздника: урон копится, победа поднимает уровень; три попытки в день', () => {
+    let s = ready(false);
+    // враги праздника считаются от этапа фарма: пусть он будет выше силы отряда
+    s = { ...s, progress: { ...s.progress, maxGlobal: 80, maxGlobalEver: 80 } };
+    const b0 = festBoss({ s, cfg, now: T1 });
+    let r = act(s, { type: 'fest.boss' });
+    s = r.state;
+    const res = r.result as { dmg: number; killed: boolean };
+    expect(res.dmg).toBeGreaterThan(0);
+    expect(res.killed).toBe(false);
+    expect(s.festival!.boss.dmg).toBe(res.dmg);
+    expect(festBoss({ s, cfg, now: T1 }).left).toBe(b0.hp - res.dmg);
+    // добиваем
+    s = { ...s, dev: { ...s.dev, oneShot: true } };
+    r = act(s, { type: 'fest.boss', tactic: 'assault' });
+    s = r.state;
+    expect((r.result as { killed: boolean }).killed).toBe(true);
+    expect(s.festival!.boss).toMatchObject({ lvl: 2, dmg: 0, kills: 1, used: 2 });
+    expect(s.shards[festivalAt(T1).def.hero]).toBe(festBossReward(1, true).shards);
+    expect(festBoss({ s, cfg, now: T1 }).level).toBeGreaterThan(b0.level);
+    s = act(s, { type: 'fest.boss' }).state;
+    expect(() => act(s, { type: 'fest.boss' })).toThrow('noAttempts');
+    expect(() => act(s, { type: 'fest.boss' }, T1 + DAY)).not.toThrow();
+  });
+
+  it('задания дня и цели праздника', () => {
+    let s = ready();
+    const ids = festDailyTasks(dayKey(T1), festivalAt(T1).cycle);
+    expect(new Set(ids).size).toBe(4);
+    expect(FEST_TASKS_FEST.map((t) => t.id)).toContain(ids[0]);
+    expect(festDailyTasks(dayKey(T1), festivalAt(T1).cycle)).toEqual(ids);
+    expect(() => act(s, { type: 'fest.task', id: ids[1] })).toThrow('notDone');
+    expect(() => act(s, { type: 'fest.task', id: 'nope' })).toThrow(GameError);
+    const t = FEST_TASK_MAP[ids[1]];
+    s = act(s, { type: 'sync' }).state;
+    s = { ...s, quests: { ...s.quests, daily: { ...s.quests.daily, [t.counter]: t.target } } };
+    expect(festClaimable({ s, cfg, now: T1 })).toBe(1);
+    s = act(s, { type: 'fest.task', id: ids[1] }).state;
+    expect(s.festival!.tasksDone).toBe(1);
+    expect(s.festival!.points).toBe(FEST_TASK_REWARD.points);
+    expect(() => act(s, { type: 'fest.task', id: ids[1] })).toThrow('claimed');
+    // цели считают общие счётчики с начала праздника
+    const g = FEST_GOALS.find((x) => x.metric === 'bossWin')!;
+    expect(() => act(s, { type: 'fest.goal', id: g.id })).toThrow('notDone');
+    s = { ...s, counters: { ...s.counters, bossWin: (s.festival!.base.bossWin ?? 0) + g.target } };
+    const r = act(s, { type: 'fest.goal', id: g.id });
+    expect(r.state.festival!.points).toBe(s.festival!.points + g.points);
+    expect(() => act(r.state, { type: 'fest.goal', id: g.id })).toThrow('claimed');
+  });
+
+  it('шкала наград: всё разом, финальный облик; повторно — кристаллы', () => {
+    let s = ready();
+    s = act(s, { type: 'sync' }).state;
+    const fd = festivalAt(T1).def;
+    s = { ...s, festival: { ...festivalState({ s, cfg, now: T1 }), points: 100000 } };
+    const r = act(s, { type: 'fest.claim', index: 'all' });
+    expect(r.state.festival!.claimed).toHaveLength(FEST_MILESTONES.length);
+    expect(r.state.skins).toContain(fd.finalSkin);
+    expect(r.state.shards[fd.hero]).toBe(FEST_MILESTONES.reduce((a, m) => a + (m.shards ?? 0), 0));
+    expect(() => act(r.state, { type: 'fest.claim', index: 'all' })).toThrow('notDone');
+    // облик уже есть — финальная ступень даёт кристаллы
+    const again = { ...s, skins: [...s.skins, fd.finalSkin] };
+    const c0 = again.cur.crystals;
+    const last = act(again, { type: 'fest.claim', index: FEST_MILESTONES.length - 1 });
+    expect(last.state.cur.crystals - c0).toBe(500 + (FEST_MILESTONES[FEST_MILESTONES.length - 1].cur?.crystals ?? 0));
+  });
+
+  it('лавка праздника: осколки героини, лимит на праздник, облики — навсегда', () => {
+    let s = ready();
+    s = { ...s, cur: { ...s.cur, eventTokens: 100000 } };
+    const { def, offers } = festShopNow(T1);
+    const sh = offers.find((o) => o.give.shards)!;
+    for (let i = 0; i < sh.limit; i++) s = act(s, { type: 'fest.buy', offer: sh.id }).state;
+    expect(s.shards[def.hero]).toBe(sh.limit * sh.give.shards!);
+    expect(() => act(s, { type: 'fest.buy', offer: sh.id })).toThrow('limitReached');
+    const skin = offers.find((o) => o.give.skin)!;
+    s = act(s, { type: 'fest.buy', offer: skin.id }).state;
+    expect(s.skins).toContain(skin.give.skin);
+    expect(() => act(s, { type: 'fest.buy', offer: skin.id })).toThrow(GameError);
+    // через три праздника (тот же праздник по кругу) лимит осколков снова свободен
+    const later = T1 + 3 * FESTIVAL_DAYS * DAY;
+    expect(festivalAt(later).def.id).toBe(def.id);
+    expect(() => act(s, { type: 'fest.buy', offer: sh.id }, later)).not.toThrow();
+    expect(festBought(s, sh.id, undefined, festivalAt(T1).cycle)).toBe(sh.limit);
+  });
+
+  it('новый праздник начинается с чистого листа и фиксирует уровень врагов', () => {
+    let s = ready();
+    s = act(s, { type: 'fest.stage', stage: 1 }).state;
+    expect(s.festival!.points).toBeGreaterThan(0);
+    const next = T1 + FESTIVAL_DAYS * DAY;
+    const f = festivalState({ s, cfg, now: next });
+    expect(f.cycle).toBe(s.festival!.cycle + 1);
+    expect(f.points).toBe(0);
+    expect(f.stars.every((x) => x === 0)).toBe(true);
+    expect(festStageLevel(f.lvl, 1)).toBeLessThan(festStageLevel(f.lvl, 17));
+    s = act(s, { type: 'fest.stage', stage: 1 }, next).state;
+    expect(s.festival!.cycle).toBe(f.cycle);
+  });
+});
+
+describe('свойства элиты', () => {
+  it('появляются с 11-го этапа: Normal — одно, Hard/Nightmare — два; владычицы — только на Hard/Nightmare', () => {
+    expect(stageAffixes(stageRef(0, 10))).toEqual([]);
+    const n = stageAffixes(stageRef(0, 12));
+    expect(n).toHaveLength(1);
+    expect(stageAffixes(stageRef(0, 12))).toEqual(n);
+    expect(stageAffixes(stageRef(1, 12))).toHaveLength(2);
+    expect(stageAffixes(stageRef(0, 20))).toEqual([]);
+    expect(stageAffixes(stageRef(2, 20))).toHaveLength(1);
+    for (let i = 11; i <= 60; i++) for (const id of stageAffixes(stageRef(0, i))) expect(ELITE_AFFIX_MAP[id]).toBeDefined();
+  });
+
+  it('босс этапа получает свойства, свита — нет', () => {
+    for (let i = 11; i <= 40; i++) {
+      const ref = stageRef(1, i);
+      const ids = stageAffixes(ref);
+      const units = bossUnits(cfg, ref);
+      const boss = units.find((u) => u.kind !== 'enemy')!;
+      const plain = withAffixes(boss, []);
+      expect(plain).toBe(boss);
+      for (const id of ids) {
+        const a = ELITE_AFFIX_MAP[id];
+        if (a.fx) expect(boss.fx.some((f) => f.id === a.fx!.id)).toBe(true);
+        if (a.lifesteal) expect(boss.stats.lifesteal).toBeGreaterThanOrEqual(a.lifesteal);
+      }
+      expect(units.filter((u) => u.kind === 'enemy').every((u) => u.fx.length === 0)).toBe(true);
+    }
   });
 });

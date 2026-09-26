@@ -4,6 +4,7 @@ import styles from './App.module.css';
 import { portraitUrl } from './art/runtime';
 import { HeroImg } from './components/HeroImg';
 import { newsPending, openNews } from './components/News';
+import { announceFestival } from './screens/modes/Festival';
 import { Bar, Button, Icon, ModalHost, Toasts, cx } from './components/ui';
 import { t } from './i18n';
 import { BattleTab } from './screens/BattleTab';
@@ -65,6 +66,8 @@ function Game() {
     const stop = startDirector();
     initAudio();
     const g = useGame.getState();
+    // анонс праздника — раз на праздник; поверх него «Что нового» и «Пока вас не было»
+    announceFestival();
     // «Что нового» — один раз после обновления (под окном «Пока вас не было»)
     if (newsPending(g.state!.settings.news)) openNews();
     if (shouldWelcome(g.state!, g.cfg!, g.sessionLastSeen, g.now())) {

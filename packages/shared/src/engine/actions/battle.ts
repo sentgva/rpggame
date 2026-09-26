@@ -1,4 +1,4 @@
-import { ACTS, ACT_BOSSES, STAGES_PER_DIFF, stageRef, type StageRef } from '../../content';
+import { ACTS, ACT_BOSSES, AFFIX_REWARD, STAGES_PER_DIFF, stageAffixes, stageRef, type StageRef } from '../../content';
 import { activeArtifacts } from './artifacts';
 import { mixSeed } from '../../rng';
 import type { Difficulty } from '../../types';
@@ -169,8 +169,10 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
   const { s, cfg } = ctx;
   const R = cfg.rewards;
   const L = powerLevel(cfg, ref.n);
-  const gold = Math.floor(goldPerMin(cfg, s, L) * R.bossGoldMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
-  const xp = Math.floor(xpPerMin(cfg, s, L) * R.bossXpMin * (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1));
+  // свойства элиты: за каждое — прибавка к золоту и опыту
+  const k = (ref.kind === 'boss' ? 3 : ref.kind === 'mini' ? 1.5 : 1) * (1 + AFFIX_REWARD * stageAffixes(ref).length);
+  const gold = Math.floor(goldPerMin(cfg, s, L) * R.bossGoldMin * k);
+  const xp = Math.floor(xpPerMin(cfg, s, L) * R.bossXpMin * k);
   const cur: Record<string, number> = { gold, xp };
   // кристаллы и осколки — только за первое прохождение (не повторяются после Вознесения)
   const first = ref.n > s.progress.maxGlobalEver;

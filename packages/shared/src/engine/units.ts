@@ -1,5 +1,5 @@
 import type { Config } from '../config';
-import { ACTS, CLASSES, ENEMY_MAP, HEROINE_MAP, ROLE_STATS, SKILL_MAP, STAGES_PER_DIFF, type EnemyDef, type EnemyMod, type StageRef } from '../content';
+import { ACTS, ELITE_AFFIX_MAP, CLASSES, ENEMY_MAP, HEROINE_MAP, ROLE_STATS, SKILL_MAP, STAGES_PER_DIFF, stageAffixes, type EnemyDef, type EnemyMod, type StageRef } from '../content';
 import { Rng, mixSeed } from '../rng';
 import type { ClassId, FinalStats, PlayerState, SpecialEffect, Stats } from '../types';
 import type { SkillRef, UnitInit, UnitKind } from './battle';
@@ -217,7 +217,29 @@ export function bossUnits(cfg: Config, ref: StageRef): UnitInit[] {
   else if (ref.kind === 'mini') boss = { id: act.minis[ref.stage / 5 - 1], tier: 'mini' };
   else boss = { id: rng.pick(act.enemies), tier: 'elite' };
   const adds = [rng.pick(act.enemies), rng.pick(act.enemies)];
-  return arrange(cfg, powerLevel(cfg, ref.n), [boss, ...adds.map((id) => ({ id, tier: 'normal' as EnemyTier }))]);
+  const units = arrange(cfg, powerLevel(cfg, ref.n), [boss, ...adds.map((id) => ({ id, tier: 'normal' as EnemyTier }))]);
+  const affixes = stageAffixes(ref);
+  return units.map((u) => (u.ref === boss.id && u.kind !== 'enemy' ? withAffixes(u, affixes) : u));
+}
+
+/** Свойства элиты: характеристики и особые эффекты поверх обычного босса. */
+export function withAffixes(u: UnitInit, ids: string[]): UnitInit {
+  if (!ids.length) return u;
+  const st = { ...u.stats };
+  const fx = [...u.fx];
+  for (const id of ids) {
+    const a = ELITE_AFFIX_MAP[id];
+    if (!a) continue;
+    if (a.hp) st.hp = Math.round(st.hp * a.hp);
+    if (a.atk) st.atk = Math.round(st.atk * a.atk);
+    if (a.def) st.def = Math.round(st.def * a.def);
+    st.spd += a.spd ?? 0;
+    st.lifesteal += a.lifesteal ?? 0;
+    st.crit += a.crit ?? 0;
+    st.critDmg += a.critDmg ?? 0;
+    if (a.fx) fx.push(a.fx);
+  }
+  return { ...u, stats: st, fx };
 }
 
 /** Произвольный отряд врагов уровня силы L (подземелья, Башня, Бездна, Лабиринт). */

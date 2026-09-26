@@ -44,7 +44,7 @@ const DAY_NAMES_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const dayName = (el: Element) => (document.documentElement.lang === 'en' ? DAY_NAMES_EN : DAY_NAMES_RU)[RIFT_ROTATION.indexOf(el)];
 
 /** Бой в режиме: реплей в модальном окне, итог — свой заголовок и награды. */
-async function playMode(type: string, params: Record<string, unknown>, title: string, act: number, render: (res: any) => { outcome?: React.ReactNode; result?: React.ReactNode }) {
+export async function playMode(type: string, params: Record<string, unknown>, title: string, act: number, render: (res: any) => { outcome?: React.ReactNode; result?: React.ReactNode }) {
   // ручные ульты: бой идёт вживую, действие уходит на сервер после боя
   if (manualEnabled()) {
     showBattle({ live: { type, params, render }, act, title });

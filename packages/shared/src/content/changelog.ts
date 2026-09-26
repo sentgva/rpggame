@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-26g',
+    date: '26.09.2026',
+    title: { ru: 'Праздники Легиона', en: 'Legion Festivals' },
+    items: [
+      { ru: '🌕 Большой ивент: каждые две недели — новый праздник. Первый — «Кровавая Луна», дальше «Праздник Приливов» и «Цветение Сакуры»', en: '🌕 A big event: a new festival every two weeks. First up is "Blood Moon", then the "Tide Festival" and "Sakura Bloom"' },
+      { ru: '💃 Три новые UR-героини — Селена, Амфитрита и Цубаки. В призыве их нет: только за награды своего праздника', en: '💃 Three new UR heroines — Selene, Amphitrite and Tsubaki. Not in summons: only from their own festival\'s rewards' },
+      { ru: '🗺 Путь праздника: 18 этапов в трёх главах, у каждого — свои условия, звёзды за бой без потерь, в финале — испытание героини', en: '🗺 The festival trail: 18 stages in three chapters, each with its own conditions, stars for flawless wins and a heroine\'s trial at the end' },
+      { ru: '👹 Босс-колосс праздника: урон копится между боями, после победы босс становится сильнее', en: '👹 A festival colossus boss: damage carries over between fights, and it grows stronger after each defeat' },
+      { ru: '📜 Задания дня, цели праздника, шкала из 25 наград с особым обликом в финале и лавка за жетоны ивента', en: '📜 Daily tasks, festival goals, a 25-step reward track with a special skin at the end, and a shop for event tokens' },
+      { ru: '💀 Кампания стала сложнее: у боссов этапов появились свойства элиты (броня, вампиризм, шипы, щит…), за каждое — +20% награды', en: '💀 The campaign is tougher: stage bosses now have elite traits (armor, lifesteal, thorns, shields…), each worth +20% reward' },
+      { ru: '👗 Облики «Горничная ада», «Чёрная роза», «Полдень», «Нуар», «Жемчужная», «Коралловый риф» и «Звезда сцены» теперь с настоящими нарядами, а не просто другого цвета', en: '👗 The "Infernal Maid", "Black Rose", "High Noon", "Noir", "Pearl", "Coral Reef" and "Stage Star" skins now have real outfits instead of just new colours' },
+    ],
+  },
+  {
     id: '2026-09-26f',
     date: '26.09.2026',
     title: { ru: 'Привычный облик, только удобнее', en: 'The familiar look, only handier' },

@@ -57,6 +57,8 @@ export interface HeroineDef {
    * Не выпадает в призыве — осколки дают Разлом Колосса, Стихийные шпили и Нашествие.
    */
   herald?: boolean;
+  /** Героиня праздника: не выпадает в призыве — осколки дают только награды своего праздника. */
+  festival?: string;
 }
 
 const SK = { fair: '#F4D3B8', light: '#EBC09C', tan: '#C98E62', dark: '#8A5A3C', pale: '#E8DCE8', blue: '#9FC4E0', green: '#A9D19A', ash: '#B8B0C8' };
@@ -420,14 +422,42 @@ HEROINES.push(
   },
 );
 
+/** Героини праздников Легиона: приходят только со своим праздником (раз в шесть недель). */
+HEROINES.push(
+  {
+    ...h('selene', 'Селена', 'Selene', 'archer', 'dark', 'UR',
+      { ru: 'Охотница Кровавой Луны', en: 'Huntress of the Blood Moon' },
+      { ru: 'Бессмертная охотница, что просыпается лишь в ночь Кровавой Луны. Её серебряные стрелы не знают промаха, а сама она не знает слова «скромность».', en: 'An undying huntress who wakes only on the night of the Blood Moon. Her silver arrows never miss — and she has never heard the word "modesty".' },
+      { ru: 'Луна сегодня алая, Командор. Значит, охота будет доброй.', en: 'The moon is red tonight, Commander. The hunt will be good.' },
+      { hair: '#E8E0F4', style: 'long', skin: SK.pale, eyes: '#E03A4A', outfit: '#5A0E1E', trim: '#D8D0E8', acc: 'tiara', accColor: '#E03A4A', extra: 'darkWings', wear: 'gown' }),
+    festival: 'bloodmoon',
+  },
+  {
+    ...h('amphitrite', 'Амфитрита', 'Amphitrite', 'guardian', 'water', 'UR',
+      { ru: 'Владычица Приливов', en: 'Sovereign of the Tides' },
+      { ru: 'Морская царица, чей трезубец усмиряет штормы. Раз в год она выходит на берег — на Праздник Приливов — и выбирает себе чемпиона.', en: 'A sea queen whose trident calms the storms. Once a year she walks ashore for the Tide Festival — and chooses a champion.' },
+      { ru: 'Волны расступятся перед тобой, если я попрошу. Попроси меня, Командор.', en: 'The waves will part for you if I ask. So ask me, Commander.' },
+      { hair: '#2AB0C0', style: 'long', skin: SK.fair, eyes: '#6FF0E0', outfit: '#0E5A7A', trim: '#F2D46B', acc: 'crown', accColor: '#F2D46B', extra: 'none', wear: 'regalia' }),
+    festival: 'tides',
+  },
+  {
+    ...h('tsubaki', 'Цубаки', 'Tsubaki', 'assassin', 'nature', 'UR',
+      { ru: 'Клинок Сакуры', en: 'Blade of the Sakura' },
+      { ru: 'Странствующая мечница в лепестковом кимоно. Говорят, там, где пал её враг, на следующий день зацветает сакура.', en: 'A wandering swordswoman in a petal kimono. They say a sakura blooms the next day wherever her foe has fallen.' },
+      { ru: 'Один лепесток — один удар. Считай, если успеешь.', en: 'One petal, one strike. Count them — if you can keep up.' },
+      { hair: '#F4A8C8', style: 'ponytail', skin: SK.fair, eyes: '#C0306A', outfit: '#F2E6F0', trim: '#C0306A', acc: 'flower', accColor: '#F4B8CC', extra: 'none', wear: 'yukata' }),
+    festival: 'sakura',
+  },
+);
+
 export const HERALDS = HEROINES.filter((x) => x.herald);
 export const HERALD_BY_ELEMENT: Record<Element, string> = Object.fromEntries(HERALDS.map((x) => [x.element, x.id])) as Record<Element, string>;
 
 export const HEROINE_MAP: Record<string, HeroineDef> = Object.fromEntries(HEROINES.map((x) => [x.id, x]));
 
-/** Пул призыва — только обычные героини (владычицы — через Кошмар). */
+/** Пул призыва — только обычные героини (владычицы — через Кошмар, вестницы и героини праздников — в своих режимах). */
 export const SUMMON_POOL: Record<HeroRarity, string[]> = { R: [], SR: [], SSR: [], UR: [] };
-for (const x of HEROINES) if (!x.boss && !x.herald) SUMMON_POOL[x.rarity].push(x.id);
+for (const x of HEROINES) if (!x.boss && !x.herald && !x.festival) SUMMON_POOL[x.rarity].push(x.id);
 
 /** Стартовые героини: Лира выдаётся в обучении. */
 export const STARTER_HEROINES = ['lira', 'coral', 'seyra', 'hanna'];
@@ -455,19 +485,19 @@ export const SKINS: SkinDef[] = [
   { id: 'nox_bunny', hero: 'nox', name: { ru: 'Лунный кролик', en: 'Moon Rabbit' }, look: { acc: 'catEars', accColor: '#EDEAF2', outfit: '#3A2E4A' }, source: 'shop', crystals: 3000 },
   { id: 'velvet_bride', hero: 'velvet', name: { ru: 'Призрачная невеста', en: 'Ghost Bride' }, look: { outfit: '#E6E0F0', trim: '#9B4DE0', accColor: '#F2F0E6' }, source: 'shop', crystals: 4000 },
   { id: 'isolde_spring', hero: 'isolde', name: { ru: 'Весенняя оттепель', en: 'Spring Thaw' }, look: { outfit: '#6FB07A', trim: '#F4B8CC', hair: '#F4E0F0' }, source: 'shop', crystals: 4000 },
-  { id: 'mirabel_pearl', hero: 'mirabel', name: { ru: 'Жемчужная', en: 'Pearl' }, look: { outfit: '#F2E0F0', trim: '#F2F0E6' }, source: 'tower' },
+  { id: 'mirabel_pearl', hero: 'mirabel', name: { ru: 'Жемчужная', en: 'Pearl' }, look: { wear: 'silk', hair: '#F2E0F0', outfit: '#F2E0F0', trim: '#F2F0E6', acc: 'crown', accColor: '#F2F0E6' }, source: 'tower' },
   { id: 'keira_winter', hero: 'keira', name: { ru: 'Зимняя руна', en: 'Winter Rune' }, look: { hair: '#E0E6F0', outfit: '#3A4A6A', trim: '#6FD0E0' }, source: 'tower' },
   { id: 'seyra_autumn', hero: 'seyra', name: { ru: 'Осенний лист', en: 'Autumn Leaf' }, look: { outfit: '#8A4A1E', trim: '#F08A24', accColor: '#8A4A1E' }, source: 'tower' },
-  { id: 'hanna_star', hero: 'hanna', name: { ru: 'Звезда сцены', en: 'Stage Star' }, look: { outfit: '#9B4DE0', trim: '#F2D46B' }, source: 'labyrinth' },
+  { id: 'hanna_star', hero: 'hanna', name: { ru: 'Звезда сцены', en: 'Stage Star' }, look: { wear: 'dancer', outfit: '#9B4DE0', trim: '#F2D46B', acc: 'tiara', accColor: '#F2D46B' }, source: 'labyrinth' },
   { id: 'rin_night', hero: 'rin', name: { ru: 'Ночная сакура', en: 'Night Sakura' }, look: { outfit: '#1E1A2A', trim: '#E890B0', hair: '#F2F0E6' }, source: 'labyrinth' },
   { id: 'aurora_eclipse', hero: 'aurora', name: { ru: 'Затмение', en: 'Eclipse' }, look: { outfit: '#1E1A2A', trim: '#F2D46B', hair: '#2A2036' }, source: 'shop', crystals: 4000 },
   { id: 'seraphina_dark', hero: 'seraphina', name: { ru: 'Падший серафим', en: 'Fallen Seraph' }, look: { outfit: '#1E1420', trim: '#E03A3A', hair: '#EDEAF2', extra: 'darkWings' }, source: 'event' },
-  { id: 'lilith_maid', hero: 'lilith', name: { ru: 'Горничная ада', en: 'Infernal Maid' }, look: { outfit: '#1E1A1A', trim: '#F2F0E6' }, source: 'shop', crystals: 3000 },
-  { id: 'liora_sun', hero: 'liora', name: { ru: 'Полдень', en: 'High Noon' }, look: { outfit: '#F2D46B', trim: '#FFFFFF' }, source: 'arena' },
-  { id: 'carmen_noir', hero: 'carmen', name: { ru: 'Нуар', en: 'Noir' }, look: { outfit: '#1E1A1A', trim: '#E03A3A' }, source: 'labyrinth' },
+  { id: 'lilith_maid', hero: 'lilith', name: { ru: 'Горничная ада', en: 'Infernal Maid' }, look: { wear: 'maid', acc: 'maidBand', accColor: '#F2F0E6', outfit: '#1E1A1A', trim: '#F2F0E6' }, source: 'shop', crystals: 3000 },
+  { id: 'liora_sun', hero: 'liora', name: { ru: 'Полдень', en: 'High Noon' }, look: { wear: 'silk', outfit: '#F2D46B', trim: '#FFFFFF', acc: 'sunHat', accColor: '#F2E6D8' }, source: 'arena' },
+  { id: 'carmen_noir', hero: 'carmen', name: { ru: 'Нуар', en: 'Noir' }, look: { wear: 'gown', outfit: '#1E1A1A', trim: '#E03A3A', acc: 'veil', accColor: '#1E1A1A' }, source: 'labyrinth' },
   { id: 'celestine_nova', hero: 'celestine', name: { ru: 'Сверхновая', en: 'Supernova' }, look: { outfit: '#F2F0E6', trim: '#9B4DE0' }, source: 'tower' },
-  { id: 'lorelei_coral', hero: 'lorelei', name: { ru: 'Коралловый риф', en: 'Coral Reef' }, look: { outfit: '#E07A6A', trim: '#F2E6D8' }, source: 'arena' },
-  { id: 'belladonna_rose', hero: 'belladonna', name: { ru: 'Чёрная роза', en: 'Black Rose' }, look: { outfit: '#1E1420', trim: '#E03A3A' }, source: 'event' },
+  { id: 'lorelei_coral', hero: 'lorelei', name: { ru: 'Коралловый риф', en: 'Coral Reef' }, look: { wear: 'dancer', hair: '#E07A6A', outfit: '#E07A6A', trim: '#F2E6D8', acc: 'flower', accColor: '#F2E6D8' }, source: 'arena' },
+  { id: 'belladonna_rose', hero: 'belladonna', name: { ru: 'Чёрная роза', en: 'Black Rose' }, look: { wear: 'gown', hair: '#1E1420', outfit: '#1E1420', trim: '#E03A3A', acc: 'flower', accColor: '#E03A3A', extra: 'vines' }, source: 'event' },
   { id: 'sigrid_valk', hero: 'sigrid', name: { ru: 'Валькирия', en: 'Valkyrie' }, look: { outfit: '#C0C8D8', trim: '#E0A13A', acc: 'helmet', accColor: '#E0E6F0', extra: 'wings' }, source: 'pass' },
 ];
 
@@ -509,7 +539,7 @@ const LINGERIE: SetSkin[] = [
   ['ravenna', 'lace4', 'none', '#8A1E2A', '#F2D46B', 'Алый бархат', 'Crimson Velvet'],
   ['sigrid', 'lace', null, '#3A4A6A', '#F2F0E6', 'Северное сияние', 'Northern Lights'],
   ['valeska', 'lace3', null, '#E03A3A', '#1E1A1A', 'Роковая', 'Femme Fatale'],
-  ['lilith', 'lace4', null, '#1E1A1A', '#E03A3A', 'Адское искушение', 'Infernal Temptation'],
+  ['lilith', 'lace4', null, '#C0203A', '#1E1A1A', 'Адское искушение', 'Infernal Temptation'],
   ['veyla', 'lace2', null, '#7ACF5A', '#F2E6D8', 'Лесная нимфа', 'Forest Nymph'],
   ['celestine', 'lace', null, '#9B4DE0', '#F2D46B', 'Звёздная ночь', 'Starry Night'],
   ['melisandre', 'lace3', null, '#2A1A2A', '#E890B0', 'Ночная ведьма', 'Night Witch'],

@@ -1,5 +1,6 @@
 import { ACT_BOSSES, ENEMY_SKILLS } from './acts';
 import { CLASS_SKILLS } from './classes';
+import { FESTIVAL_SKILLS } from './festival';
 import type { SkillDef } from './effects';
 import { HEROINE_MAP } from './heroines';
 import { TREE_SKILLS } from './trees';
@@ -21,9 +22,11 @@ for (const b of ACT_BOSSES) {
 }
 
 export const SKILL_MAP: Record<string, SkillDef> = Object.fromEntries(
-  [...CLASS_SKILLS, ...TREE_SKILLS, ...ENEMY_SKILLS].map((s) => [s.id, s]),
+  [...CLASS_SKILLS, ...TREE_SKILLS, ...ENEMY_SKILLS, ...FESTIVAL_SKILLS].map((s) => [s.id, s]),
 );
 export * from './encounters';
 export * from './changelog';
 export * from './bond';
 export * from './artifacts';
+export * from './festival';
+export * from './affixes';

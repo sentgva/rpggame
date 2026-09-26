@@ -141,7 +141,7 @@ export const economyActions = {
     if (offer.give.shardsRarity) {
       heroForShards = vStr(a.hero, 'hero');
       const def = HEROINE_MAP[heroForShards];
-      assert(def && !def.boss && !def.herald && def.rarity === offer.give.shardsRarity, 'badParam', { name: 'hero' });
+      assert(def && !def.boss && !def.herald && !def.festival && def.rarity === offer.give.shardsRarity, 'badParam', { name: 'hero' });
     }
     spend(ctx, offer.cost);
     s.shop.bought[key] = bought + 1;

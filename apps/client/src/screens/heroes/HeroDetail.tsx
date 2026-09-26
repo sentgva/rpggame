@@ -1,5 +1,7 @@
 import {
   RIFT_ROTATION,
+  FESTIVAL_MAP,
+  type FestivalId,
   CLASSES,
   EQUIP_SLOTS,
   HEROINE_MAP,
@@ -352,7 +354,9 @@ function NotOwned({ id }: { id: string }) {
           <div className={css.tiny}>
             {def.herald
               ? t('hero.heraldSources', { day: riftDayName(RIFT_ROTATION.indexOf(def.element)), el: elementName(def.element) })
-              : t('summon.freeNote')}
+              : def.festival
+                ? t('fest.heroOnly', { name: tl(FESTIVAL_MAP[def.festival as FestivalId].name) })
+                : t('summon.freeNote')}
           </div>
         </div>
       </Panel>

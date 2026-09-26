@@ -978,6 +978,25 @@ export const ICONS: Record<string, string[]> = {
     '..p....pp....p..',
     '................',
   ],
+  // Праздник Легиона: бумажный фонарь
+  festival: [
+    '.......kk.......',
+    '......XLLX......',
+    '.....XRRRRX.....',
+    '....XRRZZRRX....',
+    '...XRrRZZRrRX...',
+    '...XRrRRRRrRX...',
+    '..XRRrRRRRrRRX..',
+    '..XRRrRRRRrRRX..',
+    '..XRRrRRRRrRRX..',
+    '...XRrRRRRrRX...',
+    '...XRrRRRRrRX...',
+    '....XRRRRRRX....',
+    '.....XRRRRX.....',
+    '......XLLX......',
+    '.......LL.......',
+    '......L..L......',
+  ],
   // Стихийные шпили: пять кристаллов стихий
   spire: [
     '.......Z........',
