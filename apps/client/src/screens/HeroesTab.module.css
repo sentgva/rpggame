@@ -1,0 +1,12 @@
+/* кнопки «Артефакты» и «Снаряжение» — прилипают к низу экрана */
+.dock {
+  position: sticky;
+  bottom: -14px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 -10px -14px;
+  padding: 10px 10px 12px;
+  background: linear-gradient(180deg, rgba(19, 21, 28, 0), rgba(19, 21, 28, 0.92) 30%, #13151c);
+}

@@ -1,62 +1,45 @@
-/* ——— панели: прямая стальная рамка и золотые уголки ——— */
+/* ——— панели: тёмная «страница» с тонкой рамкой и светлой кромкой сверху ——— */
 .panel {
   position: relative;
   background: linear-gradient(180deg, var(--panel-2), var(--panel-1));
   border: 1px solid var(--line);
+  border-radius: 4px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
     var(--shadow);
   padding: 12px;
-}
-/* уголки-скобки: сверху слева и снизу справа */
-.panel::before,
-.panel::after {
-  content: '';
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  pointer-events: none;
-}
-.panel::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid var(--gold);
-  border-left: 2px solid var(--gold);
-}
-.panel::after {
-  right: -1px;
-  bottom: -1px;
-  border-right: 2px solid var(--gold);
-  border-bottom: 2px solid var(--gold);
 }
 .panelTitle {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 19px;
   letter-spacing: 0.3px;
-  color: var(--text);
+  color: var(--gold-hi);
+  text-shadow: 0 1px 0 #000;
   margin: -2px 0 10px;
-  padding-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid var(--line);
 }
-/* косая золотая черта перед заголовком */
-.panelTitle::before {
-  content: '';
-  width: 5px;
-  height: 14px;
-  background: var(--gold);
-  transform: skewX(-18deg);
-  flex: none;
-}
+/* пунктир от заголовка до правого края */
 .panelTitle > .grow {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.panelTitle > .grow::after {
+  content: '';
+  flex: 1;
+  min-width: 12px;
+  height: 0;
+  border-bottom: 2px dotted rgba(201, 164, 92, 0.35);
 }
 .inset {
   background: rgba(0, 0, 0, 0.22);
   border: 1px solid var(--frame-dark);
+  border-radius: 3px;
   padding: 10px;
 }
 
@@ -68,7 +51,6 @@
   --b-lo: rgba(60, 40, 8, 0.35);
   appearance: none;
   position: relative;
-  border: 0;
   padding: 7px 16px 8px;
   min-height: 40px;
   font-family: var(--font-display);
@@ -78,10 +60,13 @@
   letter-spacing: 0.3px;
   color: var(--b-text);
   background: var(--b-bg);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
   box-shadow:
     inset 0 2px 0 var(--b-hi),
-    inset 0 -3px 0 var(--b-lo);
-  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+    inset 0 -3px 0 var(--b-lo),
+    0 2px 0 rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 0 var(--b-tsh, rgba(255, 244, 214, 0.35));
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -95,8 +80,11 @@
     filter 0.15s;
 }
 .btn:active:not(:disabled) {
-  transform: translateY(1px);
-  filter: brightness(1.1);
+  transform: translateY(2px);
+  filter: brightness(1.08);
+  box-shadow:
+    inset 0 2px 0 var(--b-lo),
+    inset 0 -1px 0 var(--b-hi);
 }
 .btn:disabled {
   filter: grayscale(0.8) brightness(0.6);
@@ -105,6 +93,7 @@
 .secondary {
   --b-bg: linear-gradient(180deg, #3a4254 0%, #2c3241 100%);
   --b-text: var(--text);
+  --b-tsh: #000;
   --b-hi: rgba(255, 255, 255, 0.1);
   --b-lo: rgba(0, 0, 0, 0.3);
 }
@@ -117,12 +106,14 @@
 .danger {
   --b-bg: linear-gradient(180deg, #d8746f 0%, #a8433f 100%);
   --b-text: #fff3ee;
+  --b-tsh: #3a0a08;
   --b-hi: rgba(255, 220, 210, 0.35);
   --b-lo: rgba(40, 0, 0, 0.3);
 }
 .ghost {
   --b-bg: rgba(255, 255, 255, 0.05);
   --b-text: var(--text);
+  --b-tsh: #000;
   --b-hi: rgba(255, 255, 255, 0.06);
   --b-lo: rgba(0, 0, 0, 0.2);
 }
@@ -271,11 +262,14 @@
     0 1px 0 #000;
 }
 
-/* ——— вкладки: косые «флажки» с золотой полосой снизу ——— */
+/* ——— вкладки: тёмная полоса, активная — золотая плашка ——— */
 .tabs {
   display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--line);
+  gap: 3px;
+  padding: 3px;
+  background: #101218;
+  border: 1px solid var(--line);
+  border-radius: 4px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -286,23 +280,26 @@
   flex: 1 0 auto;
   appearance: none;
   border: 0;
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
   color: var(--text-2);
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 17px;
-  padding: 6px 14px 5px;
+  padding: 5px 12px 4px;
+  border-radius: 3px;
   cursor: pointer;
   position: relative;
-  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   transition:
     background 0.15s,
     color 0.15s;
 }
 .tabActive {
-  color: var(--gold-hi);
-  background: linear-gradient(180deg, rgba(201, 164, 92, 0.28), rgba(201, 164, 92, 0.08));
-  box-shadow: inset 0 -2px 0 var(--gold);
+  color: #1d1608;
+  background: var(--grad-main);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 214, 0.5),
+    0 1px 0 #000;
+  text-shadow: 0 1px 0 rgba(255, 244, 214, 0.35);
 }
 
 /* ——— рамки редкости ——— */
@@ -682,7 +679,7 @@
   padding: 10px;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--frame-dark);
-  border-left: 2px solid var(--line-2);
+  border-radius: 3px;
   border-radius: 0;
 }
 .statRow {
@@ -727,7 +724,7 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
-  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  border-radius: 3px;
 }
 .chip:active {
   transform: scale(0.96);
@@ -851,4 +848,49 @@
 }
 .select {
   composes: input;
+}
+
+/* ——— заголовок экрана: плашка по центру с орнаментом ——— */
+.screenHead {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) minmax(40px, auto);
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 10px;
+}
+.plaque {
+  position: relative;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--gold-hi);
+  text-shadow: 0 2px 0 #000;
+  white-space: nowrap;
+}
+.plaque > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* золотые линии с ромбиками по сторонам */
+.plaque::before,
+.plaque::after {
+  content: '';
+  flex: none;
+  width: 34px;
+  height: 7px;
+  background:
+    linear-gradient(45deg, transparent 35%, var(--gold) 35% 65%, transparent 65%) center / 7px 7px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) center / 100% 1px no-repeat;
+  opacity: 0.8;
+}
+.headSide {
+  display: flex;
+  justify-content: flex-end;
 }

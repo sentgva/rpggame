@@ -29,10 +29,10 @@ import st from './Summon.module.css';
 
 type Banner = 'heroes' | 'artifacts';
 
-export function Summon() {
+export function Summon({ initial }: { initial?: Banner }) {
   const s = useGameState();
   const cfg = useCfg();
-  const [tab, setTab] = useState<Banner>('heroes');
+  const [tab, setTab] = useState<Banner>(initial === 'artifacts' ? 'artifacts' : 'heroes');
   const now = useGame.getState().now();
   const artOpen = isUnlocked({ s, cfg }, 'artifacts');
   return (

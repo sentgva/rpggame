@@ -87,7 +87,8 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   min-width: 64px;
-  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .plus {
   appearance: none;
@@ -121,11 +122,11 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   height: calc(var(--nav-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: linear-gradient(180deg, #1d212b, #14161d);
-  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, #20242f, #14161d);
+  border-top: 2px solid #0c0d12;
   box-shadow:
-    0 -1px 0 rgba(201, 164, 92, 0.35),
-    0 -4px 10px rgba(0, 0, 0, 0.35);
+    0 -1px 0 rgba(201, 164, 92, 0.55),
+    0 -6px 12px rgba(0, 0, 0, 0.4);
   z-index: 10;
 }
 .navBtn {
@@ -136,47 +137,57 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1px;
+  justify-content: flex-end;
+  gap: 3px;
+  padding-bottom: 7px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   position: relative;
   transition: color 0.15s;
 }
 .navBtn img {
-  width: 34px;
-  height: 34px;
-  filter: saturate(0.5) brightness(0.8);
-  transition:
-    transform 0.18s var(--ease),
-    filter 0.18s;
-}
-.navActive {
-  color: var(--gold-hi);
-  background: linear-gradient(180deg, rgba(201, 164, 92, 0.16), transparent 80%);
-}
-.navActive img {
-  filter: none;
-  transform: translateY(-2px) scale(1.08);
-}
-/* золотой «флажок» над активной вкладкой */
-.navActive::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 22%;
-  right: 22%;
-  height: 3px;
-  background: var(--gold);
-  clip-path: polygon(0 0, 100% 0, calc(100% - 3px) 100%, 3px 100%);
-  box-shadow: 0 0 8px var(--gold);
+  position: relative;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  filter: saturate(0.45) brightness(0.75);
+  transition: filter 0.18s;
 }
 .navIcon {
   position: relative;
+  display: flex;
+  transition: transform 0.22s var(--ease);
 }
-
+.navActive {
+  color: var(--gold-hi);
+}
+.navActive img {
+  filter: none;
+  width: 38px;
+  height: 38px;
+}
+/* активная вкладка поднимается в медальоне над меню */
+.navActive .navIcon {
+  transform: translateY(-14px);
+}
+.navActive .navIcon::before,
+.navActive .navIcon::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+.navActive .navIcon::before {
+  inset: -11px;
+  background: linear-gradient(180deg, #f0d59a, #b89147 55%, #7a5c24);
+  filter: drop-shadow(0 0 8px rgba(201, 164, 92, 0.55));
+}
+.navActive .navIcon::after {
+  inset: -8px;
+  background: radial-gradient(circle at 50% 40%, #3a4254, #171a22 80%);
+}
 .loading {
   height: 100%;
   display: flex;

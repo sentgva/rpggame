@@ -203,6 +203,9 @@ export const ru = {
 
   'heroes.title': 'Героини',
   'heroes.party': 'Отряд',
+  'heroes.power': 'Сила отряда',
+  'heroes.artifacts': 'Артефакты',
+  'heroes.equipment': 'Снаряжение',
   'heroes.preset': 'Пресет {n}',
   'heroes.front': 'Передний ряд',
   'heroes.back': 'Задний ряд',

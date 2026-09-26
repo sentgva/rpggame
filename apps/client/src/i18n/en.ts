@@ -205,6 +205,9 @@ export const en: typeof ru = {
 
   'heroes.title': 'Heroines',
   'heroes.party': 'Party',
+  'heroes.power': 'Squad power',
+  'heroes.artifacts': 'Artifacts',
+  'heroes.equipment': 'Equipment',
   'heroes.preset': 'Preset {n}',
   'heroes.front': 'Front row',
   'heroes.back': 'Back row',

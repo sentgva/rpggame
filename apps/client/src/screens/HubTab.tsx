@@ -1,4 +1,5 @@
 import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, achievementClaimable, artifactFreeReady, bondState, isUnlocked } from '@idle/shared';
+import { BannerButton } from '../components/BannerButton';
 import { HeroImg } from '../components/HeroImg';
 import { openNews } from '../components/News';
 import { Icon, css } from '../components/ui';
@@ -27,7 +28,7 @@ export default function HubTab() {
   const top = stack[stack.length - 1];
   switch (top?.id) {
     case 'summon':
-      return <Summon />;
+      return <Summon initial={top.params?.tab} />;
     case 'shop':
       return <Shop initial={top.params?.tab} />;
     case 'quests':
@@ -106,13 +107,7 @@ function HubRoot() {
 
       <div className={st.main}>
         {main.map((it) => (
-          <button key={it.id} className={st.mainTile} style={{ ['--tint' as string]: it.tint }} onClick={() => open(it.id)}>
-            <span className={st.mainIcon}>
-              <Icon name={it.icon} size={52} />
-            </span>
-            <span className={st.mainLabel}>{it.label}</span>
-            {it.badge && <span className={css.dot} style={{ top: 9, right: 9 }} />}
-          </button>
+          <BannerButton key={it.id} icon={<Icon name={it.icon} size={56} />} label={it.label} tint={it.tint} badge={it.badge} onClick={() => open(it.id)} />
         ))}
       </div>
 

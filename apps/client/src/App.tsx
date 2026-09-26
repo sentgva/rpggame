@@ -175,4 +175,5 @@ const dotStyle: React.CSSProperties = {
   background: 'var(--edge)',
   transform: 'rotate(45deg)',
   boxShadow: '0 0 0 1.5px #14161d, 0 0 6px rgba(208,97,94,.7)',
+  zIndex: 3,
 };

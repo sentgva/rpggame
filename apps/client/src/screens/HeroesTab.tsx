@@ -6,17 +6,22 @@ import {
   HEROINE_MAP,
   HERO_RARITIES,
   buildHeroine,
+  formatNum,
+  isUnlocked,
   partySlots,
   type ClassId,
   type Element,
   type HeroRarity,
 } from '@idle/shared';
 import { useMemo, useState } from 'react';
+import { ArtifactIcon } from '../components/ArtifactIcon';
+import { BannerButton } from '../components/BannerButton';
 import { HeroImg } from '../components/HeroImg';
 import { Button, HeroCard, Icon, Panel, Tabs, css, cx } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
-import { useUi } from '../store/ui';
+import { navigate, useUi } from '../store/ui';
+import st from './HeroesTab.module.css';
 import { haptic } from '../tg/telegram';
 import { HeroDetail } from './heroes/HeroDetail';
 
@@ -98,8 +103,18 @@ function HeroesRoot() {
     ...Object.entries(classes).filter(([, n]) => n >= 2).map(([c]) => ({ icon: c, text: tl(CLASSES[c as ClassId].synergyText) })),
   ];
 
+  const power = slots.reduce((sum, id) => sum + (id && s.heroines[id] ? buildHeroine(cfg, s, s.heroines[id]).power : 0), 0);
+  const artOpen = isUnlocked({ s, cfg }, 'artifacts');
+
   return (
-    <div className={css.col}>
+    <div className={css.col} style={{ paddingBottom: 4 }}>
+      <div className={css.screenHead} style={{ gridTemplateColumns: '1fr', marginBottom: 0 }}>
+        <div className={css.plaque}>
+          <span>
+            {t('heroes.power')}: {formatNum(power)}
+          </span>
+        </div>
+      </div>
       <Panel
         title={t('heroes.party')}
         right={
@@ -223,6 +238,17 @@ function HeroesRoot() {
           </div>
         </>
       )}
+      <div className={st.dock}>
+        <BannerButton
+          icon={<ArtifactIcon id="aether_prism" size={44} dim={!artOpen} />}
+          label={t('heroes.artifacts')}
+          compact
+          tint="#9b8ac4"
+          locked={!artOpen}
+          onClick={() => (artOpen ? navigate('hub', { id: 'summon', params: { tab: 'artifacts' } }) : useUi.getState().toast(t('art.locked', { stage: cfg.unlocks.stage.artifacts })))}
+        />
+        <BannerButton compact icon={<Icon name="weapon" size={46} />} label={t('heroes.equipment')} tint="#c9a45c" onClick={() => navigate('gear')} />
+      </div>
     </div>
   );
 }

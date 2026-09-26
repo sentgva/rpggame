@@ -16,8 +16,8 @@ import { Icon, Panel, Sheet, Tabs, css, cx } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
-import { haptic } from '../tg/telegram';
 import { ModeScreen, MODES } from './modes/Modes';
+import { BannerButton } from '../components/BannerButton';
 
 export default function MapTab() {
   const stack = useUi((u) => u.stacks.map);
@@ -112,40 +112,39 @@ function MapRoot() {
         </div>
       </Panel>
 
-      <Panel title={t('map.modes')}>
-        <div className={css.list}>
-          {MODES.map((m) => {
-            const unlocked = m.feature ? isUnlocked({ s, cfg }, m.feature) : true;
-            const need = m.feature
-              ? (cfg.unlocks.stage as Record<string, number>)[m.feature] !== undefined
-                ? t('common.unlocksAt', { stage: stageText((cfg.unlocks.stage as Record<string, number>)[m.feature]) })
-                : t('common.unlocksLvl', { lvl: (cfg.unlocks.level as Record<string, number>)[m.feature] })
-              : '';
-            return (
-              <div
-                key={m.id}
-                className={css.listItem}
-                style={{ cursor: 'pointer', opacity: unlocked ? 1 : 0.55 }}
-                onClick={() => {
-                  haptic.tap();
-                  if (!unlocked) return useUi.getState().toast(need, 'info');
-                  useUi.getState().push({ id: m.id });
-                }}
-              >
-                <Icon name={m.icon} size={36} />
-                <div className={css.grow}>
-                  <b>{t(m.title)}</b>
-                  <div className={css.tiny}>{unlocked ? t(m.desc) : need}</div>
-                </div>
-                {!unlocked && <Icon name="lock" size={20} />}
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
+      <div className={css.panelTitle} style={{ margin: '6px 2px 0' }}>
+        <span className={css.grow}>{t('map.modes')}</span>
+      </div>
+      <div className={css.col} style={{ gap: 2 }}>
+        {MODES.map((m, i) => {
+          const unlocked = m.feature ? isUnlocked({ s, cfg }, m.feature) : true;
+          const need = m.feature
+            ? (cfg.unlocks.stage as Record<string, number>)[m.feature] !== undefined
+              ? t('common.unlocksAt', { stage: stageText((cfg.unlocks.stage as Record<string, number>)[m.feature]) })
+              : t('common.unlocksLvl', { lvl: (cfg.unlocks.level as Record<string, number>)[m.feature] })
+            : '';
+          return (
+            <BannerButton
+              key={m.id}
+              icon={<Icon name={m.icon} size={52} />}
+              label={t(m.title)}
+              sub={unlocked ? t(m.desc) : `🔒 ${need}`}
+              tint={MODE_TINTS[i % MODE_TINTS.length]}
+              locked={!unlocked}
+              onClick={() => {
+                if (!unlocked) return useUi.getState().toast(need, 'info');
+                useUi.getState().push({ id: m.id });
+              }}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
+
+/** Цветная кромка баннеров режимов — приглушённые тона по кругу. */
+const MODE_TINTS = ['#6fa3a0', '#c9a45c', '#9b8ac4', '#c98b94', '#6f9fcf', '#b8784a'];
 
 export function stageText(global: number): string {
   const ref = stageRef(Math.min(2, Math.floor((global - 1) / 200)) as Difficulty, ((global - 1) % 200) + 1);
