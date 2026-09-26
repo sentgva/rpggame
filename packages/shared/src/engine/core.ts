@@ -35,6 +35,8 @@ export interface Ctx {
   dev: boolean;
   server: boolean;
   events: GameEvent[];
+  /** Ручное управление боем этого действия: ульты по командам игрока. */
+  control?: { manual: boolean; inputs: { t: number; u: number }[] };
 }
 
 export function assert(cond: unknown, code: string, params?: Record<string, string | number>): asserts cond {

@@ -54,6 +54,8 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     oneShot: ctx.dev && !!s.dev.oneShot,
     debug: ctx.dev && !!s.dev.log,
     quiet: ctx.server,
+    manual: ctx.control?.manual,
+    inputs: ctx.control?.inputs,
   });
   return {
     seed,

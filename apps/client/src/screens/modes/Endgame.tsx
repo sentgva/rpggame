@@ -31,6 +31,7 @@ import {
 } from '@idle/shared';
 import { useState } from 'react';
 import { showBattle } from '../../components/BattleModal';
+import { manualEnabled } from '../../battle/live';
 import { EnemyImg, HeroImg } from '../../components/HeroImg';
 import { Bar, Button, ElementIcon, Icon, Panel, css, cx, elementName, formatNum } from '../../components/ui';
 import { t, tl } from '../../i18n';
@@ -44,6 +45,11 @@ const dayName = (el: Element) => (document.documentElement.lang === 'en' ? DAY_N
 
 /** Бой в режиме: реплей в модальном окне, итог — свой заголовок и награды. */
 async function playMode(type: string, params: Record<string, unknown>, title: string, act: number, render: (res: any) => { outcome?: React.ReactNode; result?: React.ReactNode }) {
+  // ручные ульты: бой идёт вживую, действие уходит на сервер после боя
+  if (manualEnabled()) {
+    showBattle({ live: { type, params, render }, act, title });
+    return null;
+  }
   const r = await useGame.getState().act(type, params);
   if (!r.ok) return null;
   const b = r.result.battle;

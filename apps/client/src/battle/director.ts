@@ -14,6 +14,7 @@ import {
   type StageRef,
 } from '@idle/shared';
 import { create } from 'zustand';
+import { manualEnabled, runLive, type LiveBattle } from './live';
 import { useGame } from '../store/game';
 import { sfx } from '../audio/sfx';
 
@@ -26,6 +27,8 @@ export interface Playback {
   win: boolean;
   speed: number;
   label: string;
+  /** живой бой с ручными ультами: события меняются по ходу (пересчёт после команд игрока) */
+  live?: LiveBattle;
 }
 
 type Player = (p: Playback, signal: AbortSignal) => Promise<void>;
@@ -152,8 +155,10 @@ async function step() {
     const autoBoss = s.settings.autoBoss && (s.ascension.up.autoBoss ?? 0) > 0 && s.progress.retryAt <= now;
     const retry = s.settings.autoRetry && s.progress.retryAt > 0 && now >= s.progress.retryAt;
     if (bossRequested || autoBoss || retry) {
+      // ручные ульты — только когда босса вызвал сам игрок (автоповтор и автобосс идут на авто)
+      const manual = bossRequested && manualEnabled();
       bossRequested = false;
-      await fightBoss(target);
+      await fightBoss(target, manual);
       return;
     }
   } else bossRequested = false;
@@ -174,9 +179,18 @@ async function step() {
   await farm();
 }
 
-async function fightBoss(target: StageRef) {
+async function fightBoss(target: StageRef, manual = false) {
   const g = useGame.getState();
   const label = stageLabel(target);
+  if (manual) {
+    useBattle.setState({ phase: 'boss', label, stage: target, result: null });
+    sfx('bossStart');
+    const r = await runLive('battle.boss', {}, (live) => play({ events: live.events, live, kind: 'boss', act: target.act, win: live.win, speed: battleSpeed(), label }));
+    if (!r) return;
+    useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now() } });
+    sfx(r.result.win ? 'victory' : 'defeat');
+    return;
+  }
   const r = await g.act('battle.boss');
   if (!r.ok || !r.result?.battle?.events) return;
   useBattle.setState({ phase: 'boss', label, stage: target, result: null });

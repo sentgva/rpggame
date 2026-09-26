@@ -10,6 +10,7 @@ import { itemActions } from './actions/items';
 import { metaActions } from './actions/meta';
 import { modeActions } from './actions/modes';
 import { endgameActions } from './actions/endgame';
+import { encounterActions, rollEncounter } from './actions/encounters';
 import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
@@ -30,6 +31,7 @@ export const HANDLERS: Record<string, Handler> = {
   ...metaActions,
   ...modeActions,
   ...endgameActions,
+  ...encounterActions,
   ...devActions,
   ...serverActions,
 };
@@ -69,6 +71,7 @@ export function applyAction(state: PlayerState, action: Action, opt: ApplyOption
     dev: !!opt.dev,
     server: !!opt.server,
     events: [],
+    control: battleControl(action),
   };
   tick(ctx);
   const result = handler(ctx, action);
@@ -76,6 +79,20 @@ export function applyAction(state: PlayerState, action: Action, opt: ApplyOption
   s.rng = ctx.rng.state;
   if (action.type.startsWith('dev.')) s.dev.used = true;
   return { state: s, result: result ?? {}, events: ctx.events };
+}
+
+/** Ручные ульты: { manual: true, inputs: [{ t, u }] } в любом боевом действии. */
+export function battleControl(a: Action): Ctx['control'] {
+  if (a.manual !== true) return undefined;
+  const raw = a.inputs === undefined ? [] : a.inputs;
+  if (!Array.isArray(raw) || raw.length > 80) throw new GameError('badParam', { name: 'inputs' });
+  const inputs = raw.map((x) => {
+    const o = x as { t?: unknown; u?: unknown };
+    if (!Number.isInteger(o?.t) || !Number.isInteger(o?.u) || (o.t as number) < 0 || (o.t as number) > 3_600_000 || (o.u as number) < -1 || (o.u as number) > 99)
+      throw new GameError('badParam', { name: 'inputs' });
+    return { t: o.t as number, u: o.u as number };
+  });
+  return { manual: true, inputs };
 }
 
 /** Общий шаг перед любым действием: смена дня/недели/сезона и начисление дохода в сундук. */
@@ -139,6 +156,7 @@ export function tick(ctx: Ctx) {
   // почта: храним не больше 50 писем
   if (s.mail.length > 50) s.mail = s.mail.slice(-50);
   settleChest(ctx);
+  rollEncounter(ctx);
   void cfg;
 }
 

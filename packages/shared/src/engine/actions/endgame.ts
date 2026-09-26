@@ -293,7 +293,8 @@ export const endgameActions = {
       next.best = Math.max(h.best, wave);
       next.bestWeek = Math.max(h.bestWeek, wave);
       const r = hordeWaveReward(ctx, wave, bonus.rewardPct);
-      const cur = scaleReward(cfg, s, r.cur) as Cur;
+      // золото в награде волны — уже готовая сумма (scaleReward считает его в минутах дохода)
+      const cur = { ...r.cur } as Cur;
       give(ctx, cur);
       const shards: Record<string, number> = {};
       if (r.heraldShards) addShards(ctx, HERALDS[ctx.rng.int(HERALDS.length)].id, r.heraldShards, shards);

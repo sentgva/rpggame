@@ -47,6 +47,8 @@ import {
   HEROINE_MAP,
   HORDE_SKIN_WAVES,
   SPIRE_SKINS,
+  ENCOUNTER_MAP,
+  encounterOffer,
   artStyleOf,
   hordeBonus,
   hordeWaveReward,
@@ -59,6 +61,7 @@ import {
   towerMod,
   towerReward,
   VECTOR_ART,
+  type PlayerState,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -303,6 +306,125 @@ describe('действия', () => {
   });
 });
 
+describe('ручные ульты и Сокрушительный удар', () => {
+  function bossState(lvl = 20) {
+    let s = fresh();
+    s = applyAction(s, { type: 'dev.hero', id: 'all', lvl }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.progress', diff: 0, idx: 20 }, { cfg, now: T0, dev: true }).state;
+    s.progress.wave = 3;
+    return s;
+  }
+  type Ev = { t: number; k: string; kind?: string; u?: number; m?: string; units?: { uid: number; side: number; kind: string }[] };
+  const boss = (s: PlayerState, extra: Record<string, unknown> = {}, server = false) =>
+    applyAction(s, { type: 'battle.boss', ...extra }, { cfg, now: T0 + 1000, server }).result as { win: boolean; battle: { events: Ev[] } };
+
+  it('босс готовит удар; без команд в ручном режиме героини не выпускают ульты', () => {
+    const s = bossState();
+    const auto = boss(s).battle.events;
+    expect(auto.some((e) => e.k === 'mech' && e.m === 'castStart')).toBe(true);
+    const manual = boss(s, { manual: true, inputs: [] }).battle.events;
+    const heroes = new Set((manual[0].units ?? []).filter((u) => u.side === 0).map((u) => u.uid));
+    expect(manual.some((e) => e.k === 'act' && e.kind === 'ult' && heroes.has(e.u!))).toBe(false);
+  });
+
+  it('команда игрока: прошлое не меняется, ульта выходит после команды, сервер получает тот же бой', () => {
+    const s = bossState();
+    const base = boss(s, { manual: true, inputs: [] }).battle.events;
+    const hero = (base[0].units ?? []).find((u) => u.side === 0 && u.kind === 'hero')!.uid;
+    const T = 5000;
+    const inputs = [{ t: T, u: hero }];
+    const withCmd = boss(s, { manual: true, inputs });
+    const ev = withCmd.battle.events;
+    // всё до команды — как без неё
+    const before = (list: Ev[]) => JSON.stringify(list.filter((e) => e.t < T));
+    expect(before(ev)).toBe(before(base));
+    const ult = ev.find((e) => e.k === 'act' && e.kind === 'ult' && e.u === hero);
+    if (ult) expect(ult.t).toBeGreaterThanOrEqual(T);
+    // тот же бой на сервере (тихий режим)
+    const srv = boss(s, { manual: true, inputs }, true);
+    expect(srv.win).toBe(withCmd.win);
+    // «Авто» с момента t: дальше ульты сами
+    const autoFrom = boss(s, { manual: true, inputs: [{ t: 1, u: -1 }] }).battle.events;
+    expect(JSON.stringify(autoFrom)).toBe(JSON.stringify(boss(s).battle.events));
+  });
+
+  it('ульта во время каста прерывает удар', () => {
+    const s = bossState(22);
+    const base = boss(s, { manual: true, inputs: [] }).battle.events;
+    const cast = base.find((e) => e.k === 'mech' && e.m === 'castStart');
+    expect(cast).toBeTruthy();
+    const heroes = (base[0].units ?? []).filter((u) => u.side === 0 && u.kind === 'hero').map((u) => u.uid);
+    const ev = boss(s, { manual: true, inputs: heroes.map((u) => ({ t: cast!.t + 1, u })) }).battle.events;
+    expect(ev.some((e) => e.k === 'mech' && e.m === 'interrupt')).toBe(true);
+  });
+
+  it('кривые команды отклоняются', () => {
+    const s = bossState();
+    expect(() => boss(s, { manual: true, inputs: 'x' })).toThrow(GameError);
+    expect(() => boss(s, { manual: true, inputs: [{ t: -5, u: 0 }] })).toThrow(GameError);
+    expect(() => boss(s, { manual: true, inputs: Array.from({ length: 200 }, () => ({ t: 1, u: 0 })) })).toThrow(GameError);
+  });
+});
+
+describe('встречи', () => {
+  function ready() {
+    let s = fresh();
+    s = applyAction(s, { type: 'dev.hero', id: 'all', lvl: 25 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.progress', diff: 0, idx: 20 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'add', amount: 1e9 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'crystals', op: 'add', amount: 10000 }, { cfg, now: T0, dev: true }).state;
+    return s;
+  }
+  const at = (s: PlayerState, kind: string, now = T0 + 1000) => ({ ...s, encounter: { kind, at: now, until: now + 600000 } }) as PlayerState;
+
+  it('появляется через несколько минут, одна за раз, истекает', () => {
+    let s = ready();
+    s = applyAction(s, { type: 'sync' }, { cfg, now: T0 }).state;
+    expect(s.encounter ?? null).toBeNull();
+    expect(s.encounterNext).toBe(T0 + 5 * 60000);
+    s = applyAction(s, { type: 'sync' }, { cfg, now: T0 + 5 * 60000 + 1 }).state;
+    expect(s.encounter).toBeTruthy();
+    expect(ENCOUNTER_MAP[s.encounter!.kind]).toBeTruthy();
+    const next = s.encounterNext!;
+    expect(next - (T0 + 5 * 60000 + 1)).toBeGreaterThanOrEqual(15 * 60000);
+    // пока встреча висит, новая не появляется; после истечения — исчезает
+    s = applyAction(s, { type: 'sync' }, { cfg, now: T0 + 10 * 60000 }).state;
+    expect(s.encounter).toBeTruthy();
+    s = applyAction(s, { type: 'sync' }, { cfg, now: s.encounter!.until + 1 }).state;
+    if (s.encounter) expect(s.encounter.at).toBeGreaterThan(T0 + 10 * 60000);
+    expect(() => applyAction({ ...s, encounter: null }, { type: 'encounter.resolve', choice: 'leave' }, { cfg, now: T0 })).toThrow(GameError);
+  });
+
+  it('выборы: алтарь, торговка, путница, игрок, засада, сундук', () => {
+    const s = ready();
+    const g = applyAction(at(s, 'shrine'), { type: 'encounter.resolve', choice: 'gold' }, { cfg, now: T0 + 2000 });
+    const offer = encounterOffer({ cfg, s }, 'shrine') as { gold: { gold: number } };
+    expect((g.result as { cur: { gold: number } }).cur.gold).toBe(offer.gold.gold);
+    const r1 = applyAction(at(s, 'shrine'), { type: 'encounter.resolve', choice: 'dust' }, { cfg, now: T0 + 2000 });
+    expect(r1.state.cur.dust).toBeGreaterThan(s.cur.dust);
+    expect(r1.state.encounter).toBeNull();
+    const r2 = applyAction(at(s, 'merchant'), { type: 'encounter.resolve', choice: 'scroll' }, { cfg, now: T0 + 2000 });
+    expect(r2.state.cur.scrolls).toBe(s.cur.scrolls + 1);
+    expect(r2.state.cur.crystals).toBe(s.cur.crystals - 150);
+    const r3 = applyAction(at(s, 'traveler'), { type: 'encounter.resolve', choice: 'help' }, { cfg, now: T0 + 2000 });
+    expect(Object.values((r3.result as { shards: Record<string, number> }).shards)[0]).toBe(5);
+    const r4 = applyAction(at(s, 'gambler'), { type: 'encounter.resolve', choice: 'bet' }, { cfg, now: T0 + 2000 });
+    expect(['lucky', 'unlucky']).toContain((r4.result as { outcome: string }).outcome);
+    const r5 = applyAction(at(s, 'ambush'), { type: 'encounter.resolve', choice: 'fight' }, { cfg, now: T0 + 2000 });
+    expect((r5.result as { battle: unknown }).battle).toBeTruthy();
+    const r6 = applyAction(at(s, 'chest'), { type: 'encounter.resolve', choice: 'open' }, { cfg, now: T0 + 2000 });
+    expect(['ok', 'mimicWin', 'mimicLose']).toContain((r6.result as { outcome: string }).outcome);
+    expect(() => applyAction(at(s, 'chest'), { type: 'encounter.resolve', choice: 'bet' }, { cfg, now: T0 + 2000 })).toThrow(GameError);
+    // без золота откупиться нельзя — встреча остаётся
+    const poor = { ...at(s, 'ambush'), cur: { ...s.cur, gold: 0 } } as PlayerState;
+    expect(() => applyAction(poor, { type: 'encounter.resolve', choice: 'pay' }, { cfg, now: T0 + 2000 })).toThrow(GameError);
+    // клиент и сервер получают одно и то же
+    const c = applyAction(at(s, 'chest'), { type: 'encounter.resolve', choice: 'open' }, { cfg, now: T0 + 2000 });
+    const sv = applyAction(at(s, 'chest'), { type: 'encounter.resolve', choice: 'open' }, { cfg, now: T0 + 2000, server: true });
+    expect(stateHash(sv.state)).toBe(stateHash(c.state));
+  });
+});
+
 describe('уровень силы врагов', () => {
   it('Normal совпадает с номером этапа, Hard = +log(25), Nightmare = +log(400)', () => {
     expect(powerLevel(cfg, 150)).toBeCloseTo(150);
@@ -492,6 +614,17 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     const g = applyAction(s, { type: 'horde.bless', index: 2 }, { cfg, now: T0 + 1000 }).state;
     expect(hordeBonus(g.modes.horde!).rewardPct).toBeCloseTo(0.5);
     expect(hordeWaveReward({ cfg, s: g }, 4, 0.5).cur.gold).toBeGreaterThan(hordeWaveReward({ cfg, s: g }, 4).cur.gold);
+  });
+
+  it('Нашествие: золото за волну — ровно как в подсказке (не в минутах дохода)', () => {
+    let s = strong();
+    s = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    const r = applyAction(s, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
+    const res = r.result as { win: boolean; reward: { cur: Record<string, number> } | null };
+    if (res.win) {
+      expect(res.reward!.cur.gold).toBe(hordeWaveReward({ cfg, s }, 1).cur.gold);
+      expect(r.state.cur.gold - s.cur.gold).toBeLessThan(hordeWaveReward({ cfg, s }, 1).cur.gold * 3);
+    }
   });
 
   it('Нашествие: благословение предлагается ровно после 3-й волны', () => {

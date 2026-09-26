@@ -27,6 +27,7 @@ import {
 import { useEffect, useState } from 'react';
 import { heroUrl } from '../../art/runtime';
 import { showBattle } from '../../components/BattleModal';
+import { manualEnabled } from '../../battle/live';
 import { Bar, Button, Cost, Icon, Panel, css, cx, fmtTime, formatNum } from '../../components/ui';
 import { getLang, t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
@@ -79,6 +80,16 @@ export function ModeScreen({ id }: { id: string }) {
 }
 
 async function fightAction(type: string, params: Record<string, unknown>, title: string, act: number, rewards?: (res: any) => React.ReactNode) {
+  // ручные ульты: бой вживую, итог — после отправки действия
+  if (manualEnabled())
+    return new Promise<any>((resolve) =>
+      showBattle({
+        live: { type, params, render: (res) => ({ result: res.battle?.win && rewards ? rewards(res) : undefined }), onResult: resolve },
+        act,
+        title,
+        onClose: () => resolve(null),
+      }),
+    );
   const r = await useGame.getState().act(type, params);
   if (!r.ok) return null;
   const b = r.result.battle;

@@ -19,6 +19,7 @@ import { sfx } from '../audio/sfx';
 import { ACTS } from '@idle/shared';
 import { BG_H, BG_W, drawLayer, drawSky, weatherParams, type Particle } from './backdrop';
 import type { Playback } from './director';
+import { useLive } from './live';
 import { PIXEL_FONT, loadPixelFont } from '../styles/pixelFont';
 
 TextureSource.defaultOptions.scaleMode = 'nearest';
@@ -84,6 +85,10 @@ class UnitView {
   waiting = '';
   /** Колосс: и так во всю высоту сцены — векторное увеличение к нему не применяем */
   colossus = false;
+  /** «Сокрушительный удар»: полоса каста над здоровьем (часы боя) */
+  castG = new Graphics();
+  castStart = 0;
+  castEnd = 0;
 
   constructor(
     public snap: UnitSnap,
@@ -115,7 +120,7 @@ class UnitView {
     this.flash.alpha = 0;
     this.shadow.ellipse(0, 0, 11 * this.scale, 3 * this.scale).fill({ color: 0x000000, alpha: 0.35 });
     this.body.addChild(this.sprite, this.flash);
-    this.root.addChild(this.shadow, this.aura, this.body, this.statusG, this.bars);
+    this.root.addChild(this.shadow, this.aura, this.body, this.statusG, this.bars, this.castG);
     this.barW = Math.max(30, 20 * scale * (big > 1 ? 1.4 : 1));
     this.drawBars();
   }
@@ -247,6 +252,20 @@ class UnitView {
     g.rect(x, y + 4, w * Math.min(1, this.energy / 100), 1.5).fill(this.energy >= 100 ? 0xffe8a0 : 0xe0a13a);
   }
 
+  /** Полоса каста босса: заполняется к удару, мигает в последнюю секунду. */
+  drawCast(clock: number, time: number) {
+    const g = this.castG;
+    g.clear();
+    if (!this.alive || this.castEnd <= clock) return;
+    const w = this.barW * 1.1;
+    const x = -w / 2;
+    const y = this.headY - 18;
+    const k = Math.max(0, Math.min(1, (clock - this.castStart) / Math.max(1, this.castEnd - this.castStart)));
+    const late = this.castEnd - clock < 1000 && Math.floor(time / 120) % 2 === 0;
+    g.rect(x - 1, y - 1, w + 2, 6).fill({ color: 0x000000, alpha: 0.8 });
+    g.rect(x, y, w * k, 4).fill(late ? 0xffffff : 0xff6a2a);
+  }
+
   drawStatuses(time: number) {
     const g = this.statusG;
     g.clear();
@@ -339,6 +358,9 @@ export class BattleRenderer {
   private particleG = new Graphics();
   private fxG = new Graphics();
   private tweens: Tween[] = [];
+  /** часы текущего проигрывания (мс боя) — для полос каста */
+  private playClock = 0;
+  private liveKey = '';
   private units = new Map<number, UnitView>();
   private act = 0;
   private W = 360;
@@ -553,10 +575,12 @@ export class BattleRenderer {
       }
       this.buildBackground(p.act);
       this.clearUnits();
-      const events = p.events;
+      // живой бой: события пересчитываются по командам игрока — берём актуальный список каждый кадр
+      const evs = () => p.live?.events ?? p.events;
       let i = 0;
       let clock = 0;
-      const endT = events.length ? events[events.length - 1].t : 0;
+      this.playClock = 0;
+      this.liveKey = '';
       let holdUntil = -1;
       const onAbort = () => finish();
       let done = false;
@@ -572,14 +596,22 @@ export class BattleRenderer {
       signal.addEventListener('abort', onAbort);
       const tick = (tk: { deltaMS: number }) => {
         clock += tk.deltaMS * p.speed;
+        this.playClock = clock;
+        const events = evs();
+        const endT = events.length ? events[events.length - 1].t : 0;
         while (i < events.length && events[i].t <= clock) {
           try {
             this.apply(events[i], p);
+            if (p.live) this.liveEvent(events[i]);
           } catch (e) {
             // одно «кривое» событие не должно останавливать бой
             console.error('battle event', events[i], e);
           }
           i++;
+        }
+        if (p.live) {
+          p.live.clock = clock;
+          this.publishLive(clock);
         }
         if (i >= events.length && holdUntil < 0) holdUntil = clock + 900 * p.speed;
         if (holdUntil > 0 && clock >= holdUntil && clock >= endT) finish();
@@ -697,6 +729,7 @@ export class BattleRenderer {
         u.statuses.clear();
         u.drawBars();
         u.drawStatuses(this.time);
+      u.drawCast(this.playClock, this.time);
         this.burst(u.baseX, u.baseY - 20, u.snap.side === 0 ? 0xe03a3a : 0xffe8a0, 12);
         this.tween(420, (k) => {
           u.body.alpha = 1 - k * 0.85;
@@ -721,6 +754,33 @@ export class BattleRenderer {
       }
       case 'mech': {
         const target = e.tg !== undefined ? this.units.get(e.tg) : undefined;
+        if (e.m === 'castStart') {
+          if (target) {
+            target.castStart = e.t;
+            target.castEnd = e.t + (e.v ?? 3000);
+          }
+          this.banner(t('mech.castStart'));
+          sfx('mech');
+          break;
+        }
+        if (e.m === 'interrupt') {
+          if (target) {
+            target.castEnd = 0;
+            this.floater(target, t('mech.interruptShort'), '#ffe8a0', 15);
+            this.burst(target.baseX, target.baseY - 40, 0xffe8a0, 18);
+          }
+          this.banner(t('mech.interrupt'));
+          sfx('ult');
+          break;
+        }
+        if (e.m === 'castHit') {
+          if (target) target.castEnd = 0;
+          this.shake = 8;
+          for (const u of this.units.values()) if (u.snap.side === 0 && u.alive) this.flashUnit(u, 0.9);
+          this.banner(t('mech.castHit'));
+          sfx('mech');
+          break;
+        }
         const text = t(`mech.${e.m}`);
         this.banner(text);
         if (target) this.burst(target.baseX, target.baseY - 30, 0xe040ff, 10);
@@ -735,6 +795,32 @@ export class BattleRenderer {
         break;
       }
     }
+  }
+
+  // ——— живой бой: панель ульт ———
+
+  private liveEvent(e: BattleEvent) {
+    if (e.k === 'act' && e.kind === 'ult') {
+      const ui = useLive.getState();
+      if (ui.heroes.some((h) => h.uid === e.u && h.pending)) useLive.setState({ heroes: ui.heroes.map((h) => (h.uid === e.u ? { ...h, pending: false } : h)) });
+    } else if (e.k === 'mech' && e.m === 'castStart' && e.tg !== undefined) {
+      useLive.setState({ cast: { uid: e.tg, start: e.t, end: e.t + (e.v ?? 3000) } });
+    } else if (e.k === 'mech' && (e.m === 'interrupt' || e.m === 'castHit')) {
+      useLive.setState({ cast: null });
+    }
+  }
+
+  /** Энергия и живость героинь — в панель ульт (только при изменениях). */
+  private publishLive(clock: number) {
+    const ui = useLive.getState();
+    const heroes = ui.heroes.map((h) => {
+      const u = this.units.get(h.uid);
+      return u ? { ...h, energy: Math.min(100, Math.round(u.energy)), alive: u.alive } : h;
+    });
+    const key = heroes.map((h) => `${h.energy >= 100 ? 'F' : Math.floor(h.energy / 5)}${h.alive ? 1 : 0}${h.pending ? 1 : 0}`).join(',') + (ui.cast && ui.cast.end < clock ? 'x' : '');
+    if (key === this.liveKey) return;
+    this.liveKey = key;
+    useLive.setState({ heroes, clock, cast: ui.cast && ui.cast.end < clock ? null : ui.cast });
   }
 
   // ——— анимации ———

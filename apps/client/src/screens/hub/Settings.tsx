@@ -56,6 +56,9 @@ export function Settings() {
         <Row label={t('settings.sfx')}>
           <Slider value={st.sfx} onChange={(v) => set({ sfx: v })} />
         </Row>
+        <Row label={t('settings.manualUlt')}>
+          <Toggle value={st.manualUlt !== false} onChange={(v) => set({ manualUlt: v })} />
+        </Row>
         <Row label={t('settings.haptics')}>
           <Toggle value={st.haptics} onChange={(v) => set({ haptics: v })} />
         </Row>

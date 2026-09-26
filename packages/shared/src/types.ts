@@ -294,6 +294,8 @@ export interface PlayerSettings {
   speed: 1 | 2;
   /** Стиль графики персонажей (учитывается, только если включён VECTOR_ART). */
   artStyle?: ArtStyle;
+  /** Ручные ульты в боях с боссами и в режимах (по умолчанию включены). */
+  manualUlt?: boolean;
 }
 
 export type ArtStyle = 'vector' | 'pixel';
@@ -308,6 +310,13 @@ export function artStyleOf(s?: ArtStyle): ArtStyle {
   return VECTOR_ART ? (s ?? 'vector') : 'pixel';
 }
 
+/** Активная встреча на экране боя. */
+export interface EncounterState {
+  kind: string;
+  at: number;
+  until: number;
+}
+
 export interface PlayerState {
   v: number;
   id: string;
@@ -315,6 +324,9 @@ export interface PlayerState {
   createdAt: number;
   rng: number;
   battleSeed: number;
+  /** Встреча, ждущая решения игрока, и время следующей. */
+  encounter?: EncounterState | null;
+  encounterNext?: number;
   uidCounter: number;
   account: { lvl: number; xp: number };
   cur: Record<Currency, number>;

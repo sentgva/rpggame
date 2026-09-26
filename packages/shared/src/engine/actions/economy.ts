@@ -202,6 +202,7 @@ export const economyActions = {
     if (p.autoSmelt !== undefined) st.autoSmelt = vInt(p.autoSmelt, -1, 4, 'autoSmelt');
     if (p.speed !== undefined) st.speed = p.speed === 2 ? 2 : 1;
     if (p.artStyle !== undefined) st.artStyle = vOneOf(p.artStyle, ART_STYLES, 'artStyle');
+    if (p.manualUlt !== undefined) st.manualUlt = !!p.manualUlt;
     return {};
   },
 

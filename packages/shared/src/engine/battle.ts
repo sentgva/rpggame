@@ -83,10 +83,25 @@ export type BattleEvent =
   | { t: number; k: 'mech'; m: string; tg?: number; v?: number }
   | { t: number; k: 'end'; win: boolean };
 
+/** Команда игрока: выпустить ульту героини u (не раньше t, мс); u = -1 — с момента t ульты снова автоматические. */
+export interface BattleInput {
+  t: number;
+  u: number;
+}
+
+/** «Сокрушительный удар» босса: каст виден заранее, ульта или оглушение прерывают его. */
+export const BOSS_CAST = {
+  boss: { first: 6000, every: 11000, dur: 3200, dmg: 0.42 },
+  mini: { first: 8000, every: 14000, dur: 3200, dmg: 0.28 },
+} as const;
+
 export interface BattleSetup {
   seed: number;
   units: UnitInit[];
   timeLimit: number;
+  /** Ручные ульты героинь: ульта только по команде игрока (inputs). */
+  manual?: boolean;
+  inputs?: BattleInput[];
   immortal?: boolean;
   oneShot?: boolean;
   debug?: boolean;
@@ -176,6 +191,8 @@ interface U {
   bloodStacks: number;
   firstDone: boolean;
   mirror?: boolean;
+  /** Время окончания каста «Сокрушительного удара» (0 — не кастует). */
+  casting: number;
 }
 
 interface Timer {
@@ -209,6 +226,11 @@ class Battle {
   private readonly S: Config['stat'];
   private limit: number;
   private deadMinions: number[] = [];
+  /** Чем сейчас бьёт юнит (прерывание каста — только ультой). */
+  private curKind: 'basic' | 'active' | 'ult' | null = null;
+  /** Невыполненные команды игрока и момент, с которого ульты снова автоматические. */
+  private pending: BattleInput[] = [];
+  private autoFrom = Infinity;
 
   constructor(
     private cfg: Config,
@@ -218,6 +240,11 @@ class Battle {
     this.B = cfg.battle;
     this.S = cfg.stat;
     this.limit = setup.timeLimit * 1000;
+    for (const x of setup.inputs ?? []) {
+      if (x.u < 0) this.autoFrom = Math.min(this.autoFrom, x.t);
+      else this.pending.push({ ...x });
+    }
+    this.pending.sort((a, b) => a.t - b.t || a.u - b.u);
   }
 
   private emit(e: BattleEvent) {
@@ -292,6 +319,7 @@ class Battle {
       phase: 0,
       bloodStacks: 0,
       firstDone: false,
+      casting: 0,
     };
     u.hp = Math.max(1, Math.round(u.maxHp * (init.hpPct ?? 1)));
     const interval = this.interval(u);
@@ -340,6 +368,7 @@ class Battle {
     this.emit({ t: 0, k: 'start', units: this.units.map((u) => this.snap(u)) });
     for (const u of this.units) if (u.shield > 0) this.emit({ t: 0, k: 'shield', tg: u.uid, v: u.shield, sh: u.shield });
     this.setupMechanics();
+    this.setupCasts();
 
     let win = false;
     let timeout = false;
@@ -486,7 +515,14 @@ class Battle {
     const silenced = this.isSilenced(u);
     let choice: ActiveSkill = u.basic;
     let kind: 'basic' | 'active' | 'ult' = 'basic';
-    if (!silenced && u.ult && u.energy >= this.B.energyMax) {
+    let ultReady = !silenced && !!u.ult && u.energy >= this.B.energyMax;
+    // ручной режим: героиня держит ульту, пока игрок не скомандует
+    if (ultReady && this.setup.manual && u.side === 0 && u.kind === 'hero' && this.t < this.autoFrom) {
+      const i = this.pending.findIndex((x) => x.u === u.uid && x.t <= this.t);
+      if (i < 0) ultReady = false;
+      else this.pending.splice(i, 1);
+    }
+    if (ultReady && u.ult) {
       choice = u.ult;
       kind = 'ult';
     } else if (!silenced) {
@@ -658,6 +694,16 @@ class Battle {
 
   private useSkill(u: U, sk: ActiveSkill, kind: 'basic' | 'active' | 'ult') {
     if (!u.alive) return;
+    const prevKind = this.curKind;
+    this.curKind = kind;
+    try {
+      this.useSkillInner(u, sk, kind);
+    } finally {
+      this.curKind = prevKind;
+    }
+  }
+
+  private useSkillInner(u: U, sk: ActiveSkill, kind: 'basic' | 'active' | 'ult') {
     const { effects, extraHits } = this.skillEffects(sk);
     const firstDmg = effects.find((e) => e.t === 'dmg');
     const hits = (firstDmg?.hits ?? 1) + (firstDmg ? extraHits : 0);
@@ -860,6 +906,8 @@ class Battle {
     }
     const hpDmg = dmg - absorbed;
     tg.hp -= hpDmg;
+    // ульта сбивает «Сокрушительный удар»
+    if (tg.casting && src && src.side !== tg.side && this.curKind === 'ult' && !opt.dot) this.interrupt(tg);
     if (this.setup.immortal && tg.side === 0 && tg.hp < 1) tg.hp = 1;
     if (src) this.dmgDone[src.uid] = (this.dmgDone[src.uid] ?? 0) + dmg;
     if (!opt.dot) this.gainEnergy(tg, this.B.energyPerHit);
@@ -1001,6 +1049,49 @@ class Battle {
     }
     tg.statuses.push({ ...st });
     this.emit({ t: this.t, k: 'status', tg: tg.uid, st: statusLabel(st), on: 1 });
+    if (tg.casting && st.type === 'cc' && (st.cc === 'stun' || st.cc === 'freeze')) this.interrupt(tg, false);
+  }
+
+  // ——— «Сокрушительный удар» ———
+
+  private setupCasts() {
+    for (const boss of this.units) {
+      if (boss.side !== 1 || (boss.kind !== 'boss' && boss.kind !== 'mini')) continue;
+      const c = BOSS_CAST[boss.kind];
+      const schedule = (at: number) =>
+        this.timers.push({
+          at,
+          run: () => {
+            if (!boss.alive) return;
+            // оглушённый или замороженный босс не начинает каст — попробует чуть позже
+            if (this.hasCc(boss)) return schedule(this.t + 1500);
+            const end = this.t + c.dur;
+            // каст идёт параллельно обычным атакам — это дополнительная угроза, а не пауза босса
+            boss.casting = end;
+            this.emit({ t: this.t, k: 'mech', m: 'castStart', tg: boss.uid, v: c.dur });
+            this.timers.push({ at: end, run: () => this.castHit(boss, end, c.dmg) });
+            schedule(this.t + c.every);
+          },
+        });
+      schedule(c.first + boss.uid * 250);
+    }
+  }
+
+  private castHit(boss: U, end: number, pct: number) {
+    if (!boss.alive || boss.casting !== end) return;
+    boss.casting = 0;
+    this.emit({ t: this.t, k: 'mech', m: 'castHit', tg: boss.uid });
+    for (const h of this.alive(0)) this.applyDamageRaw(boss, h, Math.max(1, Math.round(h.maxHp * pct)), {});
+  }
+
+  /** Сбить каст: ульта (с оглушением босса) или контроль. */
+  private interrupt(boss: U, stun = true) {
+    boss.casting = 0;
+    this.emit({ t: this.t, k: 'mech', m: 'interrupt', tg: boss.uid });
+    if (stun) {
+      boss.statuses.push({ key: 'cc:stun', type: 'cc', cc: 'stun', value: 0, amount: 0, turns: 1, src: boss.uid });
+      this.emit({ t: this.t, k: 'status', tg: boss.uid, st: 'stun', on: 1 });
+    }
   }
 
   private removeStatus(tg: U, st: Status) {

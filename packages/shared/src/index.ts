@@ -16,4 +16,5 @@ export { constellationCost, etherForStage, passLevel, passBonus } from './engine
 export { dungeonReward, towerReward, expeditionSlots, expeditionBoard } from './engine/actions/modes';
 export { doSummon, boostsLeft, type SummonPull } from './engine/actions/economy';
 export { onExpedition } from './engine/actions/heroes';
+export { encounterOffer } from './engine/actions/encounters';
 export { riftState, riftBoss, riftReward, riftThresholds, spireParty, spireReward, hordeState, hordeWaveReward, hordeBonus } from './engine/actions/endgame';

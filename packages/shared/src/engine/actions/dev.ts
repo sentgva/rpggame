@@ -140,6 +140,8 @@ export const devActions = {
     }
     s.lastSeen -= ms;
     s.progress.retryAt = Math.max(0, s.progress.retryAt - ms);
+    if (s.encounterNext !== undefined) s.encounterNext -= ms;
+    if (s.encounter) s.encounter = { ...s.encounter, at: s.encounter.at - ms, until: s.encounter.until - ms };
     settleChest(ctx);
     return { minutes };
   },
