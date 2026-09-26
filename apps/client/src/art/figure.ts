@@ -704,7 +704,35 @@ function drawHairBack(c: Canvas, style: Look['style']) {
  * 'micro' — треугольнички на завязках, 'balconette' — полукружевные чашки (верх груди открыт),
  * 'bandeau' — узкая полоска поперёк груди, 'plunge' — V-вырез до пупка (монокини).
  */
-function bust(c: Canvas, m: string, style: 'micro' | 'balconette' | 'bandeau' | 'plunge', t: Tone = '0') {
+function bust(c: Canvas, m: string, style: 'micro' | 'balconette' | 'bandeau' | 'plunge' | 'cups', t: Tone = '0') {
+  if (style === 'cups') {
+    // округлые чашки по форме груди: верх уже, у боков — по линии тела, снизу — по изгибу под грудью
+    c.rows(
+      [
+        [19, 18, 21],
+        [20, 17, 22],
+        [21, 16, 22],
+        [22, 17, 22],
+        [19, 26, 29],
+        [20, 25, 30],
+        [21, 25, 31],
+        [22, 25, 30],
+      ],
+      m,
+      t,
+    );
+    // объём: блик сверху чашки, тень по нижнему изгибу, перемычка между чашками
+    c.hl(19, 20, 20, m, '+');
+    c.hl(27, 28, 20, m, '+');
+    c.hl(18, 22, 22, m, '-');
+    c.hl(25, 29, 22, m, '-');
+    c.hl(23, 24, 21, m, '-');
+    // кружевная кромка по верху и бретели к плечам
+    for (const x of [18, 20, 27, 29]) c.set(x, 19, m, '+');
+    c.vl(19, 17, 18, m, '-');
+    c.vl(28, 17, 18, m, '-');
+    return;
+  }
   if (style === 'micro') {
     c.rows(
       [
@@ -1115,9 +1143,9 @@ function wearOutfit(c: Canvas, wear: NonNullable<Look['wear']>, withLegs: boolea
       break;
     }
     case 'swim2': {
-      // бикини с оборками и бантиком
-      bust(c, 'B', 'balconette');
-      for (let x = 16; x <= 31; x++) if (x < 23 || x > 24) c.set(x, 23, 'T', x % 2 ? '+' : '0');
+      // бикини с оборками и бантиком: чашки по форме груди, оборка — по линии под грудью
+      bust(c, 'B', 'cups');
+      for (let x = 18; x <= 29; x++) if (x < 23 || x > 24) c.set(x, 23, 'T', x % 2 ? '+' : '0');
       c.set(23, 22, 'T', '+');
       c.set(24, 22, 'T', '+');
       stringBottom(c, 'B');
@@ -2354,8 +2382,8 @@ function faceHD(c: Canvas, eyes: Eyes) {
 }
 
 /**
- * Глаз HD 8×9 с обводкой: густые ресницы сверху с «крылышком» наружу, тёмный контур по бокам и снизу,
- * белок у краёв, большая радужка от тёмной к светлой, зрачок, крупный блик сверху-слева и мелкий снизу.
+ * Глаз HD 8×8 без обводки: густые ресницы сверху с «крылышком» наружу, белок у краёв,
+ * большая радужка от тёмной к светлой, зрачок, крупный блик сверху-слева и мелкий снизу.
  */
 function eyeHD(put: (x: number, y: number, v: string) => void, x0: number, flip: boolean, state: 'open' | 'half' | 'closed') {
   const outer = flip ? x0 + 7 : x0;
@@ -2380,20 +2408,12 @@ function eyeHD(put: (x: number, y: number, v: string) => void, x0: number, flip:
   for (let y = y0; y <= y1; y++) {
     const tone = tones[Math.min(tones.length - 1, y - y0)];
     for (let x = x0 + 2; x <= x0 + 5; x++) put(x, y, 'E' + tone);
+    // белок по бокам радужки (без обводки), нижняя строка — только радужка
     if (y < y1) {
-      // обводка по бокам и белок
-      put(x0, y, 'l0');
-      put(x0 + 7, y, 'l0');
       put(x0 + 1, y, 'R0');
       put(x0 + 6, y, 'R0');
-    } else {
-      // скруглённые нижние уголки
-      put(x0 + 1, y, 'l0');
-      put(x0 + 6, y, 'l0');
     }
   }
-  // нижний контур
-  for (let x = x0 + 2; x <= x0 + 5; x++) put(x, 23, 'l0');
   // зрачок
   const py = state === 'open' ? 18 : 19;
   for (let y = py; y <= py + (state === 'open' ? 2 : 1); y++) {
