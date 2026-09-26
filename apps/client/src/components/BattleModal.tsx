@@ -78,12 +78,12 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
     <div className={css.panel} style={{ width: '100%', maxWidth: 480, paddingBottom: 'calc(12px + var(--safe-bottom))' }} onClick={(e) => e.stopPropagation()}>
       <div className={css.panelTitle}>{title}</div>
       <div style={{ position: 'relative' }}>
-        <div ref={host} style={{ position: 'relative', height: 280, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--frame)', background: '#0e0a0c' }} />
+        <div ref={host} style={{ position: 'relative', height: 280, borderRadius: 18, overflow: 'hidden', border: '1px solid var(--line)', background: '#0e0d22' }} />
         {!done && <UltBar />}
       </div>
       {done ? (
         <div className={css.col} style={{ marginTop: 8 }}>
-          <div className={css.title} style={{ textAlign: 'center', color: done.win ? 'var(--accent-2)' : '#ff8070' }}>
+          <div className={css.title} style={{ textAlign: 'center', color: done.win ? 'var(--accent-2)' : 'var(--bad)' }}>
             {done.outcome ?? (done.win ? t('common.victory') : t('common.defeat'))}
           </div>
           {done.win || done.outcome ? done.result : null}

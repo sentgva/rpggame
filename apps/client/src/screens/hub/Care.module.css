@@ -2,9 +2,9 @@
 .scene {
   position: relative;
   height: 280px;
-  border-radius: 10px;
+  border-radius: 20px;
   overflow: hidden;
-  border: 2px solid #4a2e3a;
+  border: 1px solid var(--line);
   background: #2a1830 center / 100% 100% no-repeat;
   image-rendering: pixelated;
   transition: background-image 0.25s;
@@ -55,9 +55,12 @@
   z-index: 2;
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(20, 10, 16, 0.86);
-  border: 1.5px solid #f2a8c8;
-  color: #ffe8f2;
+  background: rgba(22, 20, 50, 0.84);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 143, 200, 0.55);
+  border-radius: 16px;
+  color: var(--text);
   font-size: 14px;
   line-height: 1.35;
   animation: fade-in 0.25s ease-out;
@@ -144,9 +147,9 @@
   align-items: center;
   gap: 3px;
   padding: 10px 6px;
-  border-radius: 10px;
-  border: 2px solid #5a3448;
-  background: linear-gradient(180deg, #3a2030, #24141e);
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
   color: inherit;
   cursor: pointer;
   font-family: inherit;
@@ -174,9 +177,9 @@
   align-items: center;
   gap: 2px;
   padding: 6px 4px 8px;
-  border-radius: 10px;
-  border: 2px solid #5a3448;
-  background: linear-gradient(180deg, #34202c, #1e1218);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
   cursor: pointer;
   color: inherit;
   font-family: inherit;
@@ -215,15 +218,15 @@
   flex: 1;
   text-align: center;
   padding: 6px 2px;
-  border-radius: 8px;
-  border: 1.5px solid #4a2e3a;
-  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
   font-size: 12px;
 }
 
 .milestoneDone {
-  border-color: #ff9cc8;
-  background: rgba(255, 120, 180, 0.12);
+  border-color: rgba(255, 143, 200, 0.6);
+  background: rgba(255, 143, 200, 0.14);
 }
 
 .answer {
@@ -232,9 +235,9 @@
   text-align: left;
   padding: 10px 12px;
   margin-top: 8px;
-  border-radius: 10px;
-  border: 1.5px solid #6a4058;
-  background: #2a1822;
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  background: rgba(255, 255, 255, 0.06);
   color: inherit;
   font-family: inherit;
   font-size: 14px;
@@ -242,7 +245,7 @@
 }
 
 .answer:active {
-  background: #3e2232;
+  background: rgba(255, 143, 200, 0.18);
 }
 
 /* ——— Резиденция ——— */
@@ -251,9 +254,9 @@
   align-items: center;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 2px solid #7a4a5a;
-  background: linear-gradient(90deg, #3a2030, #2a1a28);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 143, 200, 0.35);
+  background: var(--grad-soft);
   color: inherit;
   cursor: pointer;
   font-family: inherit;
@@ -276,7 +279,7 @@
 }
 
 .roomPanel {
-  border-color: #6a4a4a;
+  border-color: var(--line);
 }
 
 .roomIcon {
@@ -298,9 +301,9 @@
   align-items: center;
   gap: 4px;
   padding: 5px 9px;
-  border-radius: 16px;
-  border: 1.5px solid #5a3448;
-  background: #24141e;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
   color: inherit;
   font-family: inherit;
   font-size: 13px;
@@ -308,8 +311,9 @@
 }
 
 .roomChipOn {
-  border-color: #ff9cc8;
-  background: #4a2238;
+  border-color: transparent;
+  background: var(--grad-main);
+  color: #fff;
 }
 
 

@@ -11,6 +11,16 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-26d',
+    date: '26.09.2026',
+    title: { ru: 'Новый облик интерфейса', en: 'A fresh interface' },
+    items: [
+      { ru: '🌸 Интерфейс в аниме-стиле: ночное небо, мягкие «стеклянные» панели, скруглённый шрифт и розово-голубые акценты', en: '🌸 Anime-style interface: night sky, soft glass panels, a rounded font and pink-and-cyan accents' },
+      { ru: '🧭 Плавающее нижнее меню и лёгкая верхняя панель', en: '🧭 A floating bottom menu and a lighter top bar' },
+      { ru: '🏕 Лагерь стал проще: баннер с лидером отряда, четыре главных раздела крупно, остальное — компактной сеткой', en: '🏕 A simpler camp: a banner with your squad leader, four main sections up front, the rest in a compact grid' },
+    ],
+  },
+  {
     id: '2026-09-26c',
     date: '26.09.2026',
     title: { ru: 'Сокровищница Эфира', en: 'The Aether Vault' },

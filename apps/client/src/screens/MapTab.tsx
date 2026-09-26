@@ -89,9 +89,9 @@ function MapRoot() {
           style={{
             position: 'relative',
             height: 300,
-            borderRadius: 4,
+            borderRadius: 16,
             overflow: 'hidden',
-            border: '1px solid var(--frame)',
+            border: '1px solid var(--line)',
             backgroundImage: `url(${bgCache.get(act)})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -169,7 +169,7 @@ function StagePath({ act, diff, cleared }: { act: number; diff: Difficulty; clea
   return (
     <>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-        <polyline points={nodes.map((n) => `${n.x},${n.y}`).join(' ')} fill="none" stroke="#e0a13a" strokeOpacity="0.5" strokeWidth="1.2" strokeDasharray="2 1.5" />
+        <polyline points={nodes.map((n) => `${n.x},${n.y}`).join(' ')} fill="none" stroke="#ffffff" strokeOpacity="0.45" strokeWidth="1.2" strokeDasharray="2 1.5" />
       </svg>
       {nodes.map((n) => {
         const boss = n.ref.kind !== 'normal';
@@ -185,18 +185,18 @@ function StagePath({ act, diff, cleared }: { act: number; diff: Difficulty; clea
               width: size,
               height: size,
               transform: 'translate(-50%, -50%)',
-              borderRadius: boss ? 8 : '50%',
-              border: `2px solid ${n.state === 'done' ? '#e0a13a' : n.state === 'current' ? '#f2e6d8' : '#3a2a26'}`,
-              background: n.state === 'done' ? 'radial-gradient(circle,#6a4a20,#2a1a10)' : n.state === 'current' ? 'radial-gradient(circle,#b8322c,#4a1410)' : '#1a1216',
+              borderRadius: boss ? 12 : '50%',
+              border: `2px solid ${n.state === 'done' ? 'rgba(255,255,255,.85)' : n.state === 'current' ? '#fff' : 'rgba(255,255,255,.18)'}`,
+              background: n.state === 'done' ? 'linear-gradient(135deg,#7ee0ff,#a98bff)' : n.state === 'current' ? 'linear-gradient(135deg,#ff8fc8,#c38cff)' : 'rgba(20,18,48,.85)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
-              boxShadow: n.state === 'current' ? '0 0 10px #e03a3a' : undefined,
+              boxShadow: n.state === 'current' ? '0 0 14px rgba(255,143,200,.9)' : n.state === 'done' ? '0 0 6px rgba(126,224,255,.5)' : undefined,
               animation: n.state === 'current' ? 'pulse 1.2s ease-in-out infinite' : undefined,
-              color: n.state === 'locked' ? '#6f5f55' : '#f2e6d8',
+              color: n.state === 'locked' ? 'var(--text-3)' : n.state === 'done' ? '#1c1a40' : '#fff',
             }}
           >
             {boss ? <Icon name="skull" size={size - 12} style={{ opacity: n.state === 'locked' ? 0.4 : 1 }} /> : n.ref.stage}

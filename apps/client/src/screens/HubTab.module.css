@@ -1,0 +1,140 @@
+/* Лагерь: баннер с лидером отряда, четыре главные плитки и компактная сетка остального. */
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 140px;
+  padding: 16px;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 85% 30%, rgba(255, 143, 200, 0.45), transparent 55%),
+    radial-gradient(circle at 20% 110%, rgba(126, 224, 255, 0.25), transparent 50%),
+    linear-gradient(135deg, #2c2462, #1c1840);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+}
+.heroText {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+}
+.heroKicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--pink);
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.1;
+}
+.heroSub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.heroImg {
+  position: absolute;
+  right: 4px;
+  bottom: -8px;
+  width: 150px;
+  height: 150px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mainTile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--tint) 35%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tint) 24%, transparent), rgba(255, 255, 255, 0.03));
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s var(--ease);
+}
+.mainTile:active {
+  transform: scale(0.97);
+}
+.mainIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tint) 22%, rgba(255, 255, 255, 0.05));
+  flex: none;
+}
+.mainLabel {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.more {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 6px;
+  padding: 14px 6px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+.moreTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s var(--ease);
+}
+.moreTile:active {
+  transform: scale(0.94);
+}
+.moreIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line);
+}
+.moreLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.15;
+}

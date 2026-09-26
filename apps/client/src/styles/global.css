@@ -1,34 +1,55 @@
-/* Палитра из ТЗ (раздел 2) */
+/* Аниме-стиль: ночное небо, «стеклянные» панели, сакура-розовый и небесно-голубой акценты, скруглённый шрифт. */
 :root {
-  --panel-1: #1b1418;
-  --panel-2: #2a1e22;
-  --panel-3: #33252a;
-  --frame: #5a3a2e;
-  --frame-dark: #3a2620;
-  --edge: #b8322c;
-  --accent: #e0a13a;
-  --accent-2: #f2c86a;
-  --accent-dark: #9a6a1e;
-  --text: #f2e6d8;
-  --text-2: #a89484;
-  --text-3: #6f5f55;
-  --good: #4fbf5a;
-  --bad: #e03a3a;
-  --info: #3d7be0;
-  --tg-accent: #e0a13a;
+  /* поверхности */
+  --bg: #0f0e24;
+  --panel-1: rgba(255, 255, 255, 0.045);
+  --panel-2: rgba(255, 255, 255, 0.075);
+  --panel-3: rgba(255, 255, 255, 0.11);
+  --glass: rgba(24, 22, 52, 0.72);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-2: rgba(255, 255, 255, 0.18);
+  /* старые имена — для экранов, которые ещё ссылаются на них */
+  --frame: rgba(255, 255, 255, 0.14);
+  --frame-dark: rgba(255, 255, 255, 0.08);
 
-  --r-common: #9a9a9a;
-  --r-uncommon: #4fbf5a;
-  --r-rare: #3d7be0;
-  --r-epic: #9b4de0;
-  --r-legendary: #f08a24;
-  --r-mythic: #e03a3a;
-  --r-divine: linear-gradient(135deg, #e03a3a, #f08a24, #f2d46b, #4fbf5a, #3d9be0, #9b4de0);
+  /* акценты */
+  --pink: #ff8fc8;
+  --violet: #a98bff;
+  --cyan: #7ee0ff;
+  --grad-main: linear-gradient(135deg, #ff8fc8 0%, #c38cff 55%, #8fa2ff 100%);
+  --grad-soft: linear-gradient(135deg, rgba(255, 143, 200, 0.22), rgba(126, 224, 255, 0.14));
+  --edge: #ff5c8a;
+  --accent: #ff8fc8;
+  --accent-2: #ffd98a;
+  --accent-dark: #b05a8a;
+  --tg-accent: #ff8fc8;
 
-  --font-pixel: 'PixelUI', 'Manrope', system-ui, sans-serif;
-  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --nav-h: 64px;
-  --top-h: 52px;
+  /* текст */
+  --text: #f6f4ff;
+  --text-2: #b9b3d9;
+  --text-3: #7d78a3;
+  --good: #5fe3a1;
+  --bad: #ff6b8a;
+  --info: #7cc8ff;
+
+  --r-common: #a8a8b8;
+  --r-uncommon: #5fe3a1;
+  --r-rare: #6aaeff;
+  --r-epic: #b98bff;
+  --r-legendary: #ffb45c;
+  --r-mythic: #ff6b8a;
+  --r-divine: linear-gradient(135deg, #ff6b8a, #ffb45c, #ffe08a, #5fe3a1, #6aaeff, #b98bff);
+
+  --radius: 16px;
+  --radius-s: 10px;
+  --shadow: 0 8px 24px rgba(6, 4, 24, 0.35);
+
+  --font-display: 'M PLUS Rounded 1c', 'Manrope', system-ui, sans-serif;
+  /* --font-pixel исторически — «заголовочный» шрифт интерфейса; пиксельный остаётся только в бою */
+  --font-pixel: var(--font-display);
+  --font-body: 'M PLUS Rounded 1c', 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --nav-h: 66px;
+  --top-h: 56px;
   /* полноэкранный Telegram: системная зона (часы, «чёлка») + зона кнопок Telegram («✕» и «•••») */
   --safe-top: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
   --safe-bottom: calc(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
@@ -47,9 +68,10 @@ body,
   padding: 0;
   height: 100%;
   overflow: hidden;
-  background: #120c10;
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
+  font-weight: 500;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   user-select: none;
@@ -74,7 +96,7 @@ canvas.pixel,
   height: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--frame);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 2px;
 }
 
@@ -120,10 +142,10 @@ canvas.pixel,
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 6px 1px rgba(240, 138, 36, 0.35);
+    box-shadow: 0 0 6px 1px rgba(255, 180, 92, 0.3);
   }
   50% {
-    box-shadow: 0 0 14px 3px rgba(240, 138, 36, 0.6);
+    box-shadow: 0 0 14px 3px rgba(255, 180, 92, 0.55);
   }
 }
 @keyframes shine {
