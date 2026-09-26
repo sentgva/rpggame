@@ -16,6 +16,8 @@ export interface SpriteSpec {
   shadow?: boolean;
   /** Тонировка (статус «заморожена», «призрак» и т. п.). */
   tint?: string;
+  /** Мягкий стиль: глаза с бликами, пастельные тени, цветной контур. */
+  soft?: boolean;
 }
 
 export interface Bitmap {

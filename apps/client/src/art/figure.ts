@@ -448,6 +448,59 @@ function eye(c: Canvas, x0: number, flip: boolean, state: 'open' | 'half' | 'clo
   c.set(inner, 11, 'E', '-');
 }
 
+/** Мягкий стиль: глаз выше (ресницы, три ряда радужки с переходом), белый блик сверху-слева. */
+function eyeSoft(c: Canvas, x0: number, flip: boolean, state: 'open' | 'half' | 'closed') {
+  const wing = flip ? x0 + 3 : x0 - 1;
+  if (state === 'closed') {
+    c.hl(x0, x0 + 2, 10, 'l');
+    c.set(wing, 9, 'l');
+    return;
+  }
+  const top = state === 'half' ? 9 : 8;
+  c.hl(x0, x0 + 2, top, 'l');
+  c.set(wing, top - 1, 'l');
+  for (let y = top + 1; y <= 11; y++) {
+    const tone: Tone = y === top + 1 ? '=' : y === 11 ? '+' : '-';
+    c.hl(x0, x0 + 2, y, 'E', tone);
+  }
+  // зрачок и блики
+  if (state === 'open') c.set(x0 + 1, 10, 'E', '=');
+  c.set(x0, top + 1, 'R', '+');
+  c.set(x0 + 2, 11, 'E', '0');
+}
+
+function drawFaceSoft(c: Canvas, eyes: Eyes) {
+  const left = eyes === 'wink' ? 'open' : eyes;
+  const right = eyes === 'wink' ? 'closed' : eyes;
+  eyeSoft(c, 19, false, left);
+  eyeSoft(c, 26, true, right);
+  // тонкие брови выше, румянец шире, улыбка уголками вверх
+  c.hl(19, 21, 6, 'H', '-');
+  c.hl(26, 28, 6, 'H', '-');
+  c.hl(19, 20, 12, 'P', '+');
+  c.hl(27, 28, 12, 'P', '+');
+  c.set(24, 11, 'S', '-');
+  c.hl(23, 24, 13, 'M');
+  c.set(22, 12, 'M', '-');
+  c.set(25, 12, 'M', '-');
+  if (eyes === 'wink') c.set(25, 13, 'M', '+');
+}
+
+/** Мягкий стиль: полоска блеска на макушке — только по пикселям волос. */
+function hairShine(c: Canvas) {
+  for (const [x, y] of [
+    [20, 3],
+    [21, 3],
+    [22, 3],
+    [19, 4],
+    [20, 4],
+    [26, 4],
+    [27, 4],
+    [27, 5],
+  ] as P[])
+    if (c.get(x, y) === 'H0') c.set(x, y, 'H', '+');
+}
+
 function drawFace(c: Canvas, eyes: Eyes) {
   const left = eyes === 'wink' ? 'open' : eyes;
   const right = eyes === 'wink' ? 'closed' : eyes;
@@ -2214,6 +2267,28 @@ function lingerieColor(skin: RGBA, cands: RGBA[]): RGBA {
   return cands.reduce((a, b) => (deltaE(b, skin) > deltaE(a, skin) ? b : a));
 }
 
+/** Мягкие тона: светлее, тени уходят в сливовый, а не в черноту. */
+function softTones(base: RGBA): Record<Tone, RGBA> {
+  const b = mix(base, hex('#FFF6F0'), 0.08);
+  return { '0': b, '+': lighten(b, 0.34), '-': mix(b, hex('#7A4A8A'), 0.2), '=': mix(b, hex('#4A2A5A'), 0.36) };
+}
+
+function softPalette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
+  const L = spec.look;
+  const base = palette(spec);
+  const skin = hex(L.skin);
+  const eyes = hex(L.eyes);
+  const out: Record<string, Record<Tone, RGBA>> = { ...base };
+  for (const m of ['H', 'O', 'T', 'A', 'B', 'W', 'F', 'D', 'G', 'V']) out[m] = softTones(base[m]['0']);
+  // тени кожи мягче и без глубоких углов: '=' совпадает с '-'
+  const skinShade = mix(skin, hex('#C98A9E'), 0.2);
+  out.S = { '0': mix(skin, hex('#FFF4EE'), 0.1), '+': lighten(skin, 0.24), '-': skinShade, '=': skinShade };
+  out.E = { '0': eyes, '+': lighten(eyes, 0.5), '-': mix(eyes, hex('#3A1E4A'), 0.3), '=': mix(eyes, hex('#24122E'), 0.55) };
+  out.P = softTones(mix(skin, hex('#FF6A8E'), 0.42));
+  out.l = tones(hex('#3A1A2E'));
+  return out;
+}
+
 function palette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
   const L = spec.look;
   const outfit = hex(L.outfit);
@@ -2268,8 +2343,10 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
   if (L.wear) wearOutfit(c, L.wear, !replaced);
   else outfit(c, kind, !replaced);
   if (under) shapeBody(c, under, bust, hips, !replaced);
-  drawFace(c, pose.eyes ?? 'open');
+  if (spec.soft) drawFaceSoft(c, pose.eyes ?? 'open');
+  else drawFace(c, pose.eyes ?? 'open');
   hairTop(c);
+  if (spec.soft) hairShine(c);
   if (armLayer) {
     for (let i = 0; i < armLayer.g.length; i++) if (armLayer.g[i]) c.g[i] = armLayer.g[i];
     armLayer = null;
@@ -2292,8 +2369,25 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
   frontSides = [];
   perpLimbs = false;
 
-  const pal = palette(spec);
+  const pal = spec.soft ? softPalette(spec) : palette(spec);
   const data = new Uint8ClampedArray(c.w * c.h * 4);
+  // мягкий контур: не чёрный, а тёмный оттенок того, что он обводит
+  const softEdge = (i: number): RGBA | null => {
+    const x = i % c.w;
+    const y = Math.floor(i / c.w);
+    for (const [dx, dy] of [
+      [0, -1],
+      [-1, 0],
+      [1, 0],
+      [0, 1],
+    ]) {
+      const v = c.get(x + dx, y + dy);
+      if (!v || v[0] === 'X') continue;
+      const nb = pal[v[0]]?.[(v[1] || '0') as Tone];
+      if (nb) return mix(nb, hex('#2A1430'), 0.78);
+    }
+    return null;
+  };
   const shadow = spec.shadow ? hex('#2A0E3A') : null;
   const tint = spec.tint ? hex(spec.tint) : null;
   for (let i = 0; i < c.g.length; i++) {
@@ -2301,7 +2395,7 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
     if (!v) continue;
     const m = v.charAt(0);
     const t = (v.charAt(1) || '0') as Tone;
-    let col = pal[m]?.[t] ?? hex('#FF00FF');
+    let col = (spec.soft && m === 'X' && softEdge(i)) || pal[m]?.[t] || hex('#FF00FF');
     if (shadow && m !== 'X') col = mix(col, shadow, m === 'E' ? 0.2 : 0.65);
     if (shadow && m === 'E') col = hex('#E040FF');
     if (tint && m !== 'X') col = mix(col, tint, 0.45);
