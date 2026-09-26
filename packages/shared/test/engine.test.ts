@@ -54,6 +54,16 @@ import {
   bondTopic,
   BOND_HEROES,
   BOND_SLEEP_SKIN,
+  ARTIFACTS,
+  ARTIFACT_BANNER,
+  ARTIFACT_MAX,
+  ARTIFACT_REFUND,
+  ARTIFACT_SLOT3_LVL,
+  activeArtifacts,
+  artifactSlots,
+  artifactText,
+  artifactValue,
+  type ArtifactPull,
   BATH_GAIN,
   ROOM_BONUS,
   ROOM_MAX,
@@ -882,5 +892,116 @@ describe('Вестницы, Колоссы и новые режимы', () => {
       expect(pool).toContain(id);
       expect(SKIN_MAP[`${id}_masq`]).toBeTruthy();
     }
+  });
+});
+
+describe('артефакты', () => {
+  const D = { cfg, now: T0, dev: true };
+  function ready() {
+    let s = fresh();
+    s = { ...s, progress: { ...s.progress, maxGlobalEver: 40 } };
+    s = applyAction(s, { type: 'dev.cur', cur: 'crystals', op: 'add', amount: 1e6 }, D).state;
+    return s;
+  }
+
+  it('закрыты до этапа 25; бесплатный призыв раз в день; 10 призывов — 10 артефактов', () => {
+    const f = fresh();
+    expect(() => applyAction(f, { type: 'artifact.summon', count: 1 }, { cfg, now: T0 })).toThrow('locked');
+    let s = ready();
+    const c0 = s.cur.crystals;
+    const free = applyAction(s, { type: 'artifact.summon', free: true }, { cfg, now: T0 });
+    expect(free.state.cur.crystals).toBe(c0);
+    expect(() => applyAction(free.state, { type: 'artifact.summon', free: true }, { cfg, now: T0 })).toThrow('usedToday');
+    expect(() => applyAction(free.state, { type: 'artifact.summon', free: true }, { cfg, now: T0 + 86400000 })).not.toThrow();
+    s = free.state;
+    const ten = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 });
+    expect((ten.result as { pulls: unknown[] }).pulls).toHaveLength(10);
+    expect(ten.state.cur.crystals).toBeLessThanOrEqual(c0 - ARTIFACT_BANNER.cost10 + 10 * ARTIFACT_REFUND.UR);
+    // первый артефакт сам встаёт в слот
+    expect(ten.state.artifacts!.slots.filter(Boolean).length).toBeGreaterThan(0);
+  });
+
+  it('гарантия UR, дубликаты повышают уровень до 5, дальше — кристаллы', () => {
+    let s = ready();
+    let ur = false;
+    const lvls: Record<string, number> = {};
+    let refunds = 0;
+    for (let i = 0; i < 40 && !ur; i++) {
+      const r = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 });
+      s = r.state;
+      for (const p of (r.result as { pulls: ArtifactPull[] }).pulls) {
+        if (p.rarity === 'UR') ur = true;
+        expect(p.lvl).toBe(Math.min(ARTIFACT_MAX, (lvls[p.id] ?? 0) + 1));
+        if (p.refund) refunds++;
+        lvls[p.id] = p.lvl;
+      }
+      expect(s.artifacts!.pityUR).toBeLessThan(ARTIFACT_BANNER.pityUR);
+    }
+    expect(ur).toBe(true);
+    // много призывов: R-артефакты доходят до 5 и дальше дают кристаллы
+    for (let i = 0; i < 12; i++) s = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 }).state;
+    expect(Object.values(s.artifacts!.owned).every((l) => l >= 1 && l <= ARTIFACT_MAX)).toBe(true);
+    expect(Object.values(s.artifacts!.owned).some((l) => l === ARTIFACT_MAX)).toBe(true);
+    void refunds;
+  });
+
+  it('слоты: 2, с 40-го уровня аккаунта — 3; артефакт один на отряд; чужой не поставить', () => {
+    let s = ready();
+    for (let i = 0; i < 5; i++) s = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 }).state;
+    const [a, b] = Object.keys(s.artifacts!.owned);
+    s = applyAction(s, { type: 'artifact.equip', slot: 0, id: a }, { cfg, now: T0 }).state;
+    s = applyAction(s, { type: 'artifact.equip', slot: 1, id: a }, { cfg, now: T0 }).state;
+    expect(s.artifacts!.slots.slice(0, 2)).toEqual([null, a]);
+    s = applyAction(s, { type: 'artifact.equip', slot: 0, id: b }, { cfg, now: T0 }).state;
+    expect(activeArtifacts(s).map((x) => x.id).sort()).toEqual([a, b].sort());
+    expect(() => applyAction(s, { type: 'artifact.equip', slot: 2, id: a }, { cfg, now: T0 })).toThrow(GameError);
+    expect(() => applyAction(s, { type: 'artifact.equip', slot: 0, id: 'nope' }, { cfg, now: T0 })).toThrow(GameError);
+    const hi = { ...s, account: { ...s.account, lvl: ARTIFACT_SLOT3_LVL } };
+    expect(() => applyAction(hi, { type: 'artifact.equip', slot: 2, id: a }, { cfg, now: T0 })).not.toThrow();
+    s = applyAction(s, { type: 'artifact.equip', slot: 1, id: null }, { cfg, now: T0 }).state;
+    expect(activeArtifacts(s).map((x) => x.id)).toEqual([b]);
+  });
+
+  it('механики срабатывают в бою; без артефактов бой прежний; бой детерминирован', () => {
+    let s = fresh();
+    for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 20 }, D).state;
+    s = { ...s, party: { ...s.party, presets: [['lira', 'astrid', 'seyra', 'keira', null, null], ...s.party.presets.slice(1)] } };
+    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 30))];
+    const base = simulateBattle(cfg, { seed: 7, units, timeLimit: 60 });
+    expect(simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: [] }).events).toEqual(base.events);
+    const mechs = (arts: { id: string; lvl: number }[]) => {
+      const r = simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: arts });
+      expect(simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: arts }).events).toEqual(r.events);
+      return new Set(r.events.filter((e) => e.k === 'mech').map((e) => (e as { m: string }).m));
+    };
+    const all = ARTIFACTS.map((a) => ({ id: a.id, lvl: 3 }));
+    const seen = mechs(all);
+    for (const id of ['ember_charm', 'thunder_bell', 'hunter_mark', 'omen_ward', 'time_chain']) expect(seen.has(`artifact:${id}`)).toBe(true);
+    // барабан: энергия на старте
+    const start = simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: [{ id: 'war_drum', lvl: 5 }] }).events[0] as { units: { side: number; energy: number }[] };
+    expect(start.units.filter((u) => u.side === 0).every((u) => u.energy >= artifactValue('war_drum', 5))).toBe(true);
+    // призма усиливает урон: бой не дольше
+    const prism = simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: [{ id: 'aether_prism', lvl: 5 }] });
+    if (base.win && prism.win) expect(prism.time).toBeLessThanOrEqual(base.time);
+  });
+
+  it('пепел феникса и рог валькирии спасают отряд в тяжёлом бою', () => {
+    let s = fresh();
+    for (const id of ['lira', 'astrid']) s = applyAction(s, { type: 'dev.hero', id, lvl: 5 }, D).state;
+    s = { ...s, party: { ...s.party, presets: [['lira', 'astrid', null, null, null, null], ...s.party.presets.slice(1)] } };
+    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 30))];
+    const r = simulateBattle(cfg, { seed: 3, units, timeLimit: 60, artifacts: [{ id: 'phoenix_ash', lvl: 1 }, { id: 'valkyrie_horn', lvl: 1 }] });
+    const ms = r.events.filter((e) => e.k === 'mech').map((e) => (e as { m: string }).m);
+    expect(ms).toContain('artifact:valkyrie_horn');
+    expect(ms).toContain('artifact:phoenix_ash');
+    expect(ms.filter((m) => m === 'artifact:phoenix_ash')).toHaveLength(1);
+  });
+
+  it('текст силы: проценты, секунды, числа', () => {
+    expect(artifactText('dew_flask', 1, 'ru')).toContain('5%');
+    expect(artifactText('time_chain', 5, 'en')).toContain('1.2 s');
+    expect(artifactText('war_drum', 2, 'ru')).toContain('11');
+    expect(artifactSlots(1)).toBe(2);
+    expect(artifactSlots(ARTIFACT_SLOT3_LVL)).toBe(3);
   });
 });

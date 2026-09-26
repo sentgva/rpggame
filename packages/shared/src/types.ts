@@ -325,6 +325,17 @@ export interface BondState {
   bath?: boolean;
 }
 
+/** Артефакты: уровни (1–5), слоты отряда, гарантии баннера. */
+export interface ArtifactState {
+  owned: Record<string, number>;
+  slots: (string | null)[];
+  pitySSR: number;
+  pityUR: number;
+  total: number;
+  /** день последнего бесплатного призыва */
+  freeDay?: string;
+}
+
 /** Резиденция героинь: уровни комнат и последняя ночёвка. */
 export interface HomeState {
   rooms: Partial<Record<'living' | 'kitchen' | 'bath' | 'bedroom', number>>;
@@ -351,6 +362,7 @@ export interface PlayerState {
   bond?: Record<string, BondState>;
   bondHearts?: number;
   home?: HomeState;
+  artifacts?: ArtifactState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

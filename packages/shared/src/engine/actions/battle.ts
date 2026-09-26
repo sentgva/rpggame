@@ -1,4 +1,5 @@
 import { ACTS, ACT_BOSSES, STAGES_PER_DIFF, stageRef, type StageRef } from '../../content';
+import { activeArtifacts } from './artifacts';
 import { mixSeed } from '../../rng';
 import type { Difficulty } from '../../types';
 import { simulateBattle, type BattleResult, type UnitInit } from '../battle';
@@ -56,6 +57,7 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     quiet: ctx.server,
     manual: ctx.control?.manual,
     inputs: ctx.control?.inputs,
+    artifacts: activeArtifacts(s),
   });
   return {
     seed,

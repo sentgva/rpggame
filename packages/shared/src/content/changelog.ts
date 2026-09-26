@@ -11,6 +11,18 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-26c',
+    date: '26.09.2026',
+    title: { ru: 'Сокровищница Эфира', en: 'The Aether Vault' },
+    items: [
+      { ru: '🔮 Артефакты — отдельная вкладка в Призыве: 12 механик для всего отряда (молнии, метки, остановка времени, возрождение, рог Валькирии…)', en: '🔮 Artifacts — a separate tab in Summon: 12 party-wide mechanics (lightning, marks, stopped time, revival, the Valkyrie Horn…)' },
+      { ru: '⭐ Дубликаты повышают уровень артефакта до 5; 2 слота в отряде, третий — с 40 уровня аккаунта; бесплатный призыв раз в день', en: '⭐ Duplicates level artifacts up to 5; 2 party slots, a third from account level 40; one free pull a day' },
+      { ru: '⚖️ Числа скромные: артефакты разнообразят бой, но не заменяют прокачку', en: '⚖️ Modest numbers: artifacts add variety but don\'t replace progression' },
+      { ru: '✨ Новая анимация призыва: магический круг, звездопад цвета находок, вспышка и прожектор для SSR/UR', en: '✨ New summon animation: magic circle, starfall in the colours of your finds, a flash and a spotlight for SSR/UR' },
+      { ru: '🏠 В «Уходе» — нарисованные фоны: лагерь, источники, комнаты резиденции и места свиданий', en: '🏠 Care now has drawn backgrounds: camp, hot springs, residence rooms and date places' },
+    ],
+  },
+  {
     id: '2026-09-26b',
     date: '26.09.2026',
     title: { ru: 'Резиденция героинь', en: 'The heroines\' residence' },

@@ -1,4 +1,4 @@
-import { ENEMY_MAP, HEROINE_MAP, SKILL_MAP, type BattleEvent, type UnitSnap } from '@idle/shared';
+import { ARTIFACT_MAP, ARTIFACT_RARITY_COLORS, ENEMY_MAP, HEROINE_MAP, SKILL_MAP, type BattleEvent, type UnitSnap } from '@idle/shared';
 import {
   Application,
   Container,
@@ -14,7 +14,7 @@ import { derivedCanvas, isCanvasReady, unitCanvas, whenCanvasReady } from '../ar
 import { VECTOR_SCALE, artVersion } from '../art/style';
 import { useGame } from '../store/game';
 import { frameKey, lifeFrame, newLife, type LifeAnim, type LifeFrame } from '../art/anim';
-import { t } from '../i18n';
+import { t, tl } from '../i18n';
 import { sfx } from '../audio/sfx';
 import { ACTS } from '@idle/shared';
 import { BG_H, BG_W, drawLayer, drawSky, weatherParams, type Particle } from './backdrop';
@@ -779,6 +779,20 @@ export class BattleRenderer {
           for (const u of this.units.values()) if (u.snap.side === 0 && u.alive) this.flashUnit(u, 0.9);
           this.banner(t('mech.castHit'));
           sfx('mech');
+          break;
+        }
+        // артефакты отряда: иконка и название над целью (или баннер, если действует на весь отряд)
+        if (e.m.startsWith('artifact:')) {
+          const def = ARTIFACT_MAP[e.m.slice(9)];
+          if (!def) break;
+          const col = ARTIFACT_RARITY_COLORS[def.rarity];
+          const label = `${def.icon} ${tl(def.name)}`;
+          if (target) {
+            this.floater(target, label, col, 12);
+            this.burst(target.baseX, target.baseY - 30, parseInt(col.slice(1), 16), def.id === 'thunder_bell' ? 16 : 8);
+            if (def.id === 'thunder_bell') this.flashUnit(target, 1);
+          } else this.banner(label);
+          if (def.id === 'valkyrie_horn' || def.id === 'phoenix_ash') sfx('ult');
           break;
         }
         const text = t(`mech.${e.m}`);

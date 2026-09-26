@@ -1,4 +1,4 @@
-import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, achievementClaimable, bondState, isUnlocked } from '@idle/shared';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, achievementClaimable, artifactFreeReady, bondState, isUnlocked } from '@idle/shared';
 import { openNews } from '../components/News';
 import { Icon, css } from '../components/ui';
 import { t } from '../i18n';
@@ -67,7 +67,7 @@ function HubRoot() {
     (care.length > 0 && care.every((b) => b.talk === 0 && b.treat === 0 && !b.spa && !b.date)) ||
     ((s.bondHearts ?? 0) >= BOND_COSTUME_HEARTS && BOND_HEROES.some((id) => s.heroines[id] && (s.bond?.[id]?.lvl ?? 0) >= BOND_MAX && !s.skins.includes(`${id}_bond`)));
   const items: { id: string; icon: string; label: string; badge?: boolean; locked?: boolean }[] = [
-    { id: 'summon', icon: 'summon', label: t('hub.summon'), badge: !s.day.freeSummon || s.cur.scrolls > 0 },
+    { id: 'summon', icon: 'summon', label: t('hub.summon'), badge: !s.day.freeSummon || s.cur.scrolls > 0 || (isUnlocked({ s, cfg }, 'artifacts') && artifactFreeReady({ s, now })) },
     { id: 'shop', icon: 'shop', label: t('hub.shop') },
     { id: 'quests', icon: 'quest', label: t('hub.quests'), badge: questClaimable(s) > 0 || s.quests.login.claimedKey !== s.day.key },
     { id: 'pass', icon: 'pass', label: t('hub.pass') },

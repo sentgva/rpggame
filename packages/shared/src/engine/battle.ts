@@ -4,7 +4,7 @@
  * результат совпадает бит в бит. Все входные характеристики — целые числа.
  */
 import type { Config } from '../config';
-import { ENEMY_MAP, SKILL_MAP, elementMult } from '../content';
+import { ENEMY_MAP, SKILL_MAP, elementMult, artifactValue } from '../content';
 import type { BossMechanic } from '../content/acts';
 import type { BuffStat, SkillDef, SkillEffect, SkillMod, TargetRule } from '../content/effects';
 import { Rng } from '../rng';
@@ -107,6 +107,8 @@ export interface BattleSetup {
   debug?: boolean;
   /** Не записывать события (быстрее для пересчёта на сервере). */
   quiet?: boolean;
+  /** Артефакты отряда игрока (сторона 0). */
+  artifacts?: { id: string; lvl: number }[];
 }
 
 export interface BattleResult {
@@ -231,6 +233,12 @@ class Battle {
   /** Невыполненные команды игрока и момент, с которого ульты снова автоматические. */
   private pending: BattleInput[] = [];
   private autoFrom = Infinity;
+  /** Артефакты отряда: id → сила; счётчик ударов отряда, метка охотницы, разовые срабатывания. */
+  private artifact: Record<string, number> = {};
+  private partyHits = 0;
+  private markUid = -1;
+  private artifactUsed: Record<string, 1> = {};
+  private prismElements = 0;
 
   constructor(
     private cfg: Config,
@@ -245,6 +253,7 @@ class Battle {
       else this.pending.push({ ...x });
     }
     this.pending.sort((a, b) => a.t - b.t || a.u - b.u);
+    for (const r of setup.artifacts ?? []) this.artifact[r.id] = artifactValue(r.id, r.lvl);
   }
 
   private emit(e: BattleEvent) {
@@ -365,6 +374,7 @@ class Battle {
       if (u.fx.tauntStart) this.addStatus(u, { key: 'taunt', type: 'taunt', value: 0, amount: 0, turns: u.fx.tauntStart.n ?? 2, src: u.uid });
     }
 
+    this.setupArtifacts();
     this.emit({ t: 0, k: 'start', units: this.units.map((u) => this.snap(u)) });
     for (const u of this.units) if (u.shield > 0) this.emit({ t: 0, k: 'shield', tg: u.uid, v: u.shield, sh: u.shield });
     this.setupMechanics();
@@ -550,6 +560,7 @@ class Battle {
     }
     if (kind === 'ult') {
       const allies = this.alive(u.side);
+      if (this.artifact.storm_heart && u.side === 0) for (const a of allies) if (a !== u) this.gainEnergy(a, this.artifact.storm_heart);
       if (u.fx.ultTeamHeal) for (const a of allies) this.heal(u, a, Math.round(this.effAtk(u) * (u.fx.ultTeamHeal.v ?? 0) * u.healPower));
       if (u.fx.shieldOnUlt) for (const a of allies) this.giveShield(u, a, Math.round(this.effAtk(u) * (u.fx.shieldOnUlt.v ?? 0)));
     }
@@ -843,6 +854,10 @@ class Battle {
     if (low && u.fx.execute) bonus += u.fx.execute.v ?? 0;
     if (!u.firstDone && u.fx.firstStrike) bonus += u.fx.firstStrike.v ?? 0;
     if (u.fx.frozenVuln && this.hasCc(tg)) bonus += u.fx.frozenVuln.v ?? 0;
+    if (u.side === 0) {
+      if (tg.uid === this.markUid && this.artifact.hunter_mark) bonus += this.artifact.hunter_mark;
+      if (this.artifact.aether_prism) bonus += this.artifact.aether_prism * this.prismElements;
+    }
     let taken = 1 + this.buffSum(tg, 'dmgTaken') - Math.min(this.S.dmgReduceMax, tg.bonus.dmgReduce ?? 0);
     // механики
     if (tg.mechanic === 'skyborne' && u.melee) taken *= 0.5;
@@ -879,6 +894,7 @@ class Battle {
       if (u.fx.bleedOnHit && this.rng.chance(u.fx.bleedOnHit.v ?? 0)) this.applyDot(u, tg, 'bleed', 0.3, 2);
       if (u.fx.burnOnHit && this.rng.chance(u.fx.burnOnHit.v ?? 0)) this.applyDot(u, tg, 'burn', 0.3, 2);
       if (u.fx.poisonOnHit && this.rng.chance(u.fx.poisonOnHit.v ?? 0)) this.applyDot(u, tg, 'poison', 0.35, 3);
+      if (u.side === 0 && !isCounter) this.onPartyHit(u, tg);
       if (isCrit) {
         if (u.fx.critEnergy) this.gainEnergy(u, u.fx.critEnergy.n ?? 10);
         if (u.fx.critStun && tg.alive && this.rng.chance(u.fx.critStun.v ?? 0)) this.applyCc(u, tg, 'stun', 1, 1);
@@ -930,6 +946,7 @@ class Battle {
       this.heal(tg, tg, Math.round(tg.maxHp * (tg.fx.secondWind.v ?? 0.3)));
     }
     if (tg.hp <= 0) this.onLethal(src, tg);
+    if (tg.side === 0 && hpDmg > 0) this.onPartyHurt(tg);
     return dmg;
   }
 
@@ -959,6 +976,11 @@ class Battle {
       tg.used.phoenix = 1;
       this.revive(tg, tg.fx.phoenix.v ?? 0.3);
       this.emit({ t: this.t, k: 'mech', m: 'phoenix', tg: tg.uid });
+    }
+    if (!tg.alive && tg.side === 0 && tg.kind === 'hero' && this.artifact.phoenix_ash && !this.artifactUsed.phoenix_ash) {
+      this.artifactUsed.phoenix_ash = 1;
+      this.revive(tg, this.artifact.phoenix_ash);
+      this.emit({ t: this.t, k: 'mech', m: 'artifact:phoenix_ash', tg: tg.uid });
     }
     // эффекты убийцы
     if (src && src.alive && src.side !== tg.side) {
@@ -1052,6 +1074,105 @@ class Battle {
     if (tg.casting && st.type === 'cc' && (st.cc === 'stun' || st.cc === 'freeze')) this.interrupt(tg, false);
   }
 
+  // ——— артефакты отряда ———
+
+  private setupArtifacts() {
+    const r = this.artifact;
+    const heroes = this.units.filter((u) => u.side === 0 && u.kind === 'hero');
+    if (r.war_drum) for (const h of heroes) h.energy = Math.min(this.B.energyMax, h.energy + Math.round(r.war_drum));
+    if (r.aether_prism) this.prismElements = new Set(heroes.map((h) => h.element)).size;
+    if (r.dew_flask) {
+      const tick = (at: number) =>
+        this.timers.push({
+          at,
+          run: () => {
+            let low: U | null = null;
+            for (const h of this.alive(0)) if (h.kind !== 'summon' && h.hp < h.maxHp && (!low || h.hp / h.maxHp < low.hp / low.maxHp)) low = h;
+            if (low) {
+              this.emit({ t: this.t, k: 'mech', m: 'artifact:dew_flask', tg: low.uid });
+              this.heal(low, low, Math.round(low.maxHp * r.dew_flask));
+            }
+            tick(this.t + 10000);
+          },
+        });
+      tick(10000);
+    }
+    if (r.hunter_mark) {
+      const mark = (at: number) =>
+        this.timers.push({
+          at,
+          run: () => {
+            let best: U | null = null;
+            for (const e of this.alive(1)) if (e.kind !== 'summon' && (!best || e.hp > best.hp)) best = e;
+            if (best && best.uid !== this.markUid) {
+              this.markUid = best.uid;
+              this.emit({ t: this.t, k: 'mech', m: 'artifact:hunter_mark', tg: best.uid });
+            }
+            mark(this.t + 12000);
+          },
+        });
+      mark(0);
+    }
+    if (r.time_chain) {
+      const stop = (at: number) =>
+        this.timers.push({
+          at,
+          run: () => {
+            const delay = Math.round(r.time_chain * 1000);
+            for (const e of this.alive(1)) e.nextAt += delay;
+            this.emit({ t: this.t, k: 'mech', m: 'artifact:time_chain', v: delay });
+            stop(this.t + 15000);
+          },
+        });
+      stop(15000);
+    }
+  }
+
+  /** Удар отряда: считаем для «Тлеющего амулета» и «Громового колокольчика». */
+  private onPartyHit(u: U, tg: U) {
+    if (!this.artifact.ember_charm && !this.artifact.thunder_bell) return;
+    this.partyHits++;
+    if (this.artifact.ember_charm && this.partyHits % 6 === 0 && tg.alive) {
+      this.emit({ t: this.t, k: 'mech', m: 'artifact:ember_charm', tg: tg.uid });
+      this.applyDot(u, tg, 'burn', this.artifact.ember_charm, 2);
+    }
+    if (this.artifact.thunder_bell && this.partyHits % 8 === 0) {
+      const foes = this.alive(1);
+      if (foes.length) {
+        const f = foes[this.rng.int(foes.length)];
+        this.emit({ t: this.t, k: 'mech', m: 'artifact:thunder_bell', tg: f.uid });
+        this.applyDamageRaw(u, f, Math.max(1, Math.round(this.effAtk(u) * this.artifact.thunder_bell)), { dot: 'lightning' });
+      }
+    }
+  }
+
+  /** Героиня ранена: «Колокол тревоги» и «Рог Валькирии». */
+  private onPartyHurt(tg: U) {
+    const r = this.artifact;
+    if (r.alarm_bell && tg.alive && tg.kind === 'hero' && !tg.used.alarmBell && tg.hp < tg.maxHp * 0.5) {
+      tg.used.alarmBell = 1;
+      this.emit({ t: this.t, k: 'mech', m: 'artifact:alarm_bell', tg: tg.uid });
+      this.giveShield(tg, tg, Math.round(tg.maxHp * r.alarm_bell));
+    }
+    if (r.valkyrie_horn && !this.artifactUsed.valkyrie_horn) {
+      let hp = 0;
+      let max = 0;
+      for (const h of this.units)
+        if (h.side === 0 && h.kind === 'hero') {
+          hp += h.alive ? h.hp : 0;
+          max += h.maxHp;
+        }
+      if (max > 0 && hp < max * 0.5 && this.alive(0).length) {
+        this.artifactUsed.valkyrie_horn = 1;
+        this.emit({ t: this.t, k: 'mech', m: 'artifact:valkyrie_horn' });
+        for (const h of this.alive(0)) {
+          this.heal(h, h, Math.round(h.maxHp * r.valkyrie_horn));
+          this.addStatus(h, { key: 'artifact:horn', type: 'buff', stat: 'atk', value: r.valkyrie_horn, amount: 0, turns: 3, src: h.uid });
+        }
+      }
+    }
+  }
+
   // ——— «Сокрушительный удар» ———
 
   private setupCasts() {
@@ -1069,6 +1190,10 @@ class Battle {
             // каст идёт параллельно обычным атакам — это дополнительная угроза, а не пауза босса
             boss.casting = end;
             this.emit({ t: this.t, k: 'mech', m: 'castStart', tg: boss.uid, v: c.dur });
+            if (this.artifact.omen_ward) {
+              this.emit({ t: this.t, k: 'mech', m: 'artifact:omen_ward' });
+              for (const h of this.alive(0)) this.giveShield(h, h, Math.round(h.maxHp * this.artifact.omen_ward));
+            }
             this.timers.push({ at: end, run: () => this.castHit(boss, end, c.dmg) });
             schedule(this.t + c.every);
           },

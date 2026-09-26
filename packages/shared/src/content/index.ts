@@ -26,3 +26,4 @@ export const SKILL_MAP: Record<string, SkillDef> = Object.fromEntries(
 export * from './encounters';
 export * from './changelog';
 export * from './bond';
+export * from './artifacts';

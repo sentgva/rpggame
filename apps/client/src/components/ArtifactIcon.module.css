@@ -1,0 +1,48 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* шестигранная оправа: металл цвета редкости */
+.frame {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 3%, 75% 3%, 98% 50%, 75% 97%, 25% 97%, 2% 50%);
+  background: linear-gradient(160deg, #fff8 0%, var(--c) 30%, #1a1016 100%);
+}
+
+.gem {
+  position: absolute;
+  inset: 9%;
+  clip-path: polygon(25% 3%, 75% 3%, 98% 50%, 75% 97%, 25% 97%, 2% 50%);
+  background: radial-gradient(circle at 50% 40%, var(--c) 0%, #1c1220 75%);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 60%, #1c1220) 0%, #1c1220 75%);
+}
+
+.icon {
+  position: relative;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px var(--c)) drop-shadow(0 2px 2px #000);
+}
+
+.glint {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 3%, 75% 3%, 98% 50%, 75% 97%, 25% 97%, 2% 50%);
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);
+  background-size: 260% 100%;
+  animation: glint 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glint {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -110% 0;
+  }
+}

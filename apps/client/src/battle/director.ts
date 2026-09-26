@@ -6,6 +6,7 @@
 import {
   heroUnits,
   simulateBattle,
+  activeArtifacts,
   stageFromGlobal,
   stageLabel,
   targetStage,
@@ -217,6 +218,7 @@ async function farm() {
     units: [...heroes, ...waveUnits(cfg, ref, wave)],
     timeLimit: 45,
     immortal: true,
+    artifacts: activeArtifacts(s),
   });
   const label = stageLabel(ref);
   useBattle.setState({ phase: 'farm', label, stage: targetStage({ s }) });
