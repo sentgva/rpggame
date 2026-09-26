@@ -241,7 +241,7 @@ class Battle {
   private prismElements = 0;
 
   constructor(
-    private cfg: Config,
+    cfg: Config,
     private setup: BattleSetup,
   ) {
     this.rng = new Rng(setup.seed);

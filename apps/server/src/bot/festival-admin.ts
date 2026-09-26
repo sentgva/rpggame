@@ -26,7 +26,7 @@ const DAY = 24 * HOUR;
 /** Даты в командах — по Москве (UTC+3). */
 export const MSK = 3 * HOUR;
 
-export const FEST_ICON: Record<FestivalId, string> = { bloodmoon: '🌕', tides: '🌊', sakura: '🌸' };
+const FEST_ICON: Record<FestivalId, string> = { bloodmoon: '🌕', tides: '🌊', sakura: '🌸' };
 
 const ALIASES: Record<string, FestivalId> = {
   bloodmoon: 'bloodmoon',
@@ -43,7 +43,7 @@ const ALIASES: Record<string, FestivalId> = {
   сакура: 'sakura',
 };
 
-export function parseFest(s: string | undefined): FestivalId | null {
+function parseFest(s: string | undefined): FestivalId | null {
   return (s && ALIASES[s.toLowerCase()]) || null;
 }
 
@@ -86,14 +86,14 @@ export function parseWhen(tokens: string[], i: number, now: number, endOfDay = f
 }
 
 /** «ДД.ММ ЧЧ:ММ» по Москве. */
-export function fmtDate(ms: number): string {
+function fmtDate(ms: number): string {
   const d = new Date(ms + MSK);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
 /** Конец праздника: полночь показываем как «24:00» предыдущего дня — «по 01.10 включительно». */
-export function fmtEnd(ms: number): string {
+function fmtEnd(ms: number): string {
   const d = new Date(ms + MSK);
   if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return fmtDate(ms - 60000).replace(/ \d\d:\d\d$/, ' 24:00');
   return fmtDate(ms);

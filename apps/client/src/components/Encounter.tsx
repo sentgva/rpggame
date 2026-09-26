@@ -7,7 +7,7 @@ import { useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
 import { showBattle } from './BattleModal';
-import { Button, Cost, css, openSheet } from './ui';
+import { Cost, css, openSheet } from './ui';
 
 type Cur = Record<string, number>;
 
@@ -123,7 +123,7 @@ function ChoiceInfo({ kind, choice, o }: { kind: EncounterKind; choice: string; 
   return null;
 }
 
-export function openEncounter() {
+function openEncounter() {
   const g = useGame.getState();
   const s = g.state!;
   const e = s.encounter;

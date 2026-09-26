@@ -1,4 +1,4 @@
-import { CLASSES, HEROINE_MAP, SKIN_MAP, TIER_REQ, TREES, TREE_NODE_MAP } from '../../content';
+import { HEROINE_MAP, SKIN_MAP, TIER_REQ, TREES, TREE_NODE_MAP } from '../../content';
 import type { Action } from '../apply';
 import { addHeroine, assert, requireUnlocked, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
 import { branchPoints, goldToNext, levelCap, partySlots, skillPoints, spentPoints, xpToNext } from '../stats';
@@ -195,4 +195,3 @@ export const heroActions = {
   },
 };
 
-export { CLASSES };

@@ -211,7 +211,7 @@ function botTeam(rng: Rng): { id: string; lvl: number; stars: number }[] {
   return pool.slice(0, 5).map((id) => ({ id, lvl: 1, stars: 1 }));
 }
 
-export function arenaOpponents(ctx: Ctx, force = false): ArenaOpponent[] {
+function arenaOpponents(ctx: Ctx, force = false): ArenaOpponent[] {
   const { s, cfg, now } = ctx;
   const today = dayKey(now);
   if (!force && s.modes.arena.refreshDay === today && s.modes.arena.opponents.length) return s.modes.arena.opponents;

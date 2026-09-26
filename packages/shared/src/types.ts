@@ -292,24 +292,10 @@ export interface PlayerSettings {
   autoSmelt: number;
   haptics: boolean;
   speed: 1 | 2;
-  /** Стиль графики персонажей (учитывается, только если включён VECTOR_ART). */
-  artStyle?: ArtStyle;
   /** Ручные ульты в боях с боссами и в режимах (по умолчанию включены). */
   manualUlt?: boolean;
   /** Последняя прочитанная запись «Что нового» (id из CHANGELOG). */
   news?: string;
-}
-
-export type ArtStyle = 'vector' | 'pixel';
-export const ART_STYLES: ArtStyle[] = ['vector', 'pixel'];
-/**
- * Векторный стиль персонажей выключен: у всех пиксели, переключателя в настройках и /style в боте нет.
- * true — вернуть вектор (по умолчанию) и переключатель; код векторной графики остаётся в клиенте.
- */
-export const VECTOR_ART: boolean = false;
-/** Стиль, которым рисуем на деле: без VECTOR_ART — всегда пиксели. */
-export function artStyleOf(s?: ArtStyle): ArtStyle {
-  return VECTOR_ART ? (s ?? 'vector') : 'pixel';
 }
 
 /** Близость с героиней: уровень, опыт и счётчики действий за день. */
@@ -463,16 +449,11 @@ export interface PlayerState {
   achievements: Record<string, number>;
   shop: {
     bought: Record<string, number>;
-    monthlyUntil: number;
-    monthlyLastDay: string;
-    passUntil: number;
     passSeason: string;
     passXp: number;
     passClaimed: number[];
-    passPremiumClaimed: number[];
     /** Открыто бонусных сундуков пропуска (после 50-го уровня). */
     passBonus?: number;
-    starterUntil: number;
   };
   mail: MailMessage[];
   settings: PlayerSettings;

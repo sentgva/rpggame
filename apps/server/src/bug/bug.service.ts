@@ -11,7 +11,7 @@ const DAILY_LIMIT = 15;
 /** Ключи диагностики, которые принимаем от клиента (остальное отбрасывается). */
 const DIAG_KEYS = ['platform', 'tgVersion', 'app', 'screen', 'view', 'lang', 'ua', 'online', 'errors', 'source'] as const;
 
-export function escapeHtml(s: string): string {
+function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 

@@ -225,31 +225,6 @@ export function HeroCard({
   );
 }
 
-const WEAPON_ICON: Record<string, string> = {
-  sword: 'weapon',
-  axe: 'berserker',
-  bow: 'archer',
-  staff: 'sorceress',
-  wand: 'priestess',
-  scythe: 'skull',
-  daggers: 'assassin',
-  lute: 'bard',
-  shield: 'offhand',
-  horn: 'arenaTokens',
-  quiver: 'archer',
-  orb: 'summon',
-  tome: 'quest',
-  grimoire: 'xp',
-  dagger: 'assassin',
-  songbook: 'bard',
-};
-
-export function itemIconName(item: Pick<Item, 'base' | 'slot'>): string {
-  const base = BASE_ITEM_MAP[item.base];
-  if (base && (base.slot === 'weapon' || base.slot === 'offhand')) return WEAPON_ICON[base.type] ?? base.slot;
-  return item.slot;
-}
-
 export function itemName(item: Item): string {
   if (item.fx && LEGENDARY_MAP[item.fx]) return tl(LEGENDARY_MAP[item.fx].name);
   if (item.fx && MYTHIC_MAP[item.fx]) return `${tl(BASE_ITEM_MAP[item.base]?.name)} · ${tl(MYTHIC_MAP[item.fx].name)}`;

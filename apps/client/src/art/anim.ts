@@ -20,7 +20,7 @@ export interface LifeFrame {
 }
 
 /** Период дыхания совпадает с покачиванием юнитов в бою (sin(t/380)). */
-export const BREATH_RATE = 380;
+const BREATH_RATE = 380;
 
 export function newLife(now: number, canWink: boolean, special = false): LifeAnim {
   return { phase: Math.random() * Math.PI * 2, blinkAt: now + 600 + Math.random() * 3600, kind: 'blink', canWink, special };

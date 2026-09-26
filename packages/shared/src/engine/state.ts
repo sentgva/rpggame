@@ -111,14 +111,9 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
     achievements: {},
     shop: {
       bought: {},
-      monthlyUntil: 0,
-      monthlyLastDay: '',
-      passUntil: 0,
       passSeason: seasonKey(now),
       passXp: 0,
       passClaimed: [],
-      passPremiumClaimed: [],
-      starterUntil: now + 72 * 3600 * 1000,
     },
     mail: [
       {

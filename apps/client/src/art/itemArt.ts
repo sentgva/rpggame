@@ -7,7 +7,7 @@ import { Canvas, type Tone } from './figure';
 import { darken, hex, lighten, type RGBA } from './color';
 import type { Bitmap } from './sprite';
 
-export const ITEM_ICON = 32;
+const ITEM_ICON = 32;
 
 interface Look {
   metal: string;

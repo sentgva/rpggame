@@ -1,6 +1,5 @@
 import { CHANGELOG, HEROINE_MAP, SHOP_OFFER_MAP, SUMMON_POOL } from '../../content';
 import type { HeroRarity, Item, PlayerSettings } from '../../types';
-import { ART_STYLES } from '../../types';
 import type { Action } from '../apply';
 import {
   addAccountXp,
@@ -27,7 +26,6 @@ import {
 } from '../core';
 import { createPlayer, weekKey } from '../state';
 
-const HOUR = 3600000;
 
 /** Бесплатные ускорения ×2: ограничены числом в день (счётчик day.ads). */
 export function boostsLeft(ctx: Pick<Ctx, 'cfg' | 's'>): number {
@@ -201,7 +199,6 @@ export const economyActions = {
     if (p.autoBoss !== undefined) st.autoBoss = !!p.autoBoss && (s.ascension.up.autoBoss ?? 0) > 0;
     if (p.autoSmelt !== undefined) st.autoSmelt = vInt(p.autoSmelt, -1, 4, 'autoSmelt');
     if (p.speed !== undefined) st.speed = p.speed === 2 ? 2 : 1;
-    if (p.artStyle !== undefined) st.artStyle = vOneOf(p.artStyle, ART_STYLES, 'artStyle');
     if (p.manualUlt !== undefined) st.manualUlt = !!p.manualUlt;
     return {};
   },
@@ -309,4 +306,3 @@ export function doSummon(ctx: Ctx, count: number): SummonPull[] {
   return out;
 }
 
-export { HOUR };

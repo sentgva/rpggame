@@ -3,7 +3,6 @@ import { AdminController } from './admin/admin.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { BalanceService } from './balance/balance.service';
 import { BotService } from './bot/bot.service';
-import { StyleService } from './bot/style.service';
 import { IdeasService } from './bot/ideas.service';
 import { BugService } from './bug/bug.service';
 import { CacheService } from './common/cache.service';
@@ -30,7 +29,6 @@ import { SocialService } from './social/social.service';
     IdeasService,
     BotService,
     BugService,
-    StyleService,
     NotifyService,
     SocialService,
     DevService,

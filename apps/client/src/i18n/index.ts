@@ -1,9 +1,13 @@
 import type { L10n, Lang } from '@idle/shared';
-import { en } from './en';
 import { ru } from './ru';
 
 export type Dict = typeof ru;
-const DICTS: Record<Lang, Dict> = { ru, en };
+/** Русский — в стартовом бандле; английский подгружается, только если он нужен. */
+const DICTS: Partial<Record<Lang, Dict>> = { ru };
+
+export async function loadLang(l: Lang): Promise<void> {
+  if (!DICTS[l] && l === 'en') DICTS.en = (await import('./en')).en;
+}
 
 let current: Lang = 'ru';
 
@@ -17,8 +21,8 @@ export function getLang(): Lang {
 
 /** Строка интерфейса по ключу с подстановкой {параметров}. */
 export function t(key: keyof Dict | string, params?: Record<string, string | number>): string {
-  const d = DICTS[current] as Record<string, string>;
-  let s = d[key] ?? (DICTS.ru as Record<string, string>)[key] ?? String(key);
+  const d = (DICTS[current] ?? ru) as Record<string, string>;
+  let s = d[key] ?? (ru as Record<string, string>)[key] ?? String(key);
   if (params) for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v));
   return s;
 }
@@ -37,7 +41,7 @@ export function detectLang(code?: string): Lang {
 /** Текст ошибки движка по коду. */
 export function errorText(code: string, params?: Record<string, string | number>): string {
   const key = `err.${code}`;
-  const d = DICTS[current] as Record<string, string>;
+  const d = (DICTS[current] ?? ru) as Record<string, string>;
   if (d[key]) {
     const p = { ...params };
     if (p.cur) p.cur = t(`cur.${p.cur}`);

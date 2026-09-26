@@ -2,7 +2,7 @@ import { HEROINE_MAP, SKIN_MAP, festivalNext, formatNum, skinFestival, type Item
 import type { ReactNode } from 'react';
 import { heroUrl } from '../art/runtime';
 import { HeroImg } from '../components/HeroImg';
-import { Button, CUR_ICON, Icon, ItemSlot, Sheet, css, itemName, rarityColor } from '../components/ui';
+import { Button, CUR_ICON, Icon, ItemSlot, Sheet, css } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useGame } from '../store/game';
 import { useUi } from '../store/ui';
@@ -111,26 +111,6 @@ export function showReward(title: string, r: RewardLike, extra?: ReactNode) {
       </Button>
     </Sheet>
   ));
-}
-
-export function ItemLine({ item }: { item: Item }) {
-  return (
-    <span style={{ color: rarityColor(item.rarity), fontWeight: 700 }}>
-      {itemName(item)} {item.enh > 0 && `+${item.enh}`}
-    </span>
-  );
-}
-
-export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
-  return (
-    <div className={css.row} style={{ margin: '10px 2px 6px' }}>
-      <span className={css.title} style={{ fontSize: 15 }}>
-        {children}
-      </span>
-      <span className={css.grow} />
-      {right}
-    </div>
-  );
 }
 
 /** Кнопка «назад» для вложенных экранов (дублирует системную кнопку Telegram). */

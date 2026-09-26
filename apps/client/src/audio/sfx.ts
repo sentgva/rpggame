@@ -170,7 +170,7 @@ export function sfx(name: string) {
 const ROOTS = [0, 220, 196, 233, 207, 174, 185, 262, 247, 165, 155];
 const MINOR = [0, 3, 5, 7, 10, 12, 15];
 
-export function startMusic(act: number) {
+function startMusic(act: number) {
   if (!ctx || !musicGain) return;
   if (musicAct === act && musicTimer) return;
   musicAct = act;

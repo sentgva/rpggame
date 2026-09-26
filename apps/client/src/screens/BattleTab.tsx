@@ -75,7 +75,7 @@ function Hud() {
   const cap = capMinutes(cfg, s, now);
   const fill = Math.min(1, chest.minutes / cap);
   const stage = Math.min(4, Math.floor(fill * 4));
-  const x2Left = Math.max(s.boosts.x2Until, s.shop.passUntil) - now;
+  const x2Left = s.boosts.x2Until - now;
   // во время боя с боссом (живой бой отправляется в конце) кнопка не нужна
   const canBoss = phase !== 'boss' && (!!target && s.progress.wave >= 3);
   const retryLeft = s.progress.retryAt - now;

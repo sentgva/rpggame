@@ -66,20 +66,12 @@ const STAT_ICON: Partial<Record<StatKey, string>> = {
   dmgBasic: 'weapon',
 };
 
-export function nodeIcon(n: TreeNode): string {
+function nodeIcon(n: TreeNode): string {
   if (n.kind === 'active') return VFX_ICON[SKILL_MAP[n.skill!]?.vfx ?? 'slash'] ?? 'weapon';
   if (n.kind === 'mod') return 'forge';
   if (n.kind === 'key') return 'trophy';
   const k = Object.keys(n.stats ?? {})[0] as StatKey;
   return STAT_ICON[k] ?? 'star';
-}
-
-export function nodeName(n: TreeNode): string {
-  if (n.kind === 'passive')
-    return Object.entries(n.stats ?? {})
-      .map(([k, v]) => statText(k as StatKey, v as number, getLang()))
-      .join(', ');
-  return tl(n.name);
 }
 
 export function SkillTree({ heroId }: { heroId: string }) {

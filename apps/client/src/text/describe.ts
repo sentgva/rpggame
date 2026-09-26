@@ -43,7 +43,7 @@ function multAt(e: SkillEffect, rank: number): number {
   return (e.mult ?? 0) + per * (rank - 1);
 }
 
-export function describeEffect(e: SkillEffect, rank: number, skillTarget: TargetRule): string {
+function describeEffect(e: SkillEffect, rank: number, skillTarget: TargetRule): string {
   const en = getLang() === 'en';
   const tgt = L(TARGET[e.target ?? skillTarget]);
   const turns = (n?: number) => (en ? `${n ?? 1} turn${(n ?? 1) > 1 ? 's' : ''}` : `${n ?? 1} х.`);

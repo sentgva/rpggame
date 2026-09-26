@@ -71,7 +71,6 @@ import {
   CHANGELOG,
   CHANGELOG_LATEST,
   buildHeroine,
-  artStyleOf,
   hordeBonus,
   hordeWaveReward,
   ENDGAME_SETS,
@@ -82,7 +81,6 @@ import {
   dungeonReward,
   towerMod,
   towerReward,
-  VECTOR_ART,
   FESTIVALS,
   FESTIVAL_DAYS,
   FESTIVAL_EPOCH,
@@ -212,18 +210,6 @@ describe('действия', () => {
     const a = applyAction(s, { type: 'battle.wave' }, { cfg, now: T0 + 5000 });
     const b = applyAction(s, { type: 'battle.wave' }, { cfg, now: T0 + 5000, server: true });
     expect(stateHash(a.state)).toBe(stateHash(b.state));
-  });
-
-  it('стиль графики: вектор по умолчанию, переключается на пиксели, мусор отклоняется', () => {
-    const s = fresh();
-    expect(s.settings.artStyle ?? 'vector').toBe('vector');
-    const r = applyAction(s, { type: 'settings', patch: { artStyle: 'pixel' } }, { cfg, now: T0 });
-    expect(r.state.settings.artStyle).toBe('pixel');
-    expect(() => applyAction(s, { type: 'settings', patch: { artStyle: '3d' } }, { cfg, now: T0 })).toThrow(GameError);
-    // пока векторный стиль выключен, рисуем пикселями при любом сохранённом выборе
-    expect(artStyleOf(undefined)).toBe(VECTOR_ART ? 'vector' : 'pixel');
-    expect(artStyleOf('vector')).toBe(VECTOR_ART ? 'vector' : 'pixel');
-    expect(artStyleOf('pixel')).toBe('pixel');
   });
 
   it('полный сброс: игра с нуля, настройки сохраняются, без подтверждения — ошибка', () => {

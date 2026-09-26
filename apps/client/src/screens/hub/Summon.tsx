@@ -123,7 +123,7 @@ function HeroBanner() {
   );
 }
 
-export function showPulls(pulls: SummonPull[]) {
+function showPulls(pulls: SummonPull[]) {
   const botUsername = useGame.getState().botUsername;
   const best = pulls.reduce((a, p) => (['R', 'SR', 'SSR', 'UR'].indexOf(p.rarity) > ['R', 'SR', 'SSR', 'UR'].indexOf(a.rarity) ? p : a), pulls[0]);
   openGacha({
@@ -338,7 +338,7 @@ function openArtifact(id: string) {
   ));
 }
 
-export function showArtifactPulls(pulls: ArtifactPull[]) {
+function showArtifactPulls(pulls: ArtifactPull[]) {
   openGacha({
     title: t('art.bannerName'),
     colors: ARTIFACT_RARITY_COLORS as Record<GachaRarity, string>,

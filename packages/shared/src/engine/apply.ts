@@ -156,7 +156,6 @@ export function tick(ctx: Ctx) {
     s.shop.passSeason = season;
     s.shop.passXp = 0;
     s.shop.passClaimed = [];
-    s.shop.passPremiumClaimed = [];
     s.shop.passBonus = 0;
   }
   // почта: храним не больше 50 писем

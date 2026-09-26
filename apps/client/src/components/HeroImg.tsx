@@ -2,7 +2,6 @@ import { ELEMENT_COLORS, ENEMY_MAP, HEROINE_MAP } from '@idle/shared';
 import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from 'react';
 import { frameKey, lifeFrame, newLife, type LifeFrame } from '../art/anim';
 import { enemyUrl, heroUrl } from '../art/runtime';
-import { VECTOR_SCALE, useArt } from '../art/style';
 
 // один общий таймер на все «живые» портреты
 const subs = new Set<(now: number) => void>();
@@ -26,9 +25,6 @@ function subscribe(fn: (now: number) => void) {
   };
 }
 
-/** Векторная фигура крупнее на 15%: растёт вверх и в стороны от линии стоп, место в разметке то же. */
-const VECTOR_GROW: CSSProperties = { scale: String(VECTOR_SCALE), transformOrigin: '50% 96%' };
-
 type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   id: string;
   skin?: string;
@@ -41,8 +37,6 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
 /** Героиня, которая дышит, моргает и иногда подмигивает. */
 export function HeroImg({ id, skin, still, unarmed, alt = '', style, ...rest }: Props) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
-  useArt((a) => a.version);
-  const grow = useArt((a) => a.style === 'vector') ? VECTOR_GROW : undefined;
   const herald = !!HEROINE_MAP[id]?.herald;
   useEffect(() => {
     setFrame(null);
@@ -60,20 +54,17 @@ export function HeroImg({ id, skin, still, unarmed, alt = '', style, ...rest }: 
   // Вестницы светятся цветом своей стихии
   const st: CSSProperties | undefined = herald && !still
     ? {
-        ...grow,
         ...style,
         ['--aura' as string]: ELEMENT_COLORS[HEROINE_MAP[id].element],
         animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', '),
       }
-    : { ...grow, ...style };
+    : style;
   return <img {...rest} style={st} alt={alt} src={heroUrl(id, skin, frame ?? {}, unarmed)} draggable={false} />;
 }
 
 /** Враг с «живой» анимацией; Колоссы машут крыльями/хвостом и светятся своей стихией. */
 export function EnemyImg({ id, alt = '', style, ...rest }: Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & { id: string }) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
-  useArt((a) => a.version);
-  const grow = useArt((a) => a.style === 'vector') ? VECTOR_GROW : undefined;
   const def = ENEMY_MAP[id];
   const special = !!def?.colossus;
   useEffect(() => {
@@ -90,7 +81,7 @@ export function EnemyImg({ id, alt = '', style, ...rest }: Omit<ImgHTMLAttribute
     });
   }, [id, special]);
   const st: CSSProperties | undefined = special
-    ? { ...grow, ...style, ['--aura' as string]: ELEMENT_COLORS[def.element], animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', ') }
-    : { ...grow, ...style };
+    ? { ...style, ['--aura' as string]: ELEMENT_COLORS[def.element], animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', ') }
+    : style;
   return <img {...rest} style={st} alt={alt} src={enemyUrl(id, frame ?? {})} draggable={false} />;
 }

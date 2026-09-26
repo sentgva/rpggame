@@ -2,7 +2,7 @@ import { ACTS, BASE_ITEM_MAP, ENDGAME_SETS, GEM_TYPES, HEROINE_MAP, RECIPES, SET
 import type { EquipSlot, Item, ItemSlot } from '../../types';
 import { EQUIP_SLOTS, equipSlotToItemSlot } from '../../types';
 import type { Action } from '../apply';
-import { addItem, assert, farmLevel, give, requireUnlocked, rollLoot, smeltGain, spend, track, trackMax, vInt, vOneOf, vStr, vStrArr, type Ctx } from '../core';
+import { addItem, assert, farmLevel, rollLoot, smeltGain, spend, track, trackMax, vInt, vOneOf, vStr, vStrArr, type Ctx } from '../core';
 import { rollAffix } from '../loot';
 import { equippedIndex, itemPower } from '../stats';
 
@@ -22,7 +22,7 @@ export function enhanceCost(ctx: Pick<Ctx, 'cfg'>, it: Item, level = it.enh): { 
 }
 
 /** Цена переноса заточки: доля от стоимости заточки целевого предмета до того же уровня. */
-export function transferGold(ctx: Pick<Ctx, 'cfg'>, from: Item, to: Item): number {
+function transferGold(ctx: Pick<Ctx, 'cfg'>, from: Item, to: Item): number {
   let gold = 0;
   for (let e = to.enh; e < from.enh; e++) gold += enhanceCost(ctx, to, e).gold;
   return Math.floor(gold * ctx.cfg.gear.transferCostPct);
@@ -313,4 +313,3 @@ export const itemActions = {
   },
 };
 
-export { give, requireUnlocked };

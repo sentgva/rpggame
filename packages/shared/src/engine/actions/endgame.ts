@@ -50,7 +50,7 @@ function addShards(ctx: Ctx, hero: string, n: number, out: Record<string, number
 // ——— Разлом Колосса ———
 
 /** С какого яруса урона Разлом даёт часть «Доспеха Колосса». */
-export const RIFT_SET_TIER = 4;
+const RIFT_SET_TIER = 4;
 
 export function riftState(ctx: Pick<Ctx, 's' | 'now'>): RiftState {
   const today = dayKey(ctx.now);

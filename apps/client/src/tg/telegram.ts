@@ -144,25 +144,6 @@ export function pushBack(handler: () => void): () => void {
   };
 }
 
-export function cloudGet(key: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    if (!tg?.CloudStorage || !tg.isVersionAtLeast('6.9')) {
-      resolve(localStorage.getItem(`cloud:${key}`));
-      return;
-    }
-    tg.CloudStorage.getItem(key, (err, v) => resolve(err ? null : (v ?? null)));
-  });
-}
-
-export function cloudSet(key: string, value: string) {
-  try {
-    if (!tg?.CloudStorage || !tg.isVersionAtLeast('6.9')) localStorage.setItem(`cloud:${key}`, value);
-    else tg.CloudStorage.setItem(key, value);
-  } catch {
-    /* ignore */
-  }
-}
-
 export function addToHomeScreen() {
   if (tg?.isVersionAtLeast('8.0')) tg.addToHomeScreen?.();
 }

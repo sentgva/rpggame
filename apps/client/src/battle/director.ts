@@ -74,13 +74,13 @@ export function battleSpeed(): number {
   const g = useGame.getState();
   const s = g.state!;
   const now = g.now();
-  let speed = s.boosts.x2Until > now || s.shop.passUntil > now ? 2 : 1;
+  let speed = s.boosts.x2Until > now ? 2 : 1;
   if (g.isDev && s.dev.speed) speed = Math.max(speed, s.dev.speed);
   return speed;
 }
 
 /** Проиграть бой: через рендерер, если он смонтирован, иначе просто выждать его длительность. */
-export async function play(p: Playback): Promise<void> {
+async function play(p: Playback): Promise<void> {
   // бой режима важнее фоновых боёв: не прерываем его
   if (modeActive && p.kind !== 'mode') return;
   current?.abort();
@@ -97,24 +97,6 @@ export function requestBoss() {
   bossRequested = true;
   // прерываем косметический фарм, чтобы босс начался сразу
   if (useBattle.getState().phase === 'farm') current?.abort();
-}
-
-/** Бой из режима (подземелье, башня, арена…) — показывается на экране боя. */
-export async function playModeBattle(events: BattleEvent[], win: boolean, label: string, act = 1): Promise<void> {
-  let release!: () => void;
-  const prev = modeLock;
-  modeLock = new Promise((r) => (release = r));
-  await prev;
-  modeActive = true;
-  useBattle.setState({ phase: 'mode', label, mode: true });
-  try {
-    await play({ events, kind: 'mode', act, win, speed: battleSpeed(), label });
-  } finally {
-    modeActive = false;
-    useBattle.setState({ mode: false });
-    release();
-    modeLock = null;
-  }
 }
 
 export function startDirector(): () => void {

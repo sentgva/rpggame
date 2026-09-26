@@ -56,7 +56,7 @@ export interface BugReportResult {
 const SAVE_KEY = 'idle-rpg:save:v1';
 const SNAP_KEY = 'idle-rpg:snap:';
 
-export class LocalBackend implements Backend {
+class LocalBackend implements Backend {
   mode = 'local' as const;
   private state!: PlayerState;
   private cfg: Config = DEFAULT_CONFIG;
@@ -161,7 +161,7 @@ export class LocalBackend implements Backend {
 
 // ——— серверный режим ———
 
-export class RemoteBackend implements Backend {
+class RemoteBackend implements Backend {
   mode = 'remote' as const;
   private token = '';
 

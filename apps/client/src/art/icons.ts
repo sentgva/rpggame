@@ -38,7 +38,7 @@ const PAL: Record<string, string> = {
   Q: '#FFC4DE',
 };
 
-export const ICONS: Record<string, string[]> = {
+const ICONS: Record<string, string[]> = {
   gold: [
     '................',
     '.....YYYYYY.....',
@@ -1535,5 +1535,3 @@ export function renderIcon(name: string): Bitmap {
     }
   return { w, h, data };
 }
-
-export const ICON_NAMES = Object.keys(ICONS);

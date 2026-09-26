@@ -9,7 +9,7 @@ import {
   type PlayerState,
 } from '@idle/shared';
 import { create } from 'zustand';
-import { errorText, setLang } from '../i18n';
+import { errorText, loadLang, setLang } from '../i18n';
 import { createBackend, type Backend, type Flags } from '../net/backend';
 import { haptic, setHaptics } from '../tg/telegram';
 import { useUi } from './ui';
@@ -79,6 +79,7 @@ export const useGame = create<GameStore>((set, get) => ({
     backend = createBackend();
     try {
       const r = await backend.init();
+      await loadLang(r.state.settings.lang);
       setLang(r.state.settings.lang);
       setHaptics(r.state.settings.haptics);
       set({
@@ -124,7 +125,10 @@ export const useGame = create<GameStore>((set, get) => ({
     const id = uid();
     set((s) => ({ state: local.state, pending: [...s.pending, { id, action, now }] }));
     if (action.type === 'settings') {
-      setLang(local.state.settings.lang);
+      const lang = local.state.settings.lang;
+      setLang(lang);
+      // английский словарь ещё не загружен — после загрузки перерисовываем интерфейс
+      void loadLang(lang).then(() => set((s) => ({ state: s.state ? { ...s.state } : s.state })));
       setHaptics(local.state.settings.haptics);
     }
 

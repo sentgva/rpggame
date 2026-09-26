@@ -2,8 +2,8 @@
 import { Rng } from '@idle/shared';
 import { hex, mix, type RGBA } from './color';
 
-export const SCENE_W = 128;
-export const SCENE_H = 100;
+const SCENE_W = 128;
+const SCENE_H = 100;
 const W = SCENE_W;
 const H = SCENE_H;
 
@@ -1123,5 +1123,3 @@ export function sceneUrl(id: SceneBg): string {
   }
   return u;
 }
-
-export const SCENE_IDS = Object.keys(SCENES) as SceneBg[];

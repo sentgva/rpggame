@@ -11,7 +11,7 @@ import { ELEMENT_COLORS } from '@idle/shared';
 import { darken, hex, lighten, mix, type RGBA } from './color';
 import type { Bitmap, SpriteSpec } from './sprite';
 
-export const FIG = 48;
+const FIG = 48;
 
 /** Наряд по классу героини (враги берут класс по роли). */
 export type OutfitKind = 'knight' | 'barbarian' | 'ranger' | 'witch' | 'cleric' | 'reaper' | 'rogue' | 'minstrel';

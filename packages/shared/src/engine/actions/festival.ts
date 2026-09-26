@@ -184,7 +184,7 @@ function addCur(out: Cur, cur: Partial<Record<string, number>>) {
 export const festivalActions = {
   /** Бой на пути праздника: первое прохождение — бесплатно, повтор пройденного (рейд) — за билет при победе. */
   'fest.stage': (ctx: Ctx, a: Action) => {
-    const { s, cfg, now } = ctx;
+    const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
     const fn = requireFestival(ctx);
     const { def } = fn;
@@ -251,7 +251,7 @@ export const festivalActions = {
 
   /** Бой с боссом праздника: урон копится между боями, снял всё HP — босс крепнет, а вы получаете сундук. */
   'fest.boss': (ctx: Ctx, a: Action) => {
-    const { s, cfg, now } = ctx;
+    const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
     const fn = requireFestival(ctx);
     const { def } = fn;
@@ -337,7 +337,7 @@ export const festivalActions = {
 
   /** Забрать ступени шкалы наград (одну по индексу или все доступные). */
   'fest.claim': (ctx: Ctx, a: Action) => {
-    const { s, cfg, now } = ctx;
+    const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
     const fn = requireFestival(ctx);
     const { def } = fn;
@@ -379,7 +379,7 @@ export const festivalActions = {
 
   /** Лавка праздника: жетоны ивента → осколки героини праздника, облики и ресурсы. Лимиты — на праздник. */
   'fest.buy': (ctx: Ctx, a: Action) => {
-    const { s, now } = ctx;
+    const { s } = ctx;
     requireUnlocked(ctx, 'events');
     const { def, cycle } = requireFestival(ctx);
     const offer = festShop(def).find((o) => o.id === vStr(a.offer, 'offer'));
