@@ -268,7 +268,7 @@ function PartyPanel() {
           const h = id ? s.heroines[id] : null;
           return (
             <div key={i} className={cx(st.pm, !h && st.pmEmpty)} onClick={() => (id ? navigate('heroes', { id: 'hero', params: { id } }) : navigate('heroes'))}>
-              {h ? <HeroImg id={h.id} skin={h.skin} /> : <Icon name="plus" size={32} style={{ margin: 8 }} />}
+              {h ? <HeroImg id={h.id} skin={h.skin} /> : <Icon name="plus" size={28} style={{ margin: 10, opacity: 0.35 }} />}
               <span className={st.pmLvl}>{h ? `${t('common.level')} ${h.lvl}` : ''}</span>
             </div>
           );

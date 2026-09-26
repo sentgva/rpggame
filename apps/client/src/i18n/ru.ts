@@ -400,6 +400,8 @@ export const ru = {
   'mode.guildDesc': 'Социальный модуль отключён',
 
   'hub.title': 'Лагерь',
+  'hub.kicker': 'Легион Валькирий',
+  'hub.sub': '{name} ждёт приказов',
   'hub.summon': 'Призыв',
   'hub.shop': 'Магазин',
   'hub.quests': 'Задания',

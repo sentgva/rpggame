@@ -133,9 +133,9 @@ function MapRoot() {
                   useUi.getState().push({ id: m.id });
                 }}
               >
-                <Icon name={m.icon} size={36} />
+                <Icon name={m.icon} size={46} />
                 <div className={css.grow}>
-                  <b>{t(m.title)}</b>
+                  <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 20, lineHeight: 1.05, color: unlocked ? 'var(--accent-2)' : 'var(--text-2)' }}>{t(m.title)}</div>
                   <div className={css.tiny}>{unlocked ? t(m.desc) : need}</div>
                 </div>
                 {!unlocked && <Icon name="lock" size={20} />}

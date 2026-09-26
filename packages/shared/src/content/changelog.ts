@@ -11,6 +11,16 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-26f',
+    date: '26.09.2026',
+    title: { ru: 'Привычный облик, только удобнее', en: 'The familiar look, only handier' },
+    items: [
+      { ru: '🏰 Вернули классический интерфейс', en: '🏰 The classic interface is back' },
+      { ru: '🏕 Лагерь: баннер с лидером отряда, четыре главных раздела — крупными плитками', en: '🏕 Camp: a banner with your squad leader, four main sections as large tiles' },
+      { ru: '🗺 Режимы на карте — крупнее иконки и заголовки; мелкий текст чуть крупнее, цены на кнопках не переносятся', en: '🗺 Modes on the map have larger icons and titles; small text is a bit larger and prices on buttons no longer wrap' },
+    ],
+  },
+  {
     id: '2026-09-26c',
     date: '26.09.2026',
     title: { ru: 'Сокровищница Эфира', en: 'The Aether Vault' },

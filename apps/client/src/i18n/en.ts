@@ -402,6 +402,8 @@ export const en: typeof ru = {
   'mode.guildDesc': 'Social module is disabled',
 
   'hub.title': 'Camp',
+  'hub.kicker': 'Valkyrie Legion',
+  'hub.sub': '{name} awaits your orders',
   'hub.summon': 'Summon',
   'hub.shop': 'Shop',
   'hub.quests': 'Quests',
