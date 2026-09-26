@@ -110,6 +110,7 @@ const HIPS: [number, L10n][] = [
 type PoseId = 'battle' | Arms;
 const POSES: [PoseId, L10n][] = [
   ['battle', L('Боевая', 'Battle')],
+  ['relaxed', L('Руки опущены', 'Arms down')],
   ['hips', L('Руки на бёдрах', 'Hands on hips')],
   ['behindHead', L('Руки за головой', 'Hands behind head')],
   ['victory', L('Победа', 'Victory')],
@@ -281,7 +282,8 @@ function Preview({ d, pose, armed, strike }: { d: Draft; pose: PoseId; armed: bo
     return () => clearInterval(id);
   }, [winged]);
   const battle = pose === 'battle';
-  const arms: Arms = battle ? (strike ? 'attack' : frame.arms) : pose;
+  // без оружия боевая стойка выглядит странно (пустой кулак) — руки просто опущены
+  const arms: Arms = battle ? (!armed ? 'relaxed' : strike ? 'attack' : frame.arms) : pose;
   const eyes = pose === 'kiss' ? 'wink' : frame.eyes;
   const src = customUrl(d.look, d.cls, d.element, { arms, eyes, flap: frame.flap }, battle && armed);
   const still = customUrl(d.look, d.cls, d.element, {}, true);

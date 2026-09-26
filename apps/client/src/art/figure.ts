@@ -29,9 +29,9 @@ export const CLASS_OUTFIT: Record<string, OutfitKind> = {
 
 export type Tone = '0' | '+' | '-' | '=';
 export type Eyes = 'open' | 'half' | 'closed' | 'wink';
-export type Arms = 'idle' | 'idle2' | 'attack' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss';
+export type Arms = 'idle' | 'idle2' | 'attack' | 'relaxed' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss';
 /** Позы конструктора (без оружия): боевые кадры — idle/idle2/attack. */
-export const EXTRA_POSES: Arms[] = ['hips', 'behindHead', 'victory', 'wave', 'crossed', 'shy', 'kiss'];
+export const EXTRA_POSES: Arms[] = ['relaxed', 'hips', 'behindHead', 'victory', 'wave', 'crossed', 'shy', 'kiss'];
 export interface Pose {
   eyes?: Eyes;
   arms?: Arms;
@@ -144,6 +144,11 @@ const ARMS: Record<Arms, { L: ArmGeo; R: ArmGeo }> = {
   attack: {
     L: { shoulder: [17, 19], elbow: [13, 24], hand: [18, 28] },
     R: { shoulder: [30, 19], elbow: [34, 18], hand: [38, 21] },
+  },
+  // руки свободно опущены вдоль тела
+  relaxed: {
+    L: { shoulder: [17, 19], elbow: [15, 25], hand: [15, 31] },
+    R: { shoulder: [30, 19], elbow: [32, 25], hand: [33, 31] },
   },
   // обе руки на бёдрах
   hips: {
@@ -2320,9 +2325,13 @@ function faceHD(c: Canvas, eyes: Eyes) {
       if (v && FACE.has(v[0])) c.set(x, y, 'S', '0');
       else if (v === 'S-' || v === 'S=') c.set(x, y, 'S', '0');
     }
-  const skinAt = (x: number, y: number) => c.get(x, y).charAt(0) === 'S';
+  // рисуем только по лицу (кожа и уже нарисованные черты), чёлку и волосы не трогаем
+  const faceAt = (x: number, y: number) => {
+    const m = c.get(x, y).charAt(0);
+    return m === 'S' || FACE.has(m);
+  };
   const put = (x: number, y: number, v: string) => {
-    if (skinAt(x, y)) c.g[y * c.w + x] = v;
+    if (faceAt(x, y)) c.g[y * c.w + x] = v;
   };
   const left = eyes === 'wink' ? 'open' : eyes;
   const right = eyes === 'wink' ? 'closed' : eyes;
@@ -2346,44 +2355,56 @@ function faceHD(c: Canvas, eyes: Eyes) {
   for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
 }
 
-/** Глаз HD 6×7: ресницы с «крылышком», белок, радужка с переходом, зрачок, два блика. */
+/**
+ * Глаз HD 6×8: густые ресницы с «крылышком» наружу, белый белок, радужка от тёмной к светлой,
+ * тёмный зрачок 2×2, крупный блик сверху-слева и мелкий снизу, короткое нижнее веко.
+ */
 function eyeHD(put: (x: number, y: number, v: string) => void, x0: number, flip: boolean, state: 'open' | 'half' | 'closed') {
-  const cx = (i: number) => (flip ? x0 + 5 - i : x0 + i);
-  const wingX = flip ? x0 + 6 : x0 - 1;
+  const outer = flip ? x0 + 5 : x0;
+  const wing = flip ? 1 : -1;
   if (state === 'closed') {
     // сомкнутые ресницы дугой вниз
-    put(cx(0), 19, 'l0');
-    for (let i = 1; i <= 4; i++) put(cx(i), 20, 'l0');
-    put(cx(5), 19, 'l0');
-    put(wingX, 18, 'l0');
+    put(x0, 19, 'l-');
+    put(x0 + 5, 19, 'l-');
+    for (let x = x0 + 1; x <= x0 + 4; x++) put(x, 20, 'l-');
+    put(outer + wing, 18, 'l-');
     return;
   }
   const top = state === 'half' ? 18 : 16;
-  for (let i = 1; i <= 4; i++) put(cx(i), top, 'l0');
-  for (let i = 0; i <= 5; i++) put(cx(i), top + 1, 'l0');
-  put(wingX, top, 'l0');
-  put(wingX, top + 1, 'l0');
-  const rows = state === 'half' ? [20, 21, 22] : [18, 19, 20, 21, 22];
-  for (const y of rows) {
-    const k = y - rows[0];
-    const n = rows.length;
-    const tone = k === 0 ? '=' : k === n - 1 ? '+' : k === n - 2 ? '0' : '-';
-    put(cx(0), y, y === rows[n - 1] ? 'S0' : 'R-');
-    put(cx(5), y, y === rows[n - 1] ? 'S0' : 'R-');
-    for (let i = 1; i <= 4; i++) put(cx(i), y, 'E' + tone);
+  // ресницы: две строки, внешний уголок толще и уходит «крылышком»
+  for (let x = x0 + 1; x <= x0 + 4; x++) put(x, top, 'l-');
+  for (let x = x0; x <= x0 + 5; x++) put(x, top + 1, 'l-');
+  put(outer + wing, top, 'l-');
+  put(outer + wing, top + 1, 'l-');
+  put(outer + 2 * wing, top - 1, 'l-');
+  const y0 = top + 2;
+  const y1 = 22;
+  for (let y = y0; y <= y1; y++) {
+    const k = (y - y0) / Math.max(1, y1 - y0);
+    const tone = k < 0.25 ? '=' : k < 0.5 ? '-' : k < 0.8 ? '0' : '+';
+    for (let x = x0 + 1; x <= x0 + 4; x++) put(x, y, 'E' + tone);
+    // белок по бокам радужки, кроме нижней строки
+    if (y < y1) {
+      put(x0, y, 'R0');
+      put(x0 + 5, y, 'R0');
+    }
   }
   // зрачок
+  const py = state === 'open' ? 19 : 20;
+  put(x0 + 2, py, 'l-');
+  put(x0 + 3, py, 'l-');
+  put(x0 + 2, py + 1, 'l-');
+  put(x0 + 3, py + 1, 'l-');
+  // блики: у обоих глаз с одной стороны (свет сверху-слева)
+  put(x0 + 1, y0, 'R+');
   if (state === 'open') {
-    put(cx(2), 19, 'l0');
-    put(cx(3), 19, 'l0');
-    put(cx(2), 20, 'l0');
-    put(cx(3), 20, 'l0');
-  } else put(cx(2), 20, 'l0');
-  // блики: крупный сверху-слева (у обоих глаз с одной стороны), мелкий снизу-справа
-  const hl = x0 + 1;
-  put(hl, rows[0], 'R+');
-  if (state === 'open') put(hl, rows[0] + 1, 'R+');
-  put(x0 + 4, rows[rows.length - 1] - 1, 'R0');
+    put(x0 + 1, y0 + 1, 'R+');
+    put(x0 + 2, y0, 'R+');
+  }
+  put(x0 + 4, y1 - 1, 'R+');
+  // нижнее веко — короткая линия у внешнего уголка
+  put(outer, 23, 'l0');
+  put(flip ? x0 + 4 : x0 + 1, 23, 'l0');
 }
 
 /** Пряди: тонкие тёмные линии в волосах ниже макушки, чтобы волосы не были сплошной заливкой. */
