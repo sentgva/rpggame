@@ -864,4 +864,10 @@ export const en: typeof ru = {
   'fest.announce': 'A festival has begun!',
   'fest.announceText': 'The festival runs for {t} more. The trail, the boss, tasks and the shop await — with a special skin at the end of the reward track.',
   'fest.announceGo': 'To the festival',
+  'src.festNow': 'on now',
+  'src.festFrom': 'from {date}',
+  'src.festNowLong': 'on now, until {date}',
+  'src.festFromLong': '{from} to {to}',
+  'src.festShop': 'The "{name}" festival shop ({when}): Camp → festival banner → Shop, for event tokens',
+  'src.festFinal': 'The final reward of the "{name}" festival track ({when}): Camp → festival banner → Rewards',
 };

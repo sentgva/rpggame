@@ -862,4 +862,10 @@ export const ru = {
   'fest.announce': 'Начался праздник!',
   'fest.announceText': 'Праздник продлится ещё {t}. Путь, босс, задания и лавка ждут — а в финале шкалы наград особый облик.',
   'fest.announceGo': 'К празднику',
+  'src.festNow': 'идёт сейчас',
+  'src.festFrom': 'с {date}',
+  'src.festNowLong': 'идёт сейчас, до {date}',
+  'src.festFromLong': 'с {from} по {to}',
+  'src.festShop': 'Лавка праздника «{name}» ({when}): Лагерь → баннер праздника → Лавка, за жетоны ивента',
+  'src.festFinal': 'Финальная награда шкалы праздника «{name}» ({when}): Лагерь → баннер праздника → Награды',
 };

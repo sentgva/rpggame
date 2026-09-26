@@ -7,7 +7,7 @@ import { t, tl } from '../../i18n';
 import { useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { sfx } from '../../audio/sfx';
-import { BackHeader } from '../common';
+import { BackHeader, skinSourceText } from '../common';
 
 type ShopTab = 'shards' | 'daily' | 'skins' | 'arena' | 'labyrinth' | 'event' | 'guild';
 
@@ -104,7 +104,7 @@ function SkinNote({ id, inSkinShop }: { id: string; inSkinShop: boolean }) {
       ) : inSkinShop && sk.source === 'shop' ? (
         <span style={{ color: '#f2c86a' }}> · {t('shop.exclusive')}</span>
       ) : inSkinShop && sk.source !== 'shop' ? (
-        <span> · {t('shop.alsoIn', { src: t(`src.${sk.source}`) })}</span>
+        <span> · {t('shop.alsoIn', { src: skinSourceText(id) })}</span>
       ) : null}
     </div>
   );

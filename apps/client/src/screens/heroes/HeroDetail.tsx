@@ -28,7 +28,7 @@ import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { haptic } from '../../tg/telegram';
 import { sfx } from '../../audio/sfx';
-import { BackHeader, openItem } from '../common';
+import { BackHeader, openItem, skinSourceText } from '../common';
 import { SkillTree } from './SkillTree';
 
 type TabId = 'stats' | 'tree' | 'gear' | 'skins' | 'bio';
@@ -272,12 +272,12 @@ function HeroSkins({ heroId }: { heroId: string }) {
                 if (owned) void useGame.getState().act('hero.skin', { id: heroId, skin: sk.id });
                 else if (sk.crystals)
                   confirmDialog(t('shop.buySkin', { name: tl(sk.name), n: sk.crystals }), () => void useGame.getState().act('shop.buy', { offer: `sk_${sk.id}` }));
-                else useUi.getState().toast(t('heroes.skinLocked'), 'info');
+                else useUi.getState().toast(sk.source === 'shop' ? t('heroes.skinLocked') : skinSourceText(sk.id, true), 'info');
               }}
             >
               <HeroImg className={cx(css.heroSprite, !owned && css.dim)} id={heroId} skin={sk.id} still={!owned} />
               <div className={css.heroName}>{tl(sk.name)}</div>
-              {!owned && sk.source !== 'shop' && <div className={css.tiny}>{t(`src.${sk.source}`)}</div>}
+              {!owned && sk.source !== 'shop' && <div className={css.tiny}>{skinSourceText(sk.id)}</div>}
               <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : t('heroes.skinLocked')}</div>
             </div>
           );

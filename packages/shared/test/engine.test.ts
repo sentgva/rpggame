@@ -109,6 +109,8 @@ import {
   festStageLevel,
   festivalAt,
   festivalState,
+  festivalNext,
+  skinFestival,
   ELITE_AFFIX_MAP,
   stageAffixes,
   withAffixes,
@@ -1247,5 +1249,20 @@ describe('свойства элиты', () => {
       }
       expect(units.filter((u) => u.kind === 'enemy').every((u) => u.fx.length === 0)).toBe(true);
     }
+  });
+});
+
+describe('облики праздников: где получить', () => {
+  it('облик знает свой праздник и ближайшие даты', () => {
+    const DAY = 86400000;
+    const now = FESTIVAL_EPOCH + DAY;
+    expect(skinFestival('isolde_sakura')).toMatchObject({ final: false, def: { id: 'sakura' } });
+    expect(skinFestival('selene_moon')).toMatchObject({ final: true, def: { id: 'bloodmoon' } });
+    expect(skinFestival('lira_summer')).toBeNull();
+    const sak = festivalNext('sakura', now);
+    expect(sak.active).toBe(false);
+    expect(sak.start).toBe(FESTIVAL_EPOCH + 2 * FESTIVAL_DAYS * DAY);
+    expect(festivalAt(sak.start).def.id).toBe('sakura');
+    expect(festivalNext('bloodmoon', now)).toMatchObject({ active: true, start: FESTIVAL_EPOCH });
   });
 });

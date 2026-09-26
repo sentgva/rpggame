@@ -1,4 +1,4 @@
-import { HEROINE_MAP, SKIN_MAP, formatNum, type Item } from '@idle/shared';
+import { HEROINE_MAP, SKIN_MAP, festivalNext, formatNum, skinFestival, type Item } from '@idle/shared';
 import type { ReactNode } from 'react';
 import { heroUrl } from '../art/runtime';
 import { HeroImg } from '../components/HeroImg';
@@ -158,4 +158,22 @@ export function Locked({ text }: { text: string }) {
       <span className={css.muted}>{text}</span>
     </div>
   );
+}
+
+function shortDate(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Где получить облик: для обликов праздников — какой праздник, где в нём и когда он идёт. */
+export function skinSourceText(id: string, full = false): string {
+  const sk = SKIN_MAP[id];
+  if (!sk) return '';
+  const fest = skinFestival(id);
+  if (!fest) return t(`src.${sk.source}`);
+  const when = festivalNext(fest.def.id, useGame.getState().now());
+  const name = tl(fest.def.name);
+  const at = when.active ? t('src.festNow') : t('src.festFrom', { date: shortDate(when.start) });
+  if (!full) return `${name} · ${at}`;
+  return t(fest.final ? 'src.festFinal' : 'src.festShop', { name, when: when.active ? t('src.festNowLong', { date: shortDate(when.end) }) : t('src.festFromLong', { from: shortDate(when.start), to: shortDate(when.end) }) });
 }

@@ -325,6 +325,25 @@ for (const [id, hero, ru, en, look] of FEST_SKINS) {
   SKIN_MAP[id] = skin;
 }
 
+/** Праздник, где добывается облик: финал шкалы наград или лавка. */
+export function skinFestival(skin: string): { def: FestivalDef; final: boolean } | null {
+  for (const def of FESTIVALS) {
+    if (def.finalSkin === skin) return { def, final: true };
+    if (def.shopSkins.includes(skin)) return { def, final: false };
+  }
+  return null;
+}
+
+/** Ближайший (или идущий сейчас) праздник с этим id: начало, конец и идёт ли он. */
+export function festivalNext(id: FestivalId, now: number): { start: number; end: number; active: boolean } {
+  const cur = festivalAt(now);
+  for (let k = 0; k < FESTIVALS.length; k++) {
+    const at = festivalAt(cur.start + k * FESTIVAL_DAYS * DAY + 1);
+    if (at.def.id === id) return { start: at.start, end: at.end, active: k === 0 };
+  }
+  return { start: cur.start, end: cur.end, active: true };
+}
+
 // ——— Лавка праздника ———
 
 export interface FestOfferDef {
