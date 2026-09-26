@@ -43,6 +43,7 @@ import {
 } from '@idle/shared';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { heroUrl } from '../../art/runtime';
+import { sceneUrl, type SceneBg } from '../../art/scenes';
 import { HeroImg } from '../../components/HeroImg';
 import { Bar, Button, Cost, Icon, Panel, css, cx, openSheet } from '../../components/ui';
 import { t, tl } from '../../i18n';
@@ -211,27 +212,23 @@ type Scene =
   | { kind: 'sleep' }
   | { kind: 'morning' };
 
-/** Обстановка комнат: эмодзи-мебель (x, y — % сцены, размер в px). */
-const FURNITURE: Record<RoomId, { e: string; x: number; y: number; size: number }[]> = {
-  living: [
-    { e: '🛋️', x: 3, y: 64, size: 46 },
-    { e: '🖼️', x: 76, y: 32, size: 30 },
-    { e: '🪴', x: 84, y: 66, size: 34 },
-  ],
-  kitchen: [
-    { e: '🍳', x: 5, y: 66, size: 34 },
-    { e: '🥖', x: 80, y: 36, size: 28 },
-    { e: '🍲', x: 83, y: 68, size: 34 },
-  ],
-  bath: [
-    { e: '🕯️', x: 5, y: 38, size: 26 },
-    { e: '🧴', x: 87, y: 40, size: 26 },
-  ],
-  bedroom: [
-    { e: '🛏️', x: 3, y: 64, size: 48 },
-    { e: '🧸', x: 85, y: 68, size: 30 },
-  ],
-};
+/** Пиксельный фон сцены. */
+function sceneBg(sc: Scene): SceneBg {
+  switch (sc.kind) {
+    case 'camp':
+    case 'spa':
+    case 'bath':
+      return sc.kind;
+    case 'date':
+      return sc.place;
+    case 'room':
+      return sc.room;
+    case 'sleep':
+      return 'night';
+    case 'morning':
+      return 'bedroom';
+  }
+}
 
 /** В какой комнате проходит сцена. */
 function sceneRoom(sc: Scene): RoomId | null {
@@ -428,10 +425,8 @@ function CareHero({ hero }: { hero: string }) {
     }
   }
 
-  const place = scene.kind === 'date' ? PLACES.find((p) => p.id === scene.place)! : null;
   const room = sceneRoom(scene);
-  const bg = place?.bg ?? (scene.kind === 'sleep' ? ['#08081a', '#1c1c40'] : scene.kind === 'morning' ? ['#4a4a88', '#c8b0d8'] : room ? ROOM_MAP[room].bg : null);
-  const sceneStyle: CSSProperties | undefined = bg ? { background: `linear-gradient(180deg, ${bg[0]} 0%, ${bg[1]} 100%)` } : undefined;
+  const sceneStyle: CSSProperties = { backgroundImage: `url(${sceneUrl(sceneBg(scene))})` };
   const skin = scene.kind === 'spa' || scene.kind === 'bath' ? BOND_SPA_SKIN[hero] : scene.kind === 'sleep' || scene.kind === 'morning' ? BOND_SLEEP_SKIN[hero] : s.heroines[hero]?.skin;
   const sleptWith = slept ? home.sleptWith : undefined;
   const locations: { id: 'camp' | RoomId; icon: string; name: string; built: boolean }[] = [
@@ -466,20 +461,11 @@ function CareHero({ hero }: { hero: string }) {
         ))}
       </div>
 
-      <div className={cx(st.scene, scene.kind === 'spa' && st.spa, scene.kind === 'bath' && st.tiles)} style={sceneStyle}>
+      <div className={st.scene} style={sceneStyle}>
         <div className={st.bubble}>
           <b>{tl(def.name)}:</b> {line}
         </div>
-        {scene.kind === 'camp' && <span className={st.fire}>🔥</span>}
-        {place && <span className={st.deco}>{place.icon}</span>}
-        {room &&
-          scene.kind !== 'sleep' &&
-          FURNITURE[room].map((f) => (
-            <span key={f.e} className={st.furniture} style={{ left: `${f.x}%`, top: `${f.y}%`, fontSize: f.size }}>
-              {f.e}
-            </span>
-          ))}
-        {(scene.kind === 'sleep' || scene.kind === 'morning') && <span className={st.window}>{scene.kind === 'sleep' ? '🌙' : '☀️'}</span>}
+        {scene.kind === 'camp' && <span className={st.fireGlow} />}
         {scene.kind === 'sleep' ? (
           <>
             <div className={st.bed} />
