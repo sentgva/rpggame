@@ -127,7 +127,7 @@ function TopBar() {
       </div>
       <div className={styles.acc}>
         <div className={styles.accName}>{s.title ? `« ${s.name} »` : s.name}</div>
-        <Bar value={s.account.xp} max={need} height={5} color="linear-gradient(90deg,#7ee0ff,#a98bff)" />
+        <Bar value={s.account.xp} max={need} height={6} color="linear-gradient(180deg,#8fc3c0,#5f8f8c)" />
       </div>
       <div className={styles.res}>
         <Icon name="gold" size={22} />
@@ -172,7 +172,7 @@ const dotStyle: React.CSSProperties = {
   right: -5,
   width: 9,
   height: 9,
-  borderRadius: '50%',
   background: 'var(--edge)',
-  boxShadow: '0 0 0 2px #1c1a3c, 0 0 8px rgba(255,92,138,.8)',
+  transform: 'rotate(45deg)',
+  boxShadow: '0 0 0 1.5px #14161d, 0 0 6px rgba(208,97,94,.7)',
 };

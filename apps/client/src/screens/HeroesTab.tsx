@@ -239,15 +239,14 @@ function PartySlot({ id, active, onClick }: { id: string | null; active: boolean
         flex: 1,
         aspectRatio: '1',
         maxWidth: 64,
-        borderRadius: 14,
-        border: `1.5px ${active ? 'solid var(--pink)' : 'dashed rgba(255,255,255,.18)'}`,
-        background: 'linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.02))',
+        border: `1.5px ${active ? 'solid var(--gold)' : 'dashed var(--line-2)'}`,
+        background: 'radial-gradient(circle at 50% 35%, #2a2f3c, #14161d 75%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
         position: 'relative',
-        boxShadow: active ? '0 0 12px rgba(255,143,200,.45)' : undefined,
+        boxShadow: active ? '0 0 10px rgba(201,164,92,.45)' : undefined,
       }}
     >
       {h ? <HeroImg className="pixel" id={h.id} skin={h.skin} style={{ width: '100%', height: '100%' }} /> : <span style={{ fontSize: 26, fontWeight: 300, lineHeight: 1, color: 'var(--text-3)' }}>+</span>}

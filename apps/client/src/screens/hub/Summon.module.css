@@ -5,7 +5,7 @@
 .banner {
   position: relative;
   height: 170px;
-  border-radius: 18px;
+  border-radius: 0;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -54,9 +54,9 @@
   min-height: 104px;
   justify-content: center;
   padding: 6px 4px;
-  border-radius: 16px;
+  border-radius: 0;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, #262b37, #1a1d26);
   color: inherit;
   font-family: inherit;
   cursor: pointer;

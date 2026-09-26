@@ -1,54 +1,60 @@
-/* Аниме-стиль: ночное небо, «стеклянные» панели, сакура-розовый и небесно-голубой акценты, скруглённый шрифт. */
+/* Аниме × RPG: прямые рамки со стальной линией и золотыми уголками, скошенные кнопки, приглушённая палитра, пиксельные заголовки. */
 :root {
-  /* поверхности */
-  --bg: #0f0e24;
-  --panel-1: rgba(255, 255, 255, 0.045);
-  --panel-2: rgba(255, 255, 255, 0.075);
-  --panel-3: rgba(255, 255, 255, 0.11);
-  --glass: rgba(24, 22, 52, 0.72);
-  --line: rgba(255, 255, 255, 0.1);
-  --line-2: rgba(255, 255, 255, 0.18);
+  /* поверхности: тёмный серо-синий, приглушённый — яркими остаются героини и предметы */
+  --bg: #13151c;
+  --panel-1: #1a1d26;
+  --panel-2: #20242f;
+  --panel-3: #282d3a;
+  --glass: rgba(22, 25, 33, 0.9);
+  --line: #353c4b;
+  --line-2: #4a5265;
   /* старые имена — для экранов, которые ещё ссылаются на них */
-  --frame: rgba(255, 255, 255, 0.14);
-  --frame-dark: rgba(255, 255, 255, 0.08);
+  --frame: #3a4252;
+  --frame-dark: #2a303c;
 
-  /* акценты */
-  --pink: #ff8fc8;
-  --violet: #a98bff;
-  --cyan: #7ee0ff;
-  --grad-main: linear-gradient(135deg, #ff8fc8 0%, #c38cff 55%, #8fa2ff 100%);
-  --grad-soft: linear-gradient(135deg, rgba(255, 143, 200, 0.22), rgba(126, 224, 255, 0.14));
-  --edge: #ff5c8a;
-  --accent: #ff8fc8;
-  --accent-2: #ffd98a;
-  --accent-dark: #b05a8a;
-  --tg-accent: #ff8fc8;
+  /* акценты: тусклое золото, пыльная роза, приглушённая бирюза */
+  --gold: #c9a45c;
+  --gold-hi: #e2c283;
+  --gold-lo: #8a6d34;
+  --rose: #c98b94;
+  --teal: #6fa3a0;
+  --pink: #c98b94;
+  --violet: #9b8ac4;
+  --cyan: #6fa3a0;
+  --grad-main: linear-gradient(180deg, #d9b56c 0%, #b89147 100%);
+  --grad-soft: linear-gradient(90deg, rgba(201, 164, 92, 0.18), rgba(201, 164, 92, 0.02));
+  --edge: #d0615e;
+  --accent: #c9a45c;
+  --accent-2: #e2c283;
+  --accent-dark: #8a6d34;
+  --tg-accent: #c9a45c;
 
   /* текст */
-  --text: #f6f4ff;
-  --text-2: #b9b3d9;
-  --text-3: #7d78a3;
-  --good: #5fe3a1;
-  --bad: #ff6b8a;
-  --info: #7cc8ff;
+  --text: #ece6da;
+  --text-2: #a3a8b4;
+  --text-3: #6b7180;
+  --good: #82b87c;
+  --bad: #d0615e;
+  --info: #6f9fcf;
 
-  --r-common: #a8a8b8;
-  --r-uncommon: #5fe3a1;
-  --r-rare: #6aaeff;
-  --r-epic: #b98bff;
-  --r-legendary: #ffb45c;
-  --r-mythic: #ff6b8a;
-  --r-divine: linear-gradient(135deg, #ff6b8a, #ffb45c, #ffe08a, #5fe3a1, #6aaeff, #b98bff);
+  --r-common: #9a9ca4;
+  --r-uncommon: #6fb86a;
+  --r-rare: #5c93d6;
+  --r-epic: #9a6fd6;
+  --r-legendary: #e09a4a;
+  --r-mythic: #d0504e;
+  --r-divine: linear-gradient(135deg, #d0504e, #e09a4a, #e2c283, #6fb86a, #5c93d6, #9a6fd6);
 
-  --radius: 16px;
-  --radius-s: 10px;
-  --shadow: 0 8px 24px rgba(6, 4, 24, 0.35);
+  /* скос углов у кнопок и вкладок (аниме-акцент); рамки панелей — прямые */
+  --cut: 7px;
+  --radius: 2px;
+  --radius-s: 2px;
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 
-  --font-display: 'M PLUS Rounded 1c', 'Manrope', system-ui, sans-serif;
-  /* --font-pixel исторически — «заголовочный» шрифт интерфейса; пиксельный остаётся только в бою */
+  --font-display: 'PixelUI', 'M PLUS Rounded 1c', system-ui, sans-serif;
   --font-pixel: var(--font-display);
   --font-body: 'M PLUS Rounded 1c', 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --nav-h: 66px;
+  --nav-h: 68px;
   --top-h: 56px;
   /* полноэкранный Telegram: системная зона (часы, «чёлка») + зона кнопок Telegram («✕» и «•••») */
   --safe-top: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
@@ -96,8 +102,7 @@ canvas.pixel,
   height: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 2px;
+  background: #3a4252;
 }
 
 @keyframes pop-in {
@@ -142,10 +147,10 @@ canvas.pixel,
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 6px 1px rgba(255, 180, 92, 0.3);
+    box-shadow: 0 0 6px 1px rgba(224, 154, 74, 0.3);
   }
   50% {
-    box-shadow: 0 0 14px 3px rgba(255, 180, 92, 0.55);
+    box-shadow: 0 0 12px 2px rgba(224, 154, 74, 0.5);
   }
 }
 @keyframes shine {

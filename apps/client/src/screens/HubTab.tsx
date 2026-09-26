@@ -69,10 +69,10 @@ function HubRoot() {
     (care.length > 0 && care.every((b) => b.talk === 0 && b.treat === 0 && !b.spa && !b.date)) ||
     ((s.bondHearts ?? 0) >= BOND_COSTUME_HEARTS && BOND_HEROES.some((id) => s.heroines[id] && (s.bond?.[id]?.lvl ?? 0) >= BOND_MAX && !s.skins.includes(`${id}_bond`)));
   const main: Item[] = [
-    { id: 'summon', icon: 'summon', label: t('hub.summon'), tint: '#c38cff', badge: !s.day.freeSummon || s.cur.scrolls > 0 || (isUnlocked({ s, cfg }, 'artifacts') && artifactFreeReady({ s, now })) },
-    { id: 'care', icon: 'care', label: t('hub.care'), tint: '#ff8fc8', badge: careBadge },
-    { id: 'quests', icon: 'quest', label: t('hub.quests'), tint: '#7ee0ff', badge: questClaimable(s) > 0 || s.quests.login.claimedKey !== s.day.key },
-    { id: 'shop', icon: 'shop', label: t('hub.shop'), tint: '#ffd98a' },
+    { id: 'summon', icon: 'summon', label: t('hub.summon'), tint: '#9b8ac4', badge: !s.day.freeSummon || s.cur.scrolls > 0 || (isUnlocked({ s, cfg }, 'artifacts') && artifactFreeReady({ s, now })) },
+    { id: 'care', icon: 'care', label: t('hub.care'), tint: '#c98b94', badge: careBadge },
+    { id: 'quests', icon: 'quest', label: t('hub.quests'), tint: '#6fa3a0', badge: questClaimable(s) > 0 || s.quests.login.claimedKey !== s.day.key },
+    { id: 'shop', icon: 'shop', label: t('hub.shop'), tint: '#c9a45c' },
   ];
   const more: Item[] = [
     { id: 'pass', icon: 'pass', label: t('hub.pass') },
@@ -94,7 +94,7 @@ function HubRoot() {
   };
 
   return (
-    <div className={css.col} style={{ gap: 14 }}>
+    <div className={css.col} style={{ gap: 12 }}>
       <div className={st.hero}>
         <div className={st.heroText}>
           <div className={st.heroKicker}>{t('hub.kicker')}</div>
@@ -108,10 +108,10 @@ function HubRoot() {
         {main.map((it) => (
           <button key={it.id} className={st.mainTile} style={{ ['--tint' as string]: it.tint }} onClick={() => open(it.id)}>
             <span className={st.mainIcon}>
-              <Icon name={it.icon} size={34} />
+              <Icon name={it.icon} size={52} />
             </span>
             <span className={st.mainLabel}>{it.label}</span>
-            {it.badge && <span className={css.dot} style={{ top: 10, right: 10 }} />}
+            {it.badge && <span className={css.dot} style={{ top: 9, right: 9 }} />}
           </button>
         ))}
       </div>
@@ -120,9 +120,9 @@ function HubRoot() {
         {more.map((it) => (
           <button key={it.id} className={st.moreTile} style={it.locked ? { opacity: 0.4 } : undefined} onClick={() => open(it.id)}>
             <span className={st.moreIcon}>
-              <Icon name={it.icon} size={26} />
-              {it.badge && <span className={css.dot} style={{ top: -1, right: -1 }} />}
-              {it.locked && <Icon name="lock" size={12} style={{ position: 'absolute', bottom: -2, right: -2 }} />}
+              <Icon name={it.icon} size={44} />
+              {it.badge && <span className={css.dot} style={{ top: 4, right: 4 }} />}
+              {it.locked && <Icon name="lock" size={18} style={{ position: 'absolute', bottom: 2, right: 2 }} />}
             </span>
             <span className={st.moreLabel}>{it.label}</span>
           </button>

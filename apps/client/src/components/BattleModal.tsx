@@ -78,7 +78,7 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
     <div className={css.panel} style={{ width: '100%', maxWidth: 480, paddingBottom: 'calc(12px + var(--safe-bottom))' }} onClick={(e) => e.stopPropagation()}>
       <div className={css.panelTitle}>{title}</div>
       <div style={{ position: 'relative' }}>
-        <div ref={host} style={{ position: 'relative', height: 280, borderRadius: 18, overflow: 'hidden', border: '1px solid var(--line)', background: '#0e0d22' }} />
+        <div ref={host} style={{ position: 'relative', height: 280, overflow: 'hidden', border: '1px solid var(--line-2)', background: '#0e1016' }} />
         {!done && <UltBar />}
       </div>
       {done ? (

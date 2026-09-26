@@ -11,13 +11,13 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-09-26d',
+    id: '2026-09-26e',
     date: '26.09.2026',
     title: { ru: 'Новый облик интерфейса', en: 'A fresh interface' },
     items: [
-      { ru: '🌸 Интерфейс в аниме-стиле: ночное небо, мягкие «стеклянные» панели, скруглённый шрифт и розово-голубые акценты', en: '🌸 Anime-style interface: night sky, soft glass panels, a rounded font and pink-and-cyan accents' },
-      { ru: '🧭 Плавающее нижнее меню и лёгкая верхняя панель', en: '🧭 A floating bottom menu and a lighter top bar' },
-      { ru: '🏕 Лагерь стал проще: баннер с лидером отряда, четыре главных раздела крупно, остальное — компактной сеткой', en: '🏕 A simpler camp: a banner with your squad leader, four main sections up front, the rest in a compact grid' },
+      { ru: '⚔️ Интерфейс «аниме × RPG»: прямые рамки с золотыми уголками, скошенные кнопки и вкладки, пиксельные заголовки', en: '⚔️ "Anime × RPG" interface: straight frames with gold corners, bevelled buttons and tabs, pixel headings' },
+      { ru: '🎨 Спокойная палитра: героини и предметы теперь ярче всего на экране', en: '🎨 A calmer palette: heroines and items now stand out the most' },
+      { ru: '🏕 Лагерь проще и крупнее: баннер с лидером отряда, четыре главных раздела и большие иконки остальных', en: '🏕 A simpler, bigger camp: a banner with your squad leader, four main sections and large icons for the rest' },
     ],
   },
   {

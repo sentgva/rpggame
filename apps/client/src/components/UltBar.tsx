@@ -34,10 +34,10 @@ export function UltBar() {
       onClick={(e) => e.stopPropagation()}
     >
       {!warn && manual && showTip() && (
-        <div style={{ background: 'rgba(22,20,50,.85)', color: 'var(--text)', borderRadius: 999, padding: '3px 10px', fontSize: 11 }}>{t('ult.tip')}</div>
+        <div style={{ background: 'rgba(16,18,24,.88)', color: 'var(--text)', border: '1px solid var(--line-2)', padding: '2px 9px', fontSize: 11 }}>{t('ult.tip')}</div>
       )}
       {warn && (
-        <div style={{ background: 'linear-gradient(135deg, rgba(255,92,138,.92), rgba(255,140,90,.92))', color: '#fff', border: '1px solid rgba(255,255,255,.4)', borderRadius: 999, padding: '3px 12px', fontSize: 12, fontWeight: 800, animation: 'pulse .6s ease-in-out infinite alternate' }}>
+        <div style={{ background: 'rgba(110,30,26,.9)', color: '#ffe0c8', border: '1px solid #d0615e', padding: '2px 10px', fontSize: 12, fontWeight: 800, animation: 'pulse .6s ease-in-out infinite alternate' }}>
           ⚡ {t('ult.interruptHint')}
         </div>
       )}
@@ -75,7 +75,7 @@ export function UltBar() {
                 src={portraitUrl(h.ref, skins?.[h.ref]?.skin)}
                 alt=""
                 draggable={false}
-                style={{ width: '100%', height: '100%', borderRadius: 7, display: 'block', background: '#1c1a3c', opacity: ready || h.pending ? 1 : 0.7 }}
+                style={{ width: '100%', height: '100%', borderRadius: 7, display: 'block', background: '#171a22', opacity: ready || h.pending ? 1 : 0.7 }}
               />
               {(ready || h.pending) && (
                 <span
@@ -104,11 +104,10 @@ export function UltBar() {
           style={{
             height: 30,
             alignSelf: 'center',
-            padding: '0 12px',
-            borderRadius: 999,
+            padding: '0 10px',
             border: '1px solid var(--line-2)',
-            background: manual ? 'rgba(22,20,50,.85)' : 'linear-gradient(135deg, #6ff0b0, #3fbfa0)',
-            color: manual ? 'var(--text)' : '#06281c',
+            background: manual ? 'rgba(16,18,24,.88)' : 'linear-gradient(180deg, #8cc486, #5e9a5a)',
+            color: manual ? 'var(--text)' : '#0f2410',
             fontSize: 11,
             fontWeight: 800,
             cursor: manual ? 'pointer' : 'default',

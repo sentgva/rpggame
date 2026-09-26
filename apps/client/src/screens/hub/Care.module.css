@@ -2,7 +2,7 @@
 .scene {
   position: relative;
   height: 280px;
-  border-radius: 20px;
+  border-radius: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   background: #2a1830 center / 100% 100% no-repeat;
@@ -54,12 +54,12 @@
   top: 10px;
   z-index: 2;
   padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(22, 20, 50, 0.84);
+  border-radius: 0;
+  background: rgba(18, 20, 27, 0.9);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 143, 200, 0.55);
-  border-radius: 16px;
+  border: 1px solid rgba(201, 164, 92, 0.6);
+  border-radius: 0;
   color: var(--text);
   font-size: 14px;
   line-height: 1.35;
@@ -67,7 +67,7 @@
 }
 
 .bubble b {
-  color: #ffb4d4;
+  color: #e2c283;
 }
 
 .gain {
@@ -77,7 +77,7 @@
   z-index: 3;
   font-weight: 800;
   font-size: 20px;
-  color: #ff9cc8;
+  color: #d99aa3;
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
   animation: float-up 1.6s ease-out forwards;
 }
@@ -147,9 +147,9 @@
   align-items: center;
   gap: 3px;
   padding: 10px 6px;
-  border-radius: 18px;
+  border-radius: 0;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, #262b37, #1a1d26);
   color: inherit;
   cursor: pointer;
   font-family: inherit;
@@ -177,9 +177,9 @@
   align-items: center;
   gap: 2px;
   padding: 6px 4px 8px;
-  border-radius: 16px;
+  border-radius: 0;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, #262b37, #1a1d26);
   cursor: pointer;
   color: inherit;
   font-family: inherit;
@@ -198,7 +198,7 @@
 .lvl {
   font-weight: 800;
   font-size: 13px;
-  color: #ff9cc8;
+  color: #d99aa3;
 }
 
 .hearts {
@@ -206,7 +206,7 @@
   align-items: center;
   gap: 4px;
   font-weight: 800;
-  color: #ffb4d4;
+  color: #e2c283;
 }
 
 .milestones {
@@ -218,15 +218,15 @@
   flex: 1;
   text-align: center;
   padding: 6px 2px;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.2);
   font-size: 12px;
 }
 
 .milestoneDone {
-  border-color: rgba(255, 143, 200, 0.6);
-  background: rgba(255, 143, 200, 0.14);
+  border-color: rgba(201, 139, 148, 0.7);
+  background: rgba(201, 139, 148, 0.16);
 }
 
 .answer {
@@ -235,9 +235,9 @@
   text-align: left;
   padding: 10px 12px;
   margin-top: 8px;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid var(--line-2);
-  background: rgba(255, 255, 255, 0.06);
+  background: #20242f;
   color: inherit;
   font-family: inherit;
   font-size: 14px;
@@ -245,7 +245,7 @@
 }
 
 .answer:active {
-  background: rgba(255, 143, 200, 0.18);
+  background: rgba(201, 164, 92, 0.18);
 }
 
 /* ——— Резиденция ——— */
@@ -254,8 +254,8 @@
   align-items: center;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 143, 200, 0.35);
+  border-radius: 0;
+  border: 1px solid var(--line-2);
   background: var(--grad-soft);
   color: inherit;
   cursor: pointer;
@@ -301,9 +301,9 @@
   align-items: center;
   gap: 4px;
   padding: 5px 9px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.06);
+  background: #20242f;
   color: inherit;
   font-family: inherit;
   font-size: 13px;
@@ -313,7 +313,7 @@
 .roomChipOn {
   border-color: transparent;
   background: var(--grad-main);
-  color: #fff;
+  color: #1d1608;
 }
 
 
@@ -382,7 +382,7 @@
   bottom: 88px;
   width: 74px;
   height: 30px;
-  border-radius: 14px;
+  border-radius: 0;
   background: linear-gradient(180deg, #ffffff, #d8d0e8);
   border: 2px solid #b8a8c8;
 }

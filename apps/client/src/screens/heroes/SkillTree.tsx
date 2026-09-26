@@ -134,7 +134,7 @@ export function SkillTree({ heroId }: { heroId: string }) {
 }
 
 function NodeCell({ node, rank, onClick }: { node: TreeNode; rank: number; onClick: () => void }) {
-  const border = node.kind === 'key' ? '#ffb45c' : node.kind === 'active' ? '#7ee0ff' : node.kind === 'mod' ? '#b98bff' : '#ff8fc8';
+  const border = node.kind === 'key' ? '#e09a4a' : node.kind === 'active' ? '#6f9fcf' : node.kind === 'mod' ? '#9a6fd6' : '#c9a45c';
   return (
     <div
       onClick={onClick}
@@ -142,9 +142,9 @@ function NodeCell({ node, rank, onClick }: { node: TreeNode; rank: number; onCli
         position: 'relative',
         width: 30,
         height: 30,
-        borderRadius: node.kind === 'active' || node.kind === 'key' ? 15 : 9,
+        borderRadius: node.kind === 'active' || node.kind === 'key' ? 15 : 2,
         border: `1.5px solid ${rank > 0 ? border : 'rgba(255,255,255,.14)'}`,
-        background: rank > 0 ? `radial-gradient(circle, color-mix(in srgb, ${border} 30%, transparent), rgba(20,18,48,.9))` : 'rgba(20,18,48,.9)',
+        background: rank > 0 ? `radial-gradient(circle, color-mix(in srgb, ${border} 30%, transparent), #14161d)` : '#14161d',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -153,7 +153,7 @@ function NodeCell({ node, rank, onClick }: { node: TreeNode; rank: number; onCli
       }}
     >
       <Icon name={nodeIcon(node)} size={20} style={{ opacity: rank > 0 ? 1 : 0.4 }} />
-      <span style={{ position: 'absolute', bottom: -6, right: -4, fontSize: 9, fontWeight: 800, background: '#1c1a40', borderRadius: 6, padding: '0 3px', color: rank >= node.max ? '#ffd98a' : 'var(--text)' }}>
+      <span style={{ position: 'absolute', bottom: -6, right: -4, fontSize: 9, fontWeight: 800, background: '#0c0d12', borderRadius: 0, padding: '0 3px', color: rank >= node.max ? '#ffd98a' : 'var(--text)' }}>
         {rank}/{node.max}
       </span>
     </div>

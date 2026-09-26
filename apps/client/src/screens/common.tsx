@@ -140,23 +140,20 @@ export function BackHeader({ title, right }: { title: ReactNode; right?: ReactNo
       <button
         onClick={() => useUi.getState().pop()}
         style={{
-          width: 34,
-          height: 34,
+          width: 36,
+          height: 36,
           flex: 'none',
-          borderRadius: '50%',
-          border: '1px solid var(--line)',
-          background: 'rgba(255,255,255,.08)',
-          color: 'var(--text)',
+          border: '1px solid var(--line-2)',
+          background: 'linear-gradient(180deg, #2c3241, #20242f)',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
         }}
         aria-label={t('common.back')}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 3 5 8l5 5" />
-        </svg>
+        <Icon name="back" size={24} />
       </button>
       <span className={css.title}>{title}</span>
       <span className={css.grow} />

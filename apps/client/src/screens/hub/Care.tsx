@@ -515,7 +515,7 @@ function CareHero({ hero }: { hero: string }) {
         right={<span className={css.chip}>{tl(PERSONALITY_NAMES[tr.p])}</span>}
       >
         {b.lvl < BOND_MAX ? (
-          <Bar value={b.xp} max={need} text={`${b.xp}/${need}`} color="linear-gradient(180deg,#ffb4d4,#d04a8a)" />
+          <Bar value={b.xp} max={need} text={`${b.xp}/${need}`} color="linear-gradient(180deg,#e2a9b0,#a8646d)" />
         ) : (
           <div className={st.lvl}>{t('care.max')}</div>
         )}
