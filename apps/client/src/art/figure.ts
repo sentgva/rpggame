@@ -2267,6 +2267,135 @@ function lingerieColor(skin: RGBA, cands: RGBA[]): RGBA {
   return cands.reduce((a, b) => (deltaE(b, skin) > deltaE(a, skin) ? b : a));
 }
 
+// ——— HD (96×96) ———
+
+/** Scale2x (EPX) по строкам материалов: каждый пиксель → 2×2, диагональные ступеньки сглаживаются. */
+function scale2x(c: Canvas): Canvas {
+  const out = new Canvas(c.w * 2, c.h * 2);
+  for (let y = 0; y < c.h; y++)
+    for (let x = 0; x < c.w; x++) {
+      const P = c.get(x, y);
+      const A = c.get(x, y - 1);
+      const B = c.get(x + 1, y);
+      const C = c.get(x - 1, y);
+      const D = c.get(x, y + 1);
+      let p1 = P;
+      let p2 = P;
+      let p3 = P;
+      let p4 = P;
+      if (C === A && C !== D && A !== B) p1 = A;
+      if (A === B && A !== C && B !== D) p2 = B;
+      if (D === C && D !== B && C !== A) p3 = C;
+      if (B === D && B !== A && D !== C) p4 = D;
+      const i = y * 2 * out.w + x * 2;
+      out.g[i] = p1;
+      out.g[i + 1] = p2;
+      out.g[i + out.w] = p3;
+      out.g[i + out.w + 1] = p4;
+    }
+  return out;
+}
+
+/** Контур в 1 пиксель: внутренний слой удвоенного контура становится самой тёмной тенью того, что он обводит. */
+function thinOutline(c: Canvas) {
+  const src = c.g.slice();
+  const at = (x: number, y: number) => (c.in(x, y) ? src[y * c.w + x] : '');
+  for (let y = 0; y < c.h; y++)
+    for (let x = 0; x < c.w; x++) {
+      if (at(x, y).charAt(0) !== 'X') continue;
+      const nb = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)];
+      if (nb.some((v) => !v)) continue;
+      const inner = nb.find((v) => v && v[0] !== 'X');
+      if (inner) c.g[y * c.w + x] = inner[0] + '=';
+    }
+}
+
+/** Лицо в двойном разрешении: большие глаза с бликами и зрачком, улыбка, румянец штрихами. */
+function faceHD(c: Canvas, eyes: Eyes) {
+  const FACE = new Set(['E', 'l', 'R', 'P', 'M']);
+  // стираем увеличенные «старые» черты лица до кожи (челку не трогаем)
+  for (let y = 14; y <= 28; y++)
+    for (let x = 36; x <= 59; x++) {
+      const v = c.get(x, y);
+      if (v && FACE.has(v[0])) c.set(x, y, 'S', '0');
+      else if (v === 'S-' || v === 'S=') c.set(x, y, 'S', '0');
+    }
+  const skinAt = (x: number, y: number) => c.get(x, y).charAt(0) === 'S';
+  const put = (x: number, y: number, v: string) => {
+    if (skinAt(x, y)) c.g[y * c.w + x] = v;
+  };
+  const left = eyes === 'wink' ? 'open' : eyes;
+  const right = eyes === 'wink' ? 'closed' : eyes;
+  eyeHD(put, 38, false, left);
+  eyeHD(put, 52, true, right);
+  // носик, улыбка, нижняя губа
+  put(48, 22, 'S-');
+  put(44, 25, 'M-');
+  put(51, 25, 'M-');
+  put(45, 26, 'M-');
+  for (let x = 46; x <= 49; x++) put(x, 26, 'M0');
+  put(50, 26, 'M-');
+  put(47, 27, 'M+');
+  put(48, 27, 'M+');
+  // румянец — мягкие овалы на щеках
+  for (const bx of [38, 53]) {
+    for (let x = bx + 1; x <= bx + 3; x++) put(x, 24, 'P+');
+    for (let x = bx; x <= bx + 4; x++) put(x, 25, 'P+');
+  }
+  // мягкая тень под подбородком и по краю лица
+  for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
+}
+
+/** Глаз HD 6×7: ресницы с «крылышком», белок, радужка с переходом, зрачок, два блика. */
+function eyeHD(put: (x: number, y: number, v: string) => void, x0: number, flip: boolean, state: 'open' | 'half' | 'closed') {
+  const cx = (i: number) => (flip ? x0 + 5 - i : x0 + i);
+  const wingX = flip ? x0 + 6 : x0 - 1;
+  if (state === 'closed') {
+    // сомкнутые ресницы дугой вниз
+    put(cx(0), 19, 'l0');
+    for (let i = 1; i <= 4; i++) put(cx(i), 20, 'l0');
+    put(cx(5), 19, 'l0');
+    put(wingX, 18, 'l0');
+    return;
+  }
+  const top = state === 'half' ? 18 : 16;
+  for (let i = 1; i <= 4; i++) put(cx(i), top, 'l0');
+  for (let i = 0; i <= 5; i++) put(cx(i), top + 1, 'l0');
+  put(wingX, top, 'l0');
+  put(wingX, top + 1, 'l0');
+  const rows = state === 'half' ? [20, 21, 22] : [18, 19, 20, 21, 22];
+  for (const y of rows) {
+    const k = y - rows[0];
+    const n = rows.length;
+    const tone = k === 0 ? '=' : k === n - 1 ? '+' : k === n - 2 ? '0' : '-';
+    put(cx(0), y, y === rows[n - 1] ? 'S0' : 'R-');
+    put(cx(5), y, y === rows[n - 1] ? 'S0' : 'R-');
+    for (let i = 1; i <= 4; i++) put(cx(i), y, 'E' + tone);
+  }
+  // зрачок
+  if (state === 'open') {
+    put(cx(2), 19, 'l0');
+    put(cx(3), 19, 'l0');
+    put(cx(2), 20, 'l0');
+    put(cx(3), 20, 'l0');
+  } else put(cx(2), 20, 'l0');
+  // блики: крупный сверху-слева (у обоих глаз с одной стороны), мелкий снизу-справа
+  const hl = x0 + 1;
+  put(hl, rows[0], 'R+');
+  if (state === 'open') put(hl, rows[0] + 1, 'R+');
+  put(x0 + 4, rows[rows.length - 1] - 1, 'R0');
+}
+
+/** Пряди: тонкие тёмные линии в волосах ниже макушки, чтобы волосы не были сплошной заливкой. */
+function hairStrands(c: Canvas) {
+  for (let y = 20; y < c.h - 1; y++)
+    for (let x = 1; x < c.w - 1; x++) {
+      if (c.get(x, y) !== 'H0') continue;
+      if ((x + Math.floor(y / 6)) % 5 !== 0) continue;
+      if (c.get(x, y - 1).charAt(0) === 'H' && c.get(x, y + 1).charAt(0) === 'H') c.set(x, y, 'H', '-');
+    }
+}
+
 /** Мягкие тона: светлее, тени уходят в сливовый, а не в черноту. */
 function softTones(base: RGBA): Record<Tone, RGBA> {
   const b = mix(base, hex('#FFF6F0'), 0.08);
@@ -2320,6 +2449,23 @@ function palette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
 }
 
 export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose = {}): Bitmap {
+  return paint(composeFigure(spec, pose), spec);
+}
+
+/**
+ * HD-фигура 96×96: та же фигура, увеличенная со сглаживанием краёв (Scale2x по материалам),
+ * с тонким контуром и заново нарисованным в двойном разрешении лицом.
+ */
+export function renderFigureHD(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose = {}): Bitmap {
+  const h = scale2x(composeFigure(spec, pose));
+  thinOutline(h);
+  faceHD(h, pose.eyes ?? 'open');
+  hairStrands(h);
+  return paint(h, spec, 0.9);
+}
+
+/** Сетка материалов фигуры 48×48 (до раскраски). */
+function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose): Canvas {
   const c = new Canvas(FIG, FIG);
   const L = spec.look;
   const kind = spec.outfit ?? 'witch';
@@ -2368,7 +2514,11 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
   arms = ARMS.idle;
   frontSides = [];
   perpLimbs = false;
+  return c;
+}
 
+/** edge — насколько тёмен мягкий контур (в HD он тоньше, поэтому темнее). */
+function paint(c: Canvas, spec: SpriteSpec, edge = 0.78): Bitmap {
   const pal = spec.soft ? softPalette(spec) : palette(spec);
   const data = new Uint8ClampedArray(c.w * c.h * 4);
   // мягкий контур: не чёрный, а тёмный оттенок того, что он обводит
@@ -2384,7 +2534,7 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
       const v = c.get(x + dx, y + dy);
       if (!v || v[0] === 'X') continue;
       const nb = pal[v[0]]?.[(v[1] || '0') as Tone];
-      if (nb) return mix(nb, hex('#2A1430'), 0.78);
+      if (nb) return mix(nb, hex('#2A1430'), edge);
     }
     return null;
   };
