@@ -1,10 +1,14 @@
 import balance from './balance.json';
+import type { FestivalSchedule } from '../content/festival';
 
 /**
  * Конфиг баланса. Все коэффициенты из ТЗ хранятся в JSON и правятся без релиза:
  * сервер перечитывает файл (горячая перезагрузка) и отдаёт клиенту актуальную версию.
  */
-export type Config = typeof balance;
+export type Config = typeof balance & {
+  /** Расписание праздников Легиона (сервер берёт его из настроек, правится из бота); нет — автоматическая ротация. */
+  festival?: FestivalSchedule;
+};
 
 export const DEFAULT_CONFIG: Config = balance;
 

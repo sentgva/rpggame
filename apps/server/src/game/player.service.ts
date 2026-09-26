@@ -33,7 +33,7 @@ interface Entry {
 }
 
 export type ActionResponse =
-  | { ok: true; now: number; hash: string; result: unknown }
+  | { ok: true; now: number; hash: string; result: unknown; fest?: number }
   | { ok: false; error: { code: string; params?: Record<string, string | number> } };
 
 export interface PlayerHooks {
@@ -227,7 +227,7 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
       if (r.events.length) this.analytics.track(e.id, r.events);
       if (action.type.startsWith('dev.')) background(this.devLog(e.id, action.type, action));
       this.hooks.afterAction?.(e.id, e.state, action, e.meta);
-      return { ok: true, now, hash: stateHash(e.state), result: sanitizeResult(r.result) };
+      return { ok: true, now, hash: stateHash(e.state), result: sanitizeResult(r.result), fest: cfg.festival?.updated ?? 0 };
     } catch (err) {
       if (err instanceof GameError) return { ok: false, error: { code: err.code, params: err.params } };
       this.log.error(`action ${action.type} failed for ${e.id}: ${(err as Error).stack}`);

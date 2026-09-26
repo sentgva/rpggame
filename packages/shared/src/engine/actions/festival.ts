@@ -27,6 +27,7 @@ import {
   festivalAt,
   type FestGoalMetric,
   type FestivalDef,
+  type FestivalNow,
 } from '../../content';
 import { Rng, mixSeed } from '../../rng';
 import type { FestivalState, Item, PlayerState } from '../../types';
@@ -44,18 +45,31 @@ type Cur = Record<string, number>;
 /** Общие счётчики, от которых считаются цели праздника. */
 const GOAL_COUNTERS: FestGoalMetric[] = ['bossWin', 'hordeWave', 'summon', 'towerWin', 'dungeon'];
 
+/** Праздник, идущий сейчас по расписанию из конфига (null — праздника нет). */
+export function festivalNow(ctx: { cfg: Config; now: number }): FestivalNow | null {
+  return festivalAt(ctx.now, ctx.cfg.festival);
+}
+
+function requireFestival(ctx: Ctx): FestivalNow {
+  const cur = festivalNow(ctx);
+  assert(cur, 'noFestival');
+  return cur;
+}
+
 /**
  * Состояние праздника на сейчас: новый праздник — чистый лист, новый день — свежие билеты,
  * задания и попытки босса. Не меняет s (действия сами записывают результат в s.festival).
+ * Праздника нет — пустое состояние (cycle −1), его никто не сохраняет.
  */
-export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number }): FestivalState {
+export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number }, cur: FestivalNow | null = festivalNow(ctx)): FestivalState {
   const { s, cfg, now } = ctx;
-  const { cycle } = festivalAt(now);
+  const cycle = cur?.cycle ?? -1;
   const today = dayKey(now);
   let f = s.festival;
-  if (!f || f.cycle !== cycle) {
+  if (!f || f.cycle !== cycle || (cur && f.fest !== undefined && f.fest !== cur.def.id)) {
     f = {
       cycle,
+      fest: cur?.def.id,
       lvl: Math.max(5, farmLevel(cfg, s)),
       points: 0,
       claimed: [],
@@ -70,12 +84,13 @@ export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number })
     };
   }
   if (f.day !== today) f = { ...f, day: today, tickets: FEST_TICKETS, tasks: [], boss: { ...f.boss, used: 0 } };
+  if (cur && f.fest === undefined) f = { ...f, fest: cur.def.id };
   return f;
 }
 
 /** Рабочая копия состояния для действия: всё вложенное — свои массивы и объекты. */
-function festCopy(ctx: Ctx): FestivalState {
-  const f = festivalState(ctx);
+function festCopy(ctx: Ctx, cur: FestivalNow): FestivalState {
+  const f = festivalState(ctx, cur);
   return { ...f, claimed: [...f.claimed], stars: [...f.stars], tasks: [...f.tasks], goals: [...f.goals], base: { ...f.base }, boss: { ...f.boss } };
 }
 
@@ -106,8 +121,7 @@ export function festStageEnemies(cfg: Config, def: FestivalDef, base: number, st
 }
 
 /** Босс праздника текущего уровня: полный запас HP и сколько осталось. */
-export function festBoss(ctx: { s: PlayerState; cfg: Config; now: number }, f = festivalState(ctx)) {
-  const { def } = festivalAt(ctx.now);
+export function festBoss(ctx: { s: PlayerState; cfg: Config; now: number }, def: FestivalDef, f = festivalState(ctx)) {
   const level = festBossLevel(f.lvl, f.boss.lvl);
   const k = FEST_BOSS_HP * (1 + FEST_BOSS_HP_GROWTH * (f.boss.lvl - 1));
   const units = customEnemies(ctx.cfg, level, [{ id: def.boss, tier: 'boss' }]).map((u) => ({ ...u, stats: { ...u.stats, hp: Math.round(u.stats.hp * k) } }));
@@ -140,7 +154,9 @@ export function festTaskValue(s: PlayerState, id: string): number {
 /** Сколько наград праздника можно забрать прямо сейчас (для значка в лагере). */
 export function festClaimable(ctx: { s: PlayerState; cfg: Config; now: number }): number {
   const { s, now } = ctx;
-  const f = festivalState(ctx);
+  const cur = festivalNow(ctx);
+  if (!cur) return 0;
+  const f = festivalState(ctx, cur);
   let n = 0;
   FEST_MILESTONES.forEach((m, i) => {
     if (f.points >= m.at && !f.claimed.includes(i)) n++;
@@ -170,8 +186,9 @@ export const festivalActions = {
   'fest.stage': (ctx: Ctx, a: Action) => {
     const { s, cfg, now } = ctx;
     requireUnlocked(ctx, 'events');
-    const { def } = festivalAt(now);
-    const f = festCopy(ctx);
+    const fn = requireFestival(ctx);
+    const { def } = fn;
+    const f = festCopy(ctx, fn);
     const stage = vInt(a.stage, 1, FEST_STAGES, 'stage');
     assert(stage === 1 || f.stars[stage - 2] > 0, 'locked', { feature: 'festStage' });
     const cleared = f.stars[stage - 1] > 0;
@@ -217,7 +234,7 @@ export const festivalActions = {
   /** Быстрый рейд этапа, пройденного на 3 звезды: билеты → жетоны и очки без боя. */
   'fest.sweep': (ctx: Ctx, a: Action) => {
     requireUnlocked(ctx, 'events');
-    const f = festCopy(ctx);
+    const f = festCopy(ctx, requireFestival(ctx));
     const stage = vInt(a.stage, 1, FEST_STAGES, 'stage');
     const times = vInt(a.times ?? 1, 1, FEST_TICKETS, 'times');
     assert(f.stars[stage - 1] >= 3, 'notDone');
@@ -236,11 +253,12 @@ export const festivalActions = {
   'fest.boss': (ctx: Ctx, a: Action) => {
     const { s, cfg, now } = ctx;
     requireUnlocked(ctx, 'events');
-    const { def } = festivalAt(now);
-    const f = festCopy(ctx);
+    const fn = requireFestival(ctx);
+    const { def } = fn;
+    const f = festCopy(ctx, fn);
     assert(f.boss.used < FEST_BOSS_ATTEMPTS, 'noAttempts');
     const tactic = a.tactic === undefined ? 'none' : vOneOf(a.tactic, RIFT_TACTICS.map((x) => x.id), 'tactic');
-    const boss = festBoss(ctx, f);
+    const boss = festBoss(ctx, def, f);
     const b = runBattle(ctx, boss.units, heroUnits(cfg, s, currentParty(ctx), { extra: RIFT_TACTIC_MAP[tactic].stats }), cfg.modes.riftTimeLimit);
     // урон всего отряда за бой (как в Разломе): вампиризм босса не «откатывает» запас его сил
     const ours = new Set(b.raw.units.filter((u) => u.side === 0).map((u) => u.uid));
@@ -286,7 +304,7 @@ export const festivalActions = {
   'fest.task': (ctx: Ctx, a: Action) => {
     const { s, now } = ctx;
     requireUnlocked(ctx, 'events');
-    const f = festCopy(ctx);
+    const f = festCopy(ctx, requireFestival(ctx));
     const id = vStr(a.id, 'id');
     assert(festDailyTasks(dayKey(now), f.cycle).includes(id), 'badParam', { name: 'id' });
     assert(!f.tasks.includes(id), 'claimed');
@@ -304,7 +322,7 @@ export const festivalActions = {
   'fest.goal': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
-    const f = festCopy(ctx);
+    const f = festCopy(ctx, requireFestival(ctx));
     const g = FEST_GOAL_MAP[vStr(a.id, 'id')];
     assert(g, 'badParam', { name: 'id' });
     assert(!f.goals.includes(g.id), 'claimed');
@@ -321,8 +339,9 @@ export const festivalActions = {
   'fest.claim': (ctx: Ctx, a: Action) => {
     const { s, cfg, now } = ctx;
     requireUnlocked(ctx, 'events');
-    const { def } = festivalAt(now);
-    const f = festCopy(ctx);
+    const fn = requireFestival(ctx);
+    const { def } = fn;
+    const f = festCopy(ctx, fn);
     const list = a.index === 'all' ? FEST_MILESTONES.map((_, i) => i) : [vInt(a.index, 0, FEST_MILESTONES.length - 1, 'index')];
     const ready = list.filter((i) => f.points >= FEST_MILESTONES[i].at && !f.claimed.includes(i));
     assert(ready.length > 0, 'notDone');
@@ -362,7 +381,7 @@ export const festivalActions = {
   'fest.buy': (ctx: Ctx, a: Action) => {
     const { s, now } = ctx;
     requireUnlocked(ctx, 'events');
-    const { def, cycle } = festivalAt(now);
+    const { def, cycle } = requireFestival(ctx);
     const offer = festShop(def).find((o) => o.id === vStr(a.offer, 'offer'));
     assert(offer, 'badParam', { name: 'offer' });
     // облики — навсегда, остальное — на праздник
@@ -396,9 +415,8 @@ export function festBought(s: PlayerState, offerId: string, skin: string | undef
   return s.shop.bought[skin ? `fest_${skin}` : `${offerId}@f${cycle}`] ?? 0;
 }
 
-/** Для интерфейса: доступные предложения лавки текущего праздника. */
-export function festShopNow(now: number) {
-  const { def, cycle } = festivalAt(now);
-  return { def, cycle, offers: festShop(def) };
+/** Для интерфейса: предложения лавки идущего праздника (null — праздника нет). */
+export function festShopNow(ctx: { cfg: Config; now: number }) {
+  const cur = festivalNow(ctx);
+  return cur ? { def: cur.def, cycle: cur.cycle, offers: festShop(cur.def) } : null;
 }
-

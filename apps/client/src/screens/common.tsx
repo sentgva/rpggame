@@ -160,7 +160,7 @@ export function Locked({ text }: { text: string }) {
   );
 }
 
-function shortDate(ms: number): string {
+export function shortDate(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
@@ -171,8 +171,10 @@ export function skinSourceText(id: string, full = false): string {
   if (!sk) return '';
   const fest = skinFestival(id);
   if (!fest) return t(`src.${sk.source}`);
-  const when = festivalNext(fest.def.id, useGame.getState().now());
+  const g = useGame.getState();
+  const when = festivalNext(fest.def.id, g.now(), g.cfg?.festival);
   const name = tl(fest.def.name);
+  if (!when) return full ? t(fest.final ? 'src.festFinal' : 'src.festShop', { name, when: t('src.festTba') }) : `${name} · ${t('src.festTba')}`;
   const at = when.active ? t('src.festNow') : t('src.festFrom', { date: shortDate(when.start) });
   if (!full) return `${name} · ${at}`;
   return t(fest.final ? 'src.festFinal' : 'src.festShop', { name, when: when.active ? t('src.festNowLong', { date: shortDate(when.end) }) : t('src.festFromLong', { from: shortDate(when.start), to: shortDate(when.end) }) });

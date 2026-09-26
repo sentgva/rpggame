@@ -110,7 +110,15 @@ import {
   festivalAt,
   festivalState,
   festivalNext,
+  festivalUpcoming,
+  scheduleAuto,
+  schedulePlan,
+  scheduleRemove,
+  scheduleSetEnd,
+  scheduleStart,
+  scheduleStop,
   skinFestival,
+  type FestivalSchedule,
   ELITE_AFFIX_MAP,
   stageAffixes,
   withAffixes,
@@ -1050,13 +1058,13 @@ describe('праздники Легиона', () => {
   const act = (s: PlayerState, a: Record<string, unknown>, now = T1) => applyAction(s, a as never, { cfg, now, dev: true });
 
   it('праздники сменяются каждые 14 дней по кругу', () => {
-    const ids = [0, 1, 2, 3].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000).def.id);
+    const ids = [0, 1, 2, 3].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
     expect(ids).toEqual(['bloodmoon', 'tides', 'sakura', 'bloodmoon']);
-    const f = festivalAt(T1);
+    const f = festivalAt(T1)!;
     expect(f.end - f.start).toBe(FESTIVAL_DAYS * DAY);
     expect(f.start).toBeLessThanOrEqual(T1);
     // и до «эпохи» — тоже по кругу, без дыр
-    expect(festivalAt(FESTIVAL_EPOCH - 1000).def.id).toBe('sakura');
+    expect(festivalAt(FESTIVAL_EPOCH - 1000)!.def.id).toBe('sakura');
   });
 
   it('героини праздников: не в призыве, с врагами, обликами и лавкой', () => {
@@ -1111,13 +1119,13 @@ describe('праздники Легиона', () => {
 
   it('последний этап — испытание героини праздника, дающее её осколки', () => {
     let s = ready();
-    const hero = festivalAt(T1).def.hero;
+    const hero = festivalAt(T1)!.def.hero;
     for (let st = 1; st <= FEST_STAGES; st++) s = act(s, { type: 'fest.stage', stage: st }).state;
     expect(s.festival!.stars.every((x) => x === 3)).toBe(true);
     const total = [6, 12, 18].reduce((a, st) => a + festFirstReward(st).shards, 0);
     expect(s.shards[hero]).toBe(total);
-    const units = festStageEnemies(cfg, festivalAt(T1).def, s.festival!.lvl, FEST_STAGES);
-    expect(units.some((u) => u.kind === 'boss' && u.ref === festivalAt(T1).def.trialBoss)).toBe(true);
+    const units = festStageEnemies(cfg, festivalAt(T1)!.def, s.festival!.lvl, FEST_STAGES);
+    expect(units.some((u) => u.kind === 'boss' && u.ref === festivalAt(T1)!.def.trialBoss)).toBe(true);
     expect(festGoalValue(s, s.festival!, 'stars')).toBe(54);
   });
 
@@ -1125,22 +1133,22 @@ describe('праздники Легиона', () => {
     let s = ready(false);
     // враги праздника считаются от этапа фарма: пусть он будет выше силы отряда
     s = { ...s, progress: { ...s.progress, maxGlobal: 80, maxGlobalEver: 80 } };
-    const b0 = festBoss({ s, cfg, now: T1 });
+    const b0 = festBoss({ s, cfg, now: T1 }, festivalAt(T1)!.def);
     let r = act(s, { type: 'fest.boss' });
     s = r.state;
     const res = r.result as { dmg: number; killed: boolean };
     expect(res.dmg).toBeGreaterThan(0);
     expect(res.killed).toBe(false);
     expect(s.festival!.boss.dmg).toBe(res.dmg);
-    expect(festBoss({ s, cfg, now: T1 }).left).toBe(b0.hp - res.dmg);
+    expect(festBoss({ s, cfg, now: T1 }, festivalAt(T1)!.def).left).toBe(b0.hp - res.dmg);
     // добиваем
     s = { ...s, dev: { ...s.dev, oneShot: true } };
     r = act(s, { type: 'fest.boss', tactic: 'assault' });
     s = r.state;
     expect((r.result as { killed: boolean }).killed).toBe(true);
     expect(s.festival!.boss).toMatchObject({ lvl: 2, dmg: 0, kills: 1, used: 2 });
-    expect(s.shards[festivalAt(T1).def.hero]).toBe(festBossReward(1, true).shards);
-    expect(festBoss({ s, cfg, now: T1 }).level).toBeGreaterThan(b0.level);
+    expect(s.shards[festivalAt(T1)!.def.hero]).toBe(festBossReward(1, true).shards);
+    expect(festBoss({ s, cfg, now: T1 }, festivalAt(T1)!.def).level).toBeGreaterThan(b0.level);
     s = act(s, { type: 'fest.boss' }).state;
     expect(() => act(s, { type: 'fest.boss' })).toThrow('noAttempts');
     expect(() => act(s, { type: 'fest.boss' }, T1 + DAY)).not.toThrow();
@@ -1148,10 +1156,10 @@ describe('праздники Легиона', () => {
 
   it('задания дня и цели праздника', () => {
     let s = ready();
-    const ids = festDailyTasks(dayKey(T1), festivalAt(T1).cycle);
+    const ids = festDailyTasks(dayKey(T1), festivalAt(T1)!.cycle);
     expect(new Set(ids).size).toBe(4);
     expect(FEST_TASKS_FEST.map((t) => t.id)).toContain(ids[0]);
-    expect(festDailyTasks(dayKey(T1), festivalAt(T1).cycle)).toEqual(ids);
+    expect(festDailyTasks(dayKey(T1), festivalAt(T1)!.cycle)).toEqual(ids);
     expect(() => act(s, { type: 'fest.task', id: ids[1] })).toThrow('notDone');
     expect(() => act(s, { type: 'fest.task', id: 'nope' })).toThrow(GameError);
     const t = FEST_TASK_MAP[ids[1]];
@@ -1174,7 +1182,7 @@ describe('праздники Легиона', () => {
   it('шкала наград: всё разом, финальный облик; повторно — кристаллы', () => {
     let s = ready();
     s = act(s, { type: 'sync' }).state;
-    const fd = festivalAt(T1).def;
+    const fd = festivalAt(T1)!.def;
     s = { ...s, festival: { ...festivalState({ s, cfg, now: T1 }), points: 100000 } };
     const r = act(s, { type: 'fest.claim', index: 'all' });
     expect(r.state.festival!.claimed).toHaveLength(FEST_MILESTONES.length);
@@ -1191,7 +1199,7 @@ describe('праздники Легиона', () => {
   it('лавка праздника: осколки героини, лимит на праздник, облики — навсегда', () => {
     let s = ready();
     s = { ...s, cur: { ...s.cur, eventTokens: 100000 } };
-    const { def, offers } = festShopNow(T1);
+    const { def, offers } = festShopNow({ cfg, now: T1 })!;
     const sh = offers.find((o) => o.give.shards)!;
     for (let i = 0; i < sh.limit; i++) s = act(s, { type: 'fest.buy', offer: sh.id }).state;
     expect(s.shards[def.hero]).toBe(sh.limit * sh.give.shards!);
@@ -1202,9 +1210,9 @@ describe('праздники Легиона', () => {
     expect(() => act(s, { type: 'fest.buy', offer: skin.id })).toThrow(GameError);
     // через три праздника (тот же праздник по кругу) лимит осколков снова свободен
     const later = T1 + 3 * FESTIVAL_DAYS * DAY;
-    expect(festivalAt(later).def.id).toBe(def.id);
+    expect(festivalAt(later)!.def.id).toBe(def.id);
     expect(() => act(s, { type: 'fest.buy', offer: sh.id }, later)).not.toThrow();
-    expect(festBought(s, sh.id, undefined, festivalAt(T1).cycle)).toBe(sh.limit);
+    expect(festBought(s, sh.id, undefined, festivalAt(T1)!.cycle)).toBe(sh.limit);
   });
 
   it('новый праздник начинается с чистого листа и фиксирует уровень врагов', () => {
@@ -1259,10 +1267,93 @@ describe('облики праздников: где получить', () => {
     expect(skinFestival('isolde_sakura')).toMatchObject({ final: false, def: { id: 'sakura' } });
     expect(skinFestival('selene_moon')).toMatchObject({ final: true, def: { id: 'bloodmoon' } });
     expect(skinFestival('lira_summer')).toBeNull();
-    const sak = festivalNext('sakura', now);
+    const sak = festivalNext('sakura', now)!;
     expect(sak.active).toBe(false);
     expect(sak.start).toBe(FESTIVAL_EPOCH + 2 * FESTIVAL_DAYS * DAY);
-    expect(festivalAt(sak.start).def.id).toBe('sakura');
+    expect(festivalAt(sak.start)!.def.id).toBe('sakura');
     expect(festivalNext('bloodmoon', now)).toMatchObject({ active: true, start: FESTIVAL_EPOCH });
+  });
+});
+
+describe('расписание праздников (из бота)', () => {
+  const DAY = 86400000;
+  const now = FESTIVAL_EPOCH + 3 * DAY;
+  const withSched = (sched: FestivalSchedule | undefined) => ({ ...cfg, festival: sched });
+
+  it('стоп: праздника нет, действия праздника закрыты; старт — идёт выбранный', () => {
+    const stop = scheduleStop(undefined, now);
+    expect(stop.ok).toBe(true);
+    const sched = (stop as { sched: FestivalSchedule }).sched;
+    expect(festivalAt(now + 1000, sched)).toBeNull();
+    expect(festivalUpcoming(now + 1000, sched)).toHaveLength(0);
+    let s = fresh();
+    s = { ...s, account: { ...s.account, lvl: 12 } };
+    expect(() => applyAction(s, { type: 'fest.stage', stage: 1 }, { cfg: withSched(sched), now: now + 1000 })).toThrow('noFestival');
+    expect(festClaimable({ s, cfg: withSched(sched), now: now + 1000 })).toBe(0);
+    // повторная остановка — праздника уже нет
+    expect(scheduleStop(sched, now + 2000).ok).toBe(false);
+    const start = scheduleStart(sched, 'tides', now + 5000, 7) as { ok: true; sched: FestivalSchedule };
+    const cur = festivalAt(now + 6000, start.sched)!;
+    expect(cur.def.id).toBe('tides');
+    expect(cur.end - cur.start).toBe(7 * DAY - 0);
+    expect(() => applyAction(s, { type: 'fest.stage', stage: 1 }, { cfg: withSched(start.sched), now: now + 6000, dev: true })).not.toThrow('noFestival');
+  });
+
+  it('продление того же праздника сохраняет прогресс, другой праздник начинается с нуля', () => {
+    let s = fresh();
+    s = { ...s, account: { ...s.account, lvl: 12 }, dev: { ...s.dev, oneShot: true } };
+    for (const id of ['lira', 'astrid']) s = applyAction(s, { type: 'dev.hero', id, lvl: 20 }, { cfg, now, dev: true }).state;
+    s = applyAction(s, { type: 'fest.stage', stage: 1 }, { cfg, now, dev: true }).state;
+    const pts = s.festival!.points;
+    expect(pts).toBeGreaterThan(0);
+    // та же «Кровавая Луна», просто дольше — номер праздника прежний
+    const ext = (scheduleStart(undefined, 'bloodmoon', now, 30) as { sched: FestivalSchedule }).sched;
+    expect(festivalAt(now + 20 * DAY, ext)!.def.id).toBe('bloodmoon');
+    expect(festivalState({ s, cfg: withSched(ext), now: now + 20 * DAY }).points).toBe(pts);
+    // сменили праздник — новый прогресс
+    const other = (scheduleStart(ext, 'sakura', now + DAY, 10) as { sched: FestivalSchedule }).sched;
+    const f = festivalState({ s, cfg: withSched(other), now: now + 2 * DAY });
+    expect(f.points).toBe(0);
+    expect(f.fest).toBe('sakura');
+  });
+
+  it('план по датам: без наложений, не в прошлом; конец и удаление; возврат к ротации', () => {
+    const plan = schedulePlan(undefined, 'sakura', now + 20 * DAY, now + 30 * DAY, now) as { ok: true; sched: FestivalSchedule };
+    expect(plan.ok).toBe(true);
+    // идущая по ротации «Кровавая Луна» осталась, «Сакура» — следом
+    expect(festivalUpcoming(now, plan.sched).map((x) => x.def.id)).toEqual(['bloodmoon', 'sakura']);
+    expect(festivalAt(now + 15 * DAY, plan.sched)).toBeNull();
+    expect(festivalAt(now + 25 * DAY, plan.sched)!.def.id).toBe('sakura');
+    expect(schedulePlan(plan.sched, 'tides', now + 25 * DAY, now + 35 * DAY, now)).toMatchObject({ ok: false, error: 'overlap' });
+    expect(schedulePlan(plan.sched, 'tides', now - 5 * DAY, now - DAY, now)).toMatchObject({ ok: false, error: 'past' });
+    expect(schedulePlan(plan.sched, 'tides', now + 5 * DAY, now + 2 * DAY, now)).toMatchObject({ ok: false, error: 'badDates' });
+    const end = scheduleSetEnd(plan.sched, now + 5 * DAY, now) as { ok: true; sched: FestivalSchedule };
+    expect(festivalAt(now + 6 * DAY, end.sched)).toBeNull();
+    expect(scheduleSetEnd(plan.sched, now + 25 * DAY, now)).toMatchObject({ ok: false, error: 'overlap' });
+    const rm = scheduleRemove(end.sched, 2, now) as { ok: true; sched: FestivalSchedule };
+    expect(festivalUpcoming(now, rm.sched).map((x) => x.def.id)).toEqual(['bloodmoon']);
+    expect(scheduleRemove(rm.sched, 5, now).ok).toBe(false);
+    const auto = scheduleAuto(rm.sched, now);
+    expect(festivalAt(now, auto)!.def.id).toBe('bloodmoon');
+    // номера праздников из бота не пересекаются с ротацией
+    const cycles = plan.sched.entries.map((e) => e.cycle);
+    expect(new Set(cycles).size).toBe(cycles.length);
+    expect(Math.max(...cycles)).toBeGreaterThan(1_000_000);
+  });
+});
+
+describe('«Что нового»', () => {
+  it('только главное: до 3 пунктов, у каждой записи иконка, суть и существующая героиня', () => {
+    expect(new Set(CHANGELOG.map((e) => e.id)).size).toBe(CHANGELOG.length);
+    for (const e of CHANGELOG) {
+      expect(e.items.length).toBeGreaterThan(0);
+      expect(e.items.length).toBeLessThanOrEqual(3);
+      expect(e.icon).toBeTruthy();
+      expect(e.lead.ru && e.lead.en).toBeTruthy();
+      if (e.art) {
+        expect(HEROINE_MAP[e.art.hero]).toBeDefined();
+        if (e.art.skin) expect(SKIN_MAP[e.art.skin]?.hero).toBe(e.art.hero);
+      }
+    }
   });
 });

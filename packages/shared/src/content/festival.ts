@@ -106,18 +106,163 @@ export const FESTIVAL_DAYS = 14;
 /** Начало первого праздника (Кровавая Луна) — 26 сентября 2026, UTC. */
 export const FESTIVAL_EPOCH = Date.UTC(2026, 8, 26);
 
-/** Номер праздника (цикла) на момент now. */
+/** Номер праздника (цикла) автоматической ротации на момент now. */
 export function festivalCycle(now: number): number {
   return Math.floor((now - FESTIVAL_EPOCH) / (FESTIVAL_DAYS * DAY));
 }
 
-/** Текущий праздник: описание, номер цикла, начало и конец. */
-export function festivalAt(now: number): { def: FestivalDef; cycle: number; start: number; end: number } {
-  const cycle = festivalCycle(now);
+/**
+ * Расписание праздников (правится из бота, приходит в конфиге `cfg.festival`).
+ * auto — вечная ротация по 14 дней; manual — только записи расписания, между ними праздника нет.
+ */
+export interface FestivalEntry {
+  fest: FestivalId;
+  start: number;
+  end: number;
+  /** номер праздника: по нему сбрасывается прогресс и лимиты лавки */
+  cycle: number;
+}
+export interface FestivalSchedule {
+  mode: 'auto' | 'manual';
+  entries: FestivalEntry[];
+  /** время последней правки: клиент по нему понимает, что расписание сменилось */
+  updated: number;
+  /** счётчик номеров праздников, созданных вручную (номера не пересекаются с ротацией) */
+  seq?: number;
+}
+
+/** Номера праздников из бота начинаются отсюда — чтобы не совпасть с номерами ротации. */
+const MANUAL_CYCLE = 1_000_000;
+const KEEP_PAST = 60 * DAY;
+
+export const AUTO_SCHEDULE: FestivalSchedule = { mode: 'auto', entries: [], updated: 0 };
+
+/** Ручной режим; идущий сейчас праздник ротации (если есть) переносится в расписание, чтобы не прерваться. */
+function toManual(sched: FestivalSchedule | null | undefined, now: number): FestivalSchedule {
+  if (sched?.mode === 'manual') return { ...sched, entries: sched.entries.filter((e) => e.end > now - KEEP_PAST).map((e) => ({ ...e })) };
+  const cur = autoAt(festivalCycle(now));
+  return { mode: 'manual', entries: [{ fest: cur.def.id, start: cur.start, end: cur.end, cycle: cur.cycle }], updated: now, seq: sched?.seq };
+}
+
+function nextCycle(s: FestivalSchedule): number {
+  s.seq = Math.max(s.seq ?? MANUAL_CYCLE, ...s.entries.map((e) => e.cycle)) + 1;
+  return s.seq;
+}
+
+function running(s: FestivalSchedule, now: number): FestivalEntry | undefined {
+  return s.entries.find((e) => e.start <= now && now < e.end);
+}
+
+export type ScheduleResult = { ok: true; sched: FestivalSchedule; note?: string } | { ok: false; error: 'badDates' | 'past' | 'overlap' | 'none' | 'notFound'; entry?: FestivalEntry };
+
+/** Запустить праздник сейчас на days дней. Тот же праздник уже идёт — просто меняется дата конца (прогресс сохраняется). */
+export function scheduleStart(sched: FestivalSchedule | null | undefined, fest: FestivalId, now: number, days: number): ScheduleResult {
+  if (!(days > 0) || days > 120) return { ok: false, error: 'badDates' };
+  const s = toManual(sched, now);
+  const end = now + Math.round(days * DAY);
+  const cur = running(s, now);
+  let removed = 0;
+  // будущие записи, которые наложились бы на новый праздник, снимаются
+  s.entries = s.entries.filter((e) => {
+    const drop = e !== cur && e.start >= now && e.start < end;
+    if (drop) removed++;
+    return !drop;
+  });
+  if (cur && cur.fest === fest) cur.end = end;
+  else {
+    if (cur) cur.end = now;
+    s.entries.push({ fest, start: now, end, cycle: nextCycle(s) });
+  }
+  s.updated = now;
+  return { ok: true, sched: s, note: removed ? `removed:${removed}` : undefined };
+}
+
+/** Остановить идущий праздник сейчас (ручной режим: дальше — только по расписанию). */
+export function scheduleStop(sched: FestivalSchedule | null | undefined, now: number): ScheduleResult {
+  const s = toManual(sched, now);
+  const cur = running(s, now);
+  if (!cur) return { ok: false, error: 'none' };
+  cur.end = now;
+  s.updated = now;
+  return { ok: true, sched: s };
+}
+
+/** Запланировать праздник на даты (без наложений на другие записи). */
+export function schedulePlan(sched: FestivalSchedule | null | undefined, fest: FestivalId, start: number, end: number, now: number): ScheduleResult {
+  if (!(end > start) || end - start > 120 * DAY) return { ok: false, error: 'badDates' };
+  if (end <= now) return { ok: false, error: 'past' };
+  const s = toManual(sched, now);
+  const clash = s.entries.find((e) => e.end > now && start < e.end && e.start < end);
+  if (clash) return { ok: false, error: 'overlap', entry: clash };
+  s.entries.push({ fest, start: Math.max(start, now), end, cycle: nextCycle(s) });
+  s.entries.sort((a, b) => a.start - b.start);
+  s.updated = now;
+  return { ok: true, sched: s };
+}
+
+/** Новая дата конца идущего праздника. */
+export function scheduleSetEnd(sched: FestivalSchedule | null | undefined, end: number, now: number): ScheduleResult {
+  const s = toManual(sched, now);
+  const cur = running(s, now);
+  if (!cur) return { ok: false, error: 'none' };
+  if (end <= now) return { ok: false, error: 'past' };
+  const clash = s.entries.find((e) => e !== cur && e.start < end && e.start >= cur.start);
+  if (clash) return { ok: false, error: 'overlap', entry: clash };
+  cur.end = end;
+  s.updated = now;
+  return { ok: true, sched: s };
+}
+
+/** Убрать запись расписания по номеру из списка ближайших (1 — первая). Идущий праздник при этом останавливается. */
+export function scheduleRemove(sched: FestivalSchedule | null | undefined, index: number, now: number): ScheduleResult {
+  const s = toManual(sched, now);
+  const list = s.entries.filter((e) => e.end > now).sort((a, b) => a.start - b.start);
+  const e = list[index - 1];
+  if (!e) return { ok: false, error: 'notFound' };
+  if (e.start <= now) e.end = now;
+  else s.entries = s.entries.filter((x) => x !== e);
+  s.updated = now;
+  return { ok: true, sched: s };
+}
+
+/** Вернуть автоматическую ротацию. */
+export function scheduleAuto(sched: FestivalSchedule | null | undefined, now: number): FestivalSchedule {
+  return { mode: 'auto', entries: [], updated: now, seq: sched?.seq };
+}
+
+export interface FestivalNow {
+  def: FestivalDef;
+  cycle: number;
+  start: number;
+  end: number;
+}
+
+function autoAt(cycle: number): FestivalNow {
   const n = FESTIVALS.length;
-  const def = FESTIVALS[((cycle % n) + n) % n];
   const start = FESTIVAL_EPOCH + cycle * FESTIVAL_DAYS * DAY;
-  return { def, cycle, start, end: start + FESTIVAL_DAYS * DAY };
+  return { def: FESTIVALS[((cycle % n) + n) % n], cycle, start, end: start + FESTIVAL_DAYS * DAY };
+}
+
+/** Текущий праздник или null, если по расписанию праздника сейчас нет. */
+export function festivalAt(now: number, sched?: FestivalSchedule | null): FestivalNow | null {
+  if (sched?.mode === 'manual') {
+    const e = sched.entries.find((x) => x.start <= now && now < x.end && FESTIVAL_MAP[x.fest]);
+    return e ? { def: FESTIVAL_MAP[e.fest], cycle: e.cycle, start: e.start, end: e.end } : null;
+  }
+  return autoAt(festivalCycle(now));
+}
+
+/** Ближайшие праздники (идущий сейчас — первым). */
+export function festivalUpcoming(now: number, sched?: FestivalSchedule | null, count = 3): FestivalNow[] {
+  if (sched?.mode === 'manual') {
+    return sched.entries
+      .filter((x) => x.end > now && FESTIVAL_MAP[x.fest])
+      .sort((a, b) => a.start - b.start)
+      .slice(0, count)
+      .map((e) => ({ def: FESTIVAL_MAP[e.fest], cycle: e.cycle, start: e.start, end: e.end }));
+  }
+  const c = festivalCycle(now);
+  return Array.from({ length: count }, (_, k) => autoAt(c + k));
 }
 
 // ——— Путь праздника ———
@@ -334,14 +479,10 @@ export function skinFestival(skin: string): { def: FestivalDef; final: boolean }
   return null;
 }
 
-/** Ближайший (или идущий сейчас) праздник с этим id: начало, конец и идёт ли он. */
-export function festivalNext(id: FestivalId, now: number): { start: number; end: number; active: boolean } {
-  const cur = festivalAt(now);
-  for (let k = 0; k < FESTIVALS.length; k++) {
-    const at = festivalAt(cur.start + k * FESTIVAL_DAYS * DAY + 1);
-    if (at.def.id === id) return { start: at.start, end: at.end, active: k === 0 };
-  }
-  return { start: cur.start, end: cur.end, active: true };
+/** Ближайший (или идущий сейчас) праздник с этим id; null — в расписании его нет. */
+export function festivalNext(id: FestivalId, now: number, sched?: FestivalSchedule | null): { start: number; end: number; active: boolean } | null {
+  const f = festivalUpcoming(now, sched, sched?.mode === 'manual' ? 50 : FESTIVALS.length).find((x) => x.def.id === id);
+  return f ? { start: f.start, end: f.end, active: f.start <= now } : null;
 }
 
 // ——— Лавка праздника ———

@@ -30,7 +30,7 @@ export interface InitResult {
 }
 
 export type ActionResponse =
-  | { ok: true; now: number; hash: string; result: unknown }
+  | { ok: true; now: number; hash: string; result: unknown; fest?: number }
   | { ok: false; error: { code: string; params?: Record<string, string | number> }; state?: PlayerState; now?: number };
 
 export interface Backend {
@@ -41,6 +41,8 @@ export interface Backend {
   dev(op: string, body?: unknown): Promise<unknown>;
   /** Баг-репорт разработчику (через бота). */
   bugReport(text: string, diag: Record<string, unknown>): Promise<BugReportResult>;
+  /** Свежий конфиг (например, после смены расписания праздников из бота); в локальном режиме не нужен. */
+  config?(): Promise<{ cfg: Config }>;
 }
 
 export interface BugReportResult {
@@ -230,6 +232,10 @@ export class RemoteBackend implements Backend {
 
   async fetchState() {
     return this.req<{ state: PlayerState; now: number }>('/state', undefined, 'GET');
+  }
+
+  async config() {
+    return this.req<{ cfg: Config }>('/config', undefined, 'GET');
   }
 
   async dev(op: string, body?: unknown): Promise<unknown> {

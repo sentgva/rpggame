@@ -4,103 +4,113 @@ import type { L10n } from '../types';
 export interface ChangelogEntry {
   id: string;
   date: string;
+  /** эмодзи обновления */
+  icon: string;
   title: L10n;
+  /** суть обновления одной фразой */
+  lead: L10n;
+  /** цвет карточки */
+  color: string;
+  /** героиня (и облик) на карточке */
+  art?: { hero: string; skin?: string };
+  /** только главное: 2–3 пункта, без мелких правок и исправлений */
   items: L10n[];
 }
 
-/** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
+/** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-09-26g',
     date: '26.09.2026',
+    icon: '🎉',
     title: { ru: 'Праздники Легиона', en: 'Legion Festivals' },
+    lead: { ru: 'Большой ивент каждые две недели — со своей героиней, боссом и наградами', en: 'A big event every two weeks — with its own heroine, boss and rewards' },
+    color: '#ff5a6a',
+    art: { hero: 'selene' },
     items: [
-      { ru: '🌕 Большой ивент: каждые две недели — новый праздник. Первый — «Кровавая Луна», дальше «Праздник Приливов» и «Цветение Сакуры»', en: '🌕 A big event: a new festival every two weeks. First up is "Blood Moon", then the "Tide Festival" and "Sakura Bloom"' },
-      { ru: '💃 Три новые UR-героини — Селена, Амфитрита и Цубаки. В призыве их нет: только за награды своего праздника', en: '💃 Three new UR heroines — Selene, Amphitrite and Tsubaki. Not in summons: only from their own festival\'s rewards' },
-      { ru: '🗺 Путь праздника: 18 этапов в трёх главах, у каждого — свои условия, звёзды за бой без потерь, в финале — испытание героини', en: '🗺 The festival trail: 18 stages in three chapters, each with its own conditions, stars for flawless wins and a heroine\'s trial at the end' },
-      { ru: '👹 Босс-колосс праздника: урон копится между боями, после победы босс становится сильнее', en: '👹 A festival colossus boss: damage carries over between fights, and it grows stronger after each defeat' },
-      { ru: '📜 Задания дня, цели праздника, шкала из 25 наград с особым обликом в финале и лавка за жетоны ивента', en: '📜 Daily tasks, festival goals, a 25-step reward track with a special skin at the end, and a shop for event tokens' },
-      { ru: '💀 Кампания стала сложнее: у боссов этапов появились свойства элиты (броня, вампиризм, шипы, щит…), за каждое — +20% награды', en: '💀 The campaign is tougher: stage bosses now have elite traits (armor, lifesteal, thorns, shields…), each worth +20% reward' },
-      { ru: '👗 Облики «Горничная ада», «Чёрная роза», «Полдень», «Нуар», «Жемчужная», «Коралловый риф» и «Звезда сцены» теперь с настоящими нарядами, а не просто другого цвета', en: '👗 The "Infernal Maid", "Black Rose", "High Noon", "Noir", "Pearl", "Coral Reef" and "Stage Star" skins now have real outfits instead of just new colours' },
-    ],
-  },
-  {
-    id: '2026-09-26f',
-    date: '26.09.2026',
-    title: { ru: 'Привычный облик, только удобнее', en: 'The familiar look, only handier' },
-    items: [
-      { ru: '🏰 Вернули классический интерфейс', en: '🏰 The classic interface is back' },
-      { ru: '🏕 Лагерь: баннер с лидером отряда, четыре главных раздела — крупными плитками', en: '🏕 Camp: a banner with your squad leader, four main sections as large tiles' },
-      { ru: '🗺 Режимы на карте — крупнее иконки и заголовки; мелкий текст чуть крупнее, цены на кнопках не переносятся', en: '🗺 Modes on the map have larger icons and titles; small text is a bit larger and prices on buttons no longer wrap' },
+      { ru: '🌙 Кровавая Луна, Праздник Приливов и Цветение Сакуры: путь из 18 этапов, босс-колосс, задания и лавка', en: '🌙 Blood Moon, Tide Festival and Sakura Bloom: an 18-stage trail, a colossus boss, tasks and a shop' },
+      { ru: '💃 Новые UR-героини Селена, Амфитрита и Цубаки — только на своих праздниках', en: '💃 New UR heroines Selene, Amphitrite and Tsubaki — only at their own festivals' },
+      { ru: '💀 Кампания сложнее: у боссов этапов появились свойства элиты, а награда за них выше', en: '💀 A tougher campaign: stage bosses have elite traits, and pay more for them' },
     ],
   },
   {
     id: '2026-09-26c',
     date: '26.09.2026',
+    icon: '🔮',
     title: { ru: 'Сокровищница Эфира', en: 'The Aether Vault' },
+    lead: { ru: 'Артефакты — новый баннер с механиками для всего отряда', en: 'Artifacts — a new banner with party-wide mechanics' },
+    color: '#b07aff',
+    art: { hero: 'aurelia' },
     items: [
-      { ru: '🔮 Артефакты — отдельная вкладка в Призыве: 12 механик для всего отряда (молнии, метки, остановка времени, возрождение, рог Валькирии…)', en: '🔮 Artifacts — a separate tab in Summon: 12 party-wide mechanics (lightning, marks, stopped time, revival, the Valkyrie Horn…)' },
-      { ru: '⭐ Дубликаты повышают уровень артефакта до 5; 2 слота в отряде, третий — с 40 уровня аккаунта; бесплатный призыв раз в день', en: '⭐ Duplicates level artifacts up to 5; 2 party slots, a third from account level 40; one free pull a day' },
-      { ru: '⚖️ Числа скромные: артефакты разнообразят бой, но не заменяют прокачку', en: '⚖️ Modest numbers: artifacts add variety but don\'t replace progression' },
-      { ru: '✨ Новая анимация призыва: магический круг, звездопад цвета находок, вспышка и прожектор для SSR/UR', en: '✨ New summon animation: magic circle, starfall in the colours of your finds, a flash and a spotlight for SSR/UR' },
-      { ru: '🏠 В «Уходе» — нарисованные фоны: лагерь, источники, комнаты резиденции и места свиданий', en: '🏠 Care now has drawn backgrounds: camp, hot springs, residence rooms and date places' },
+      { ru: '🔮 12 артефактов: молнии, метки, остановка времени, возрождение, рог Валькирии', en: '🔮 12 artifacts: lightning, marks, stopped time, revival, the Valkyrie Horn' },
+      { ru: '⭐ Дубликаты повышают уровень до 5, в отряде 2–3 слота, бесплатный призыв раз в день', en: '⭐ Duplicates level them up to 5, 2–3 party slots, a free pull every day' },
+      { ru: '✨ Новая анимация призыва со звездопадом и прожектором для SSR/UR', en: '✨ A new summon animation with a starfall and a spotlight for SSR/UR' },
     ],
   },
   {
     id: '2026-09-26b',
     date: '26.09.2026',
-    title: { ru: 'Резиденция героинь', en: 'The heroines\' residence' },
+    icon: '🏠',
+    title: { ru: 'Резиденция героинь', en: "The heroines' residence" },
+    lead: { ru: 'Свой дом для героинь: комнаты, ванна и ночёвки', en: 'A home for your heroines: rooms, baths and sleepovers' },
+    color: '#f2a8c8',
+    art: { hero: 'isolde' },
     items: [
-      { ru: '🏠 В «Уходе» — Резиденция: гостиная, кухня, ванная и спальня. Обустраивай и улучшай комнаты до 5 уровня', en: '🏠 Residence in Care: living room, kitchen, bathroom and bedroom. Build and upgrade rooms up to level 5' },
-      { ru: '🛋️ Гостиная и 🍳 кухня усиливают разговоры и угощения (+15% близости за уровень)', en: '🛋️ The living room and 🍳 kitchen boost talks and treats (+15% bond per level)' },
-      { ru: '🛁 Ванна — раз в день для каждой героини, пена до подбородка', en: '🛁 Bath — once a day per heroine, foam up to the chin' },
-      { ru: '🌙 Ночёвка в спальне — с близости 5, одна героиня за ночь: пижама, одеяло и утренний подарок (золото и опыт)', en: '🌙 Sleepover in the bedroom — from bond 5, one heroine per night: pajamas, a blanket and a morning gift (gold and XP)' },
+      { ru: '🛋️ Гостиная, кухня, ванная и спальня — улучшаются до 5 уровня и ускоряют близость', en: '🛋️ Living room, kitchen, bathroom and bedroom — upgrade to level 5 to speed up bonds' },
+      { ru: '🌙 Ночёвка с близости 5: одна героиня за ночь и подарок утром', en: '🌙 Sleepovers from bond 5: one heroine a night and a gift in the morning' },
     ],
   },
   {
     id: '2026-09-26',
     date: '26.09.2026',
-    title: { ru: 'Близость и уход за героинями', en: 'Bonds and heroine care' },
+    icon: '💞',
+    title: { ru: 'Близость и уход', en: 'Bonds and care' },
+    lead: { ru: 'Проводите время с UR-героинями — и они становятся сильнее', en: 'Spend time with UR heroines — and they grow stronger' },
+    color: '#ff8ac0',
+    art: { hero: 'aurora' },
     items: [
-      { ru: '💞 Новый режим «Уход» в лагере: UR-героини — разговоры, угощения, горячие источники и свидания', en: '💞 New "Care" mode in the camp: talk, treats, hot springs and dates with UR heroines' },
-      { ru: '❤ Близость до 10 уровня: каждая ступень усиливает героиню, на пиках — кристаллы и осколки', en: '❤ Bond up to level 10: every step strengthens the heroine, milestones give crystals and shards' },
-      { ru: '👘 Особые наряды близости: юката, вечернее платье и шёлковая пижама — только за Близость 10 и Сердца Эфира', en: '👘 Bond outfits: yukata, evening gown and silk sleepwear — only for Bond 10 and Aether Hearts' },
-      { ru: '💗 Сердца Эфира: Разлом (ярус 8+), Нашествие (каждые 25 волн), испытания Башни, Шпили (каждые 25 этажей)', en: '💗 Aether Hearts: Rift (tier 8+), Horde (every 25 waves), Tower challenges, Spires (every 25 floors)' },
-      { ru: '📰 Этот список изменений — при входе, в лагере и в боте (/news)', en: '📰 This changelog — on login, in the camp and in the bot (/news)' },
-      { ru: '📱 Исправлено: в полноэкранном Telegram кнопки «✕» и «•••» закрывали верхнюю панель', en: '📱 Fixed: in fullscreen Telegram the "✕" and "•••" buttons covered the top bar' },
+      { ru: '💬 Разговоры, угощения, горячие источники и свидания', en: '💬 Talks, treats, hot springs and dates' },
+      { ru: '❤ Близость до 10: бонус к силе, награды на пиках и особые наряды', en: '❤ Bond up to 10: a power bonus, milestone rewards and special outfits' },
     ],
   },
   {
     id: '2026-09-25b',
     date: '25.09.2026',
+    icon: '⚡',
     title: { ru: 'Живые бои', en: 'Live battles' },
+    lead: { ru: 'Бои с боссами теперь можно вести самому', en: 'You can now take control in boss fights' },
+    color: '#ffd24a',
+    art: { hero: 'lira' },
     items: [
-      { ru: '⚡ Ручные ульты в боях с боссами и в режимах: жми на портрет с полной шкалой', en: '⚡ Manual ultimates in boss fights and modes: tap a portrait with a full ring' },
-      { ru: '💥 Сокрушительный удар боссов — собьёшь ультой или оглушением, иначе больно', en: '💥 Bosses charge a Crushing Blow — interrupt it with an ultimate or a stun' },
-      { ru: '❗ Встречи: сундук или мимик, торговка, алтарь, путница, игрок в кости, засада', en: '❗ Encounters: chest or mimic, merchant, shrine, traveler, dice gambler, ambush' },
-      { ru: '🐞 Исправлено: Нашествие давало слишком много золота', en: '🐞 Fixed: the Horde paid far too much gold' },
+      { ru: '⚡ Ручные ульты: жми на портрет с полной шкалой', en: '⚡ Manual ultimates: tap a portrait with a full ring' },
+      { ru: '💥 Сокрушительный удар боссов — сбей его ультой или оглушением', en: '💥 Bosses charge a Crushing Blow — interrupt it with an ultimate or a stun' },
+      { ru: '❗ Встречи в пути: сундуки и мимики, торговка, алтарь, засады', en: '❗ Encounters on the road: chests and mimics, a merchant, a shrine, ambushes' },
     ],
   },
   {
     id: '2026-09-25a',
     date: '25.09.2026',
+    icon: '🐰',
     title: { ru: 'Маскарад и новенькие', en: 'Masquerade and newcomers' },
+    lead: { ru: 'Пять новых героинь и коллекция костюмов', en: 'Five new heroines and a costume collection' },
+    color: '#e0a13a',
+    art: { hero: 'tamamo', skin: 'tamamo_masq' },
     items: [
-      { ru: '✨ 5 новых героинь: Зарина, Юки, Мелюзина, Роксана и Тамамо', en: '✨ 5 new heroines: Zarina, Yuki, Melusine, Roxana and Tamamo' },
-      { ru: '🐰 Коллекция «Маскарад»: 15 обликов — кролики, горничные и не только', en: '🐰 Masquerade collection: 15 skins — bunnies, maids and more' },
-      { ru: '🗡 Благословения Нашествия, модификаторы и «Испытание» Башни, тактики Разлома, подземелье дня', en: '🗡 Horde blessings, Tower modifiers and Challenge, Rift tactics, dungeon of the day' },
-      { ru: '🛡 Сеты режимов и 9 новых легендарок', en: '🛡 Mode-only sets and 9 new legendaries' },
-      { ru: '♻ Полный сброс прогресса, «Забрать всё», сортировка героинь', en: '♻ Full progress reset, "Claim all", hero sorting' },
+      { ru: '✨ Зарина, Юки, Мелюзина, Роксана и Тамамо', en: '✨ Zarina, Yuki, Melusine, Roxana and Tamamo' },
+      { ru: '🐰 «Маскарад»: 15 обликов — кролики, горничные и не только', en: '🐰 Masquerade: 15 skins — bunnies, maids and more' },
     ],
   },
   {
     id: '2026-09-24',
     date: '24.09.2026',
+    icon: '👼',
     title: { ru: 'Вестницы и новые режимы', en: 'Heralds and new modes' },
+    lead: { ru: 'Вестницы Эфира, Колоссы и три новых режима', en: 'Aether Heralds, Colossi and three new modes' },
+    color: '#6ff0e0',
+    art: { hero: 'maristella' },
     items: [
-      { ru: '👼 5 Вестниц Эфира и 5 Колоссов — крупные, со своими анимациями', en: '👼 5 Aether Heralds and 5 Colossi — big, with their own animations' },
+      { ru: '👼 5 Вестниц и 5 Колоссов — крупные, со своими анимациями', en: '👼 5 Heralds and 5 Colossi — big, with their own animations' },
       { ru: '🌋 Разлом Колосса, Стихийные шпили и Нашествие', en: '🌋 Colossus Rift, Elemental Spires and the Horde' },
-      { ru: '👙 Летние облики и коллекция «Будуар», обновлённый боевой пропуск', en: '👙 Summer skins and the Boudoir collection, updated battle pass' },
     ],
   },
 ];

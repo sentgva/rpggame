@@ -30,12 +30,14 @@ export class GameController {
   }
 
   @Get('health')
-  health() {
-    return { ok: true, time: Date.now(), config: this.balance.version };
+  async health() {
+    await this.balance.refresh();
+    return { ok: true, time: Date.now(), config: this.balance.version, festival: this.balance.festivalVersion() };
   }
 
   @Get('config')
-  config() {
+  async config() {
+    await this.balance.refresh();
     return { cfg: this.balance.get(), version: this.balance.version };
   }
 
@@ -60,6 +62,7 @@ export class GameController {
       return { ok: false, error: { code: 'auth' } };
     }
     if (startParam && !/^[\w-]{1,64}$/.test(startParam)) startParam = undefined;
+    await this.balance.refresh();
     const { state } = await this.players.getOrCreate(uid, profile, startParam);
     this.players.trackServer(uid, [{ name: 'session_start', props: { start: startParam ?? null } }]);
     return {
@@ -82,6 +85,8 @@ export class GameController {
   async action(@Req() req: AuthedRequest, @Body() body: { id?: string; action?: { type?: string } }) {
     const id = typeof body?.id === 'string' ? body.id.slice(0, 64) : `${Date.now()}`;
     if (!body?.action || typeof body.action.type !== 'string') return { ok: false, error: { code: 'badParam' } };
+    // расписание праздников могли поменять из бота — перечитываем (с кэшем на 15 с)
+    await this.balance.refresh();
     return this.players.applyClient(req.uid, id, body.action as never);
   }
 

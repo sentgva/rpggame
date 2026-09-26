@@ -870,4 +870,13 @@ export const en: typeof ru = {
   'src.festFromLong': '{from} to {to}',
   'src.festShop': 'The "{name}" festival shop ({when}): Camp → festival banner → Shop, for event tokens',
   'src.festFinal': 'The final reward of the "{name}" festival track ({when}): Camp → festival banner → Rewards',
+  'fest.soon': 'Festival soon',
+  'fest.startsIn': 'starts in {t}',
+  'fest.noneNow': 'No festival right now',
+  'fest.noneNext': 'Next: "{name}", from {date}. Event tokens are kept.',
+  'fest.noneTba': 'The next festival has not been announced yet. Event tokens are kept.',
+  'src.festTba': 'date not announced yet',
+  'err.noFestival': 'No festival right now',
+  'news.new': 'NEW',
+  'news.past': 'Earlier updates',
 };

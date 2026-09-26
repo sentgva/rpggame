@@ -76,7 +76,8 @@ describe.skipIf(!url)('PlayerService + PostgreSQL', () => {
   it('язык бота: выбор через /lang важнее языка Telegram', async () => {
     const { BotService } = await import('../src/bot/bot.service');
     const { IdeasService } = await import('../src/bot/ideas.service');
-    const bot = new BotService(db, new IdeasService(db));
+    const { BalanceService } = await import('../src/balance/balance.service');
+    const bot = new BotService(db, new IdeasService(db), new BalanceService(db));
     await db.query("DELETE FROM bot_users WHERE tg_id = '777'");
     expect(await bot.langFor({ id: 777, language_code: 'ru' })).toBe('ru');
     expect(await bot.langFor({ id: 777, language_code: 'de' })).toBe('en');

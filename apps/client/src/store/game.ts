@@ -144,6 +144,8 @@ async function confirm(id: string, action: Action) {
   const store = useGame.getState();
   try {
     const res = await backend.action(id, action);
+    // расписание праздников сменилось (правка из бота) — берём свежий конфиг до сверки
+    if (res.ok && res.fest !== undefined && res.fest !== (useGame.getState().cfg?.festival?.updated ?? 0)) await refreshConfig();
     const { cfg, isDev } = useGame.getState();
     if (res.ok) {
       let confirmed = useGame.getState().confirmed!;
@@ -178,6 +180,15 @@ async function confirm(id: string, action: Action) {
   useGame.setState((s) => ({ pending: s.pending.filter((p) => p.id !== id) }));
   rebuildView();
   void store;
+}
+
+async function refreshConfig() {
+  try {
+    const r = await backend.config?.();
+    if (r?.cfg) useGame.setState({ cfg: r.cfg });
+  } catch {
+    /* не вышло — сверка просто возьмёт состояние сервера */
+  }
 }
 
 /** Представление = подтверждённое состояние + ещё не подтверждённые действия. */

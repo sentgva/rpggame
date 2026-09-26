@@ -29,6 +29,7 @@ import {
   festTaskValue,
   festivalAt,
   festivalState,
+  festivalUpcoming,
   isUnlocked,
   scaleReward,
   stageForLevel,
@@ -44,7 +45,7 @@ import { t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { useNow } from '../BattleTab';
-import { BackHeader, Locked, RewardList, showReward } from '../common';
+import { BackHeader, Locked, RewardList, shortDate, showReward } from '../common';
 import { stageText } from '../MapTab';
 import { playMode } from './Endgame';
 import st from './Festival.module.css';
@@ -78,9 +79,11 @@ export function Festival() {
       /* приватный режим — просто не запоминаем */
     }
   };
-  const { def } = festivalAt(now);
+  const cur = festivalAt(now, cfg.festival);
+  if (!cur) return <NoFestival now={now} />;
+  const { def } = cur;
   const unlocked = isUnlocked({ s, cfg }, 'events');
-  const f = festivalState({ s, cfg, now });
+  const f = festivalState({ s, cfg, now }, cur);
   const today = dayKey(now);
   const tasks = festDailyTasks(today, f.cycle);
   const taskReady = tasks.some((id) => !f.tasks.includes(id) && festTaskValue(s, id) >= FEST_TASK_MAP[id].target) || FEST_GOALS.some((g) => !f.goals.includes(g.id) && festGoalValue(s, f, g.metric) >= g.target);
@@ -89,7 +92,7 @@ export function Festival() {
   return (
     <div className={css.col} style={themeVars(def)}>
       <BackHeader title={t('mode.festival')} right={<Amount cur="eventTokens" amount={s.cur.eventTokens} />} />
-      <FestHeader def={def} f={f} now={now} />
+      <FestHeader def={def} f={f} now={now} end={cur.end} />
       {!unlocked ? (
         <Locked text={t('fest.locked', { lvl: (cfg.unlocks.level as Record<string, number>).events })} />
       ) : (
@@ -131,9 +134,44 @@ function Particles({ kind, n = 14 }: { kind: FestivalDef['particle']; n?: number
   );
 }
 
-function FestHeader({ def, f, now }: { def: FestivalDef; f: FestivalState; now: number }) {
-  const { end, cycle } = festivalAt(now);
-  const next = FESTIVALS[(((cycle + 1) % FESTIVALS.length) + FESTIVALS.length) % FESTIVALS.length];
+/** Праздника сейчас нет (остановлен из бота или пауза между праздниками): когда следующий. */
+function NoFestival({ now }: { now: number }) {
+  const cfg = useCfg();
+  const next = festivalUpcoming(now, cfg.festival, 1)[0];
+  return (
+    <div className={css.col}>
+      <BackHeader title={t('mode.festival')} />
+      {next ? (
+        <div className={st.header} style={{ ...themeVars(next.def), backgroundImage: `url(${sceneUrl(next.def.id)})`, cursor: 'default' }}>
+          <div className={st.headerShade} />
+          <Particles kind={next.def.particle} />
+          <HeroImg id={next.def.hero} still className={cx('pixel', st.headerHero)} style={{ opacity: 0.75 }} />
+          <div className={st.headerText}>
+            <div className={st.kicker}>{t('fest.soon')}</div>
+            <div className={st.festName}>{tl(next.def.name)}</div>
+            <div className={st.tagline}>{tl(next.def.tagline)}</div>
+            <div className={st.timer}>
+              <Icon name="speed" size={14} /> {t('fest.startsIn', { t: fmtTime(next.start - now) })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <Panel>
+        <div className={css.row} style={{ gap: 10, alignItems: 'center' }}>
+          <Icon name="festival" size={40} />
+          <div>
+            <b>{t('fest.noneNow')}</b>
+            <div className={css.tiny}>{next ? t('fest.noneNext', { name: tl(next.def.name), date: shortDate(next.start) }) : t('fest.noneTba')}</div>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function FestHeader({ def, f, now, end }: { def: FestivalDef; f: FestivalState; now: number; end: number }) {
+  const cfg = useCfg();
+  const next = festivalUpcoming(now, cfg.festival, 3).find((x) => x.start >= end - 1000)?.def;
   const nextM = FEST_MILESTONES.find((m) => m.at > f.points);
   const prevAt = [...FEST_MILESTONES].reverse().find((m) => m.at <= f.points)?.at ?? 0;
   const hero = HEROINE_MAP[def.hero];
@@ -169,7 +207,7 @@ function FestHeader({ def, f, now }: { def: FestivalDef; f: FestivalState; now: 
         <div className={st.timer}>
           <Icon name="speed" size={14} /> {t('fest.ends', { t: fmtTime(end - now) })}
         </div>
-        <div className={st.nextFest}>{t('fest.next', { name: tl(next.name) })}</div>
+        {next && <div className={st.nextFest}>{t('fest.next', { name: tl(next.name) })}</div>}
       </div>
       <div className={st.pointsBox}>
         <div className={st.pointsLine}>
@@ -363,7 +401,7 @@ function BossTab({ def, f, now }: { def: FestivalDef; f: FestivalState; now: num
   const cfg = useCfg();
   const [tactic, setTactic] = useState(savedTactic);
   const tac = RIFT_TACTICS.find((x) => x.id === tactic) ?? RIFT_TACTICS[0];
-  const boss = festBoss({ s, cfg, now }, f);
+  const boss = festBoss({ s, cfg, now }, def, f);
   const edef = ENEMY_MAP[boss.id];
   const left = FEST_BOSS_ATTEMPTS - f.boss.used;
   const chest = festBossReward(1, true);
@@ -598,7 +636,9 @@ function RewardsTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
 function ShopTab({ now }: { now: number }) {
   const s = useGameState();
   const cfg = useCfg();
-  const { def, cycle, offers } = festShopNow(now);
+  const shop = festShopNow({ cfg, now });
+  if (!shop) return null;
+  const { def, cycle, offers } = shop;
   const hero = HEROINE_MAP[def.hero];
   const owned = !!s.heroines[def.hero];
   const shards = s.shards[def.hero] ?? 0;
@@ -673,9 +713,14 @@ export function FestivalBanner({ onOpen }: { onOpen: () => void }) {
   const s = useGameState();
   const cfg = useCfg();
   const now = useNow(30000);
-  const { def, end } = festivalAt(now);
+  const cur = festivalAt(now, cfg.festival);
+  // праздника нет — показываем ближайший, если он уже назначен
+  const next = cur ? null : festivalUpcoming(now, cfg.festival, 1)[0];
+  if (!cur && !next) return null;
+  const { def } = (cur ?? next)!;
+  const end = cur?.end ?? 0;
   const unlocked = isUnlocked({ s, cfg }, 'events');
-  const n = unlocked ? festClaimable({ s, cfg, now }) : 0;
+  const n = unlocked && cur ? festClaimable({ s, cfg, now }) : 0;
   return (
     <button className={st.banner} style={{ ...themeVars(def), backgroundImage: `url(${sceneUrl(def.id)})` }} onClick={onOpen}>
       <div className={st.bannerShade} />
@@ -684,7 +729,11 @@ export function FestivalBanner({ onOpen }: { onOpen: () => void }) {
         <div className={st.kicker}>{t('mode.festival')}</div>
         <div className={st.bannerName}>{tl(def.name)}</div>
         <div className={st.timer}>
-          {unlocked ? (
+          {!cur ? (
+            <>
+              <Icon name="speed" size={12} /> {t('fest.startsIn', { t: fmtTime(next!.start - now) })}
+            </>
+          ) : unlocked ? (
             <>
               <Icon name="speed" size={12} /> {t('fest.ends', { t: fmtTime(end - now) })}
             </>
@@ -708,7 +757,9 @@ export function announceFestival() {
   const cfg = g.cfg;
   if (!s || !cfg || !isUnlocked({ s, cfg }, 'events')) return;
   const now = g.now();
-  const { def, cycle, end } = festivalAt(now);
+  const cur = festivalAt(now, cfg.festival);
+  if (!cur) return;
+  const { def, cycle, end } = cur;
   try {
     if (localStorage.getItem('festSeen') === String(cycle)) return;
     localStorage.setItem('festSeen', String(cycle));

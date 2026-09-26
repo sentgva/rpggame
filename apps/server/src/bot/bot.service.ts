@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Bot, InlineKeyboard, InputFile, type Context } from 'grammy';
 import { CHANGELOG, VECTOR_ART, type ChangelogEntry } from '@idle/shared';
+import { BalanceService } from '../balance/balance.service';
 import { DbService } from '../db/db.service';
+import { festKeyboard, festOwnerOnly, festStatusText, runFestCommand } from './festival-admin';
 import { IdeasService, type Idea } from './ideas.service';
 import { env } from '../env';
 
@@ -62,7 +64,7 @@ const TEXT = {
     ideaOwnerOnly: '💡 Блокнот идей доступен только разработчику игры.',
     cancelled: 'Хорошо, отменил.',
     nothingToCancel: 'Отменять нечего.',
-    ideaHelp: '💡 Идеи: <code>/idea</code> — записать, <code>/ideas</code> — список, удаление и выгрузка.',
+    ideaHelp: '💡 Идеи: <code>/idea</code> — записать, <code>/ideas</code> — список, удаление и выгрузка.\n🎉 Праздники: <code>/fest</code> — запуск, остановка и даты.',
     style: '🎨 Графика',
     styleAsk: (cur: string) =>
       [
@@ -134,7 +136,7 @@ const TEXT = {
     ideaOwnerOnly: '💡 The idea notebook is available to the game developer only.',
     cancelled: 'Okay, cancelled.',
     nothingToCancel: 'Nothing to cancel.',
-    ideaHelp: '💡 Ideas: <code>/idea</code> — write one down, <code>/ideas</code> — list, delete and export.',
+    ideaHelp: '💡 Ideas: <code>/idea</code> — write one down, <code>/ideas</code> — list, delete and export.\n🎉 Festivals: <code>/fest</code> — start, stop and dates.',
     style: '🎨 Art style',
     styleAsk: (cur: string) =>
       [
@@ -169,8 +171,15 @@ const CLEAR_DEPTH = 300;
 
 /** Последние записи «Что нового» для /news. */
 export function newsText(lang: Lang, count = 3): string {
-  const entry = (e: ChangelogEntry) => [`<b>${escapeHtml(e.title[lang])}</b> · <i>${e.date}</i>`, ...e.items.map((i) => escapeHtml(i[lang]))].join('\n');
-  return [`<b>${TEXT[lang].news}</b>`, '', CHANGELOG.slice(0, count).map(entry).join('\n\n'), '', `<i>${TEXT[lang].newsMore}</i>`].join('\n');
+  const entry = (e: ChangelogEntry, i: number) =>
+    [
+      `${e.icon} <b>${escapeHtml(e.title[lang])}</b>${i === 0 ? ' 🆕' : ''}`,
+      `<i>${escapeHtml(e.lead[lang])}</i>`,
+      ...e.items.map((it) => '  ' + escapeHtml(it[lang])),
+      `<i>${e.date}</i>`,
+    ].join('\n');
+  const sep = '\n\n┈┈┈┈┈┈┈┈┈┈\n\n';
+  return [`<b>${TEXT[lang].news}</b>`, '', CHANGELOG.slice(0, count).map(entry).join(sep), '', `<i>${TEXT[lang].newsMore}</i>`].join('\n');
 }
 
 /** Кнопка выбора языка подписана на обоих языках — её найдёт любой. */
@@ -181,10 +190,12 @@ function commandsFor(lang: Lang, owner = false) {
   const ideas =
     lang === 'ru'
       ? [
+          { command: 'fest', description: 'Праздники: запуск, стоп, даты' },
           { command: 'idea', description: 'Записать идею' },
           { command: 'ideas', description: 'Мои идеи: список, удаление, выгрузка' },
         ]
       : [
+          { command: 'fest', description: 'Festivals: start, stop, dates' },
           { command: 'idea', description: 'Write down an idea' },
           { command: 'ideas', description: 'My ideas: list, delete, export' },
         ];
@@ -230,6 +241,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   constructor(
     @Inject(DbService) private readonly db: DbService,
     @Inject(IdeasService) private readonly ideas: IdeasService,
+    @Inject(BalanceService) private readonly balance: BalanceService,
   ) {
     if (!this.bot) return;
     this.bot.command('start', (ctx) => this.onStart(ctx));
@@ -242,6 +254,11 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     this.bot.command('idea', (ctx) => this.onIdea(ctx));
     this.bot.command('ideas', (ctx) => this.onIdeas(ctx));
     this.bot.command('cancel', (ctx) => this.onCancel(ctx));
+    this.bot.command('fest', (ctx) => this.onFest(ctx, typeof ctx.match === 'string' ? ctx.match : ''));
+    this.bot.callbackQuery(/^fest:start:(\w+)$/, (ctx) => this.onFest(ctx, `start ${ctx.match[1]}`, true));
+    this.bot.callbackQuery('fest:stop', (ctx) => this.onFest(ctx, 'stop', true));
+    this.bot.callbackQuery('fest:auto', (ctx) => this.onFest(ctx, 'auto', true));
+    this.bot.callbackQuery('fest:status', (ctx) => this.onFest(ctx, '', true));
     this.bot.callbackQuery(/^idea:del:(\d+)$/, (ctx) => this.onIdeaDelete(ctx, Number(ctx.match[1])));
     this.bot.callbackQuery('idea:export', (ctx) => this.onIdeaExport(ctx));
     this.bot.callbackQuery('idea:list', (ctx) => this.onIdeas(ctx, true));
@@ -443,6 +460,38 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
       const lang: Lang = row?.lang === 'en' ? 'en' : 'ru';
       await api.setMyCommands(commandsFor(lang, true), { scope: { type: 'chat', chat_id: Number(id) } }).catch((e) => this.log.warn(`dev commands for ${id}: ${String(e)}`));
     }
+  }
+
+  // ——— праздники Легиона (только разработчик) ———
+
+  /** /fest [команда]: статус и кнопки; start/stop/plan/end/del/auto меняют расписание (оно уходит игрокам в конфиге). */
+  private async onFest(ctx: Context, args: string, button = false) {
+    const lang = await this.langFor(ctx.from);
+    if (!ctx.from || !this.ideas.isOwner(ctx.from.id)) {
+      if (button) await ctx.answerCallbackQuery();
+      await ctx.reply(festOwnerOnly(lang));
+      return;
+    }
+    await this.balance.refresh(true);
+    const now = Date.now();
+    const r = runFestCommand(lang, args, this.balance.festivalSchedule(), now);
+    if (r.changed) {
+      try {
+        await this.balance.saveFestival(r.changed);
+      } catch (e) {
+        this.log.error(`festival save failed: ${String(e)}`);
+        if (button) await ctx.answerCallbackQuery({ text: '⚠️ DB' });
+        await ctx.reply('⚠️ ' + String(e));
+        return;
+      }
+      this.log.log(`festival schedule changed by ${ctx.from.id}: ${args.trim() || '—'}`);
+    }
+    const status = festStatusText(lang, this.balance.festivalSchedule(), now, !button && !r.msg);
+    const text = r.msg ? `${r.msg}\n\n${status}` : status;
+    if (button) {
+      await ctx.answerCallbackQuery({ text: r.msg ? r.msg.replace(/<[^>]+>/g, '').slice(0, 190) : undefined });
+      await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: festKeyboard(lang) }).catch(() => undefined);
+    } else await ctx.reply(text, { parse_mode: 'HTML', reply_markup: festKeyboard(lang) });
   }
 
   // ——— блокнот идей (только разработчик) ———

@@ -1,0 +1,169 @@
+/* «Что нового»: цвет обновления приходит переменной --nc */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  position: relative;
+  border: 2px solid var(--nc);
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--nc) 26%, #1b1418) 0%, #1b1418 62%);
+  box-shadow: 0 0 16px -6px var(--nc);
+  animation: cardIn 0.35s ease-out;
+}
+
+.top {
+  position: relative;
+  display: flex;
+  min-height: 132px;
+}
+
+.topText {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 10px 0 8px 12px;
+}
+
+.meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.newTag {
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #1b1418;
+  background: var(--nc);
+}
+
+.date {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.title {
+  margin-top: 4px;
+  font-family: var(--font-pixel);
+  font-size: 27px;
+  line-height: 1;
+  color: #fff4e8;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--nc) 70%, transparent), 0 2px 0 #000;
+}
+
+.icon {
+  font-family: initial;
+  font-size: 22px;
+}
+
+.lead {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #f2e2d8;
+}
+
+.art {
+  flex: none;
+  width: 128px;
+  height: 128px;
+  margin: 0 -14px -10px -10px;
+  align-self: flex-end;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--nc) 80%, transparent));
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--nc) 35%, transparent);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  line-height: 1.35;
+  animation: itemIn 0.35s ease-out both;
+}
+
+.itemIcon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  font-size: 15px;
+  background: color-mix(in srgb, var(--nc) 22%, #120c10);
+  border: 1px solid color-mix(in srgb, var(--nc) 45%, transparent);
+}
+
+.pastTitle {
+  margin-top: 6px;
+  font-family: var(--font-pixel);
+  font-size: 18px;
+  color: var(--accent-2);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--frame);
+  border-left: 4px solid var(--nc);
+  border-radius: 6px;
+  background: var(--panel-1);
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowIcon {
+  font-size: 20px;
+}
+
+.rowText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.rowLead {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+@keyframes itemIn {
+  from {
+    opacity: 0;
+    translate: -6px 0;
+  }
+}

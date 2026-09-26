@@ -348,6 +348,8 @@ export interface HomeState {
 export interface FestivalState {
   /** номер праздника (цикла) */
   cycle: number;
+  /** какой праздник (id) — прогресс сбрасывается и при смене праздника с тем же номером */
+  fest?: string;
   /** уровень силы на старте праздника — от него считаются враги пути и босса */
   lvl: number;
   points: number;
