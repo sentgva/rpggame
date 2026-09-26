@@ -5,7 +5,11 @@ import {
   FEST_BOSS_HP,
   FEST_BOSS_HP_GROWTH,
   FEST_CHAPTER,
-  FEST_GOALS,
+  festGoalsFor,
+  MINE_CAP,
+  MINE_DAILY,
+  MINE_START,
+  MINE_START_IDX,
   FEST_GOAL_MAP,
   FEST_MILESTONES,
   FEST_STAGES,
@@ -27,10 +31,11 @@ import {
   festivalAt,
   type FestGoalMetric,
   type FestivalDef,
+  type FestivalKind,
   type FestivalNow,
 } from '../../content';
-import { Rng, mixSeed } from '../../rng';
-import type { FestivalState, Item, PlayerState } from '../../types';
+import { Rng, hashStr, mixSeed } from '../../rng';
+import type { FestivalState, Item, MineState, PlayerState, TourneyState } from '../../types';
 import type { Action } from '../apply';
 import type { UnitInit } from '../battle';
 import { addItem, assert, farmLevel, give, requireUnlocked, rollLoot, scaleReward, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
@@ -50,9 +55,11 @@ export function festivalNow(ctx: { cfg: Config; now: number }): FestivalNow | nu
   return festivalAt(ctx.now, ctx.cfg.festival);
 }
 
-function requireFestival(ctx: Ctx): FestivalNow {
+export function requireFestival(ctx: Ctx, kind?: FestivalKind): FestivalNow {
   const cur = festivalNow(ctx);
   assert(cur, 'noFestival');
+  // у праздника другой вид (например, путь в дни турнира) — действие недоступно
+  if (kind) assert(cur.def.kind === kind, 'noFestival');
   return cur;
 }
 
@@ -83,15 +90,47 @@ export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number },
       boss: { lvl: 1, dmg: 0, used: 0, kills: 0, best: 0 },
     };
   }
-  if (f.day !== today) f = { ...f, day: today, tickets: FEST_TICKETS, tasks: [], boss: { ...f.boss, used: 0 } };
+  if (f.day !== today) {
+    // турнир: входы на новый день; копи: кирки за каждый прошедший день (до запаса)
+    const days = Math.max(1, Math.round((Date.parse(today) - Date.parse(f.day)) / 86400000) || 1);
+    f = {
+      ...f,
+      day: today,
+      tickets: FEST_TICKETS,
+      tasks: [],
+      boss: { ...f.boss, used: 0 },
+      tour: f.tour ? { ...f.tour, entries: 0 } : f.tour,
+      mine: f.mine ? { ...f.mine, picks: Math.max(f.mine.picks, Math.min(MINE_CAP, f.mine.picks + MINE_DAILY * days)) } : f.mine,
+    };
+  }
   if (cur && f.fest === undefined) f = { ...f, fest: cur.def.id };
   return f;
 }
 
+/** Турнир праздника (пустой — до первого входа). */
+export function tourOf(f: FestivalState): TourneyState {
+  return f.tour ?? { entries: 0, bonus: 0, best: 0, wins: 0, champs: 0 };
+}
+
+/** Копи праздника: у каждого игрока своё поле (зерно — от игрока и праздника). */
+export function mineOf(s: PlayerState, f: FestivalState): MineState {
+  return f.mine ?? { floor: 1, seed: mixSeed(hashStr(s.id), f.cycle, 0x31e), picks: MINE_START, dug: [MINE_START_IDX], chests: 0, steps: 0, best: 1 };
+}
+
 /** Рабочая копия состояния для действия: всё вложенное — свои массивы и объекты. */
-function festCopy(ctx: Ctx, cur: FestivalNow): FestivalState {
+export function festCopy(ctx: Ctx, cur: FestivalNow): FestivalState {
   const f = festivalState(ctx, cur);
-  return { ...f, claimed: [...f.claimed], stars: [...f.stars], tasks: [...f.tasks], goals: [...f.goals], base: { ...f.base }, boss: { ...f.boss } };
+  return {
+    ...f,
+    claimed: [...f.claimed],
+    stars: [...f.stars],
+    tasks: [...f.tasks],
+    goals: [...f.goals],
+    base: { ...f.base },
+    boss: { ...f.boss },
+    tour: f.tour && { ...f.tour, run: f.tour.run && { ...f.tour.run, picks: [...f.tour.run.picks], offer: [...f.tour.run.offer] } },
+    mine: f.mine && { ...f.mine, dug: [...f.mine.dug] },
+  };
 }
 
 function festIndex(def: FestivalDef): number {
@@ -100,13 +139,14 @@ function festIndex(def: FestivalDef): number {
 
 /** Враги этапа пути: главы — из своих актов, стражи глав — мини-боссы, финал — героиня праздника. */
 export function festStageEnemies(cfg: Config, def: FestivalDef, base: number, stage: number): UnitInit[] {
+  const tr = def.trail!;
   const chapter = Math.ceil(stage / FEST_CHAPTER) - 1;
-  const act = ACTS[def.acts[chapter] - 1];
+  const act = ACTS[tr.acts[chapter] - 1];
   const rng = new Rng(mixSeed(stage, festIndex(def) * 131 + 7, 0xfe57));
   const list: { id: string; tier: 'normal' | 'elite' | 'mini' | 'boss' }[] = [];
   let adds = 4 + (chapter >= 2 ? 1 : 0);
   if (stage === FEST_STAGES) {
-    list.push({ id: def.trialBoss, tier: 'boss' });
+    list.push({ id: tr.trialBoss, tier: 'boss' });
     adds = 2;
   } else if (stage % FEST_CHAPTER === 0) {
     list.push({ id: act.minis[chapter % 3], tier: 'mini' });
@@ -124,11 +164,12 @@ export function festStageEnemies(cfg: Config, def: FestivalDef, base: number, st
 export function festBoss(ctx: { s: PlayerState; cfg: Config; now: number }, def: FestivalDef, f = festivalState(ctx)) {
   const level = festBossLevel(f.lvl, f.boss.lvl);
   const k = FEST_BOSS_HP * (1 + FEST_BOSS_HP_GROWTH * (f.boss.lvl - 1));
-  const units = customEnemies(ctx.cfg, level, [{ id: def.boss, tier: 'boss' }]).map((u) => ({ ...u, stats: { ...u.stats, hp: Math.round(u.stats.hp * k) } }));
+  const boss = def.trail!.boss;
+  const units = customEnemies(ctx.cfg, level, [{ id: boss, tier: 'boss' }]).map((u) => ({ ...u, stats: { ...u.stats, hp: Math.round(u.stats.hp * k) } }));
   const hp = units[0].stats.hp;
   const left = Math.max(1, hp - f.boss.dmg);
   units[0].hpPct = left / hp;
-  return { id: def.boss, level, units, hp, left };
+  return { id: boss, level, units, hp, left };
 }
 
 /** Значение метрики цели праздника. */
@@ -140,6 +181,18 @@ export function festGoalValue(s: PlayerState, f: FestivalState, metric: FestGoal
       return f.boss.kills;
     case 'tasks':
       return f.tasksDone;
+    case 'tourBest':
+      return f.tour?.best ?? 0;
+    case 'tourWins':
+      return f.tour?.wins ?? 0;
+    case 'tourChamps':
+      return f.tour?.champs ?? 0;
+    case 'mineFloor':
+      return f.mine?.best ?? 1;
+    case 'mineChests':
+      return f.mine?.chests ?? 0;
+    case 'mineSteps':
+      return f.mine?.steps ?? 0;
     default:
       return Math.max(0, (s.counters[metric] ?? 0) - (f.base[metric] ?? 0));
   }
@@ -161,8 +214,8 @@ export function festClaimable(ctx: { s: PlayerState; cfg: Config; now: number })
   FEST_MILESTONES.forEach((m, i) => {
     if (f.points >= m.at && !f.claimed.includes(i)) n++;
   });
-  for (const id of festDailyTasks(dayKey(now), f.cycle)) if (!f.tasks.includes(id) && festTaskValue(s, id) >= FEST_TASK_MAP[id].target) n++;
-  for (const g of FEST_GOALS) if (!f.goals.includes(g.id) && festGoalValue(s, f, g.metric) >= g.target) n++;
+  for (const id of festDailyTasks(dayKey(now), f.cycle, cur.def.kind)) if (!f.tasks.includes(id) && festTaskValue(s, id) >= FEST_TASK_MAP[id].target) n++;
+  for (const g of festGoalsFor(cur.def.kind)) if (!f.goals.includes(g.id) && festGoalValue(s, f, g.metric) >= g.target) n++;
   return n;
 }
 
@@ -186,7 +239,7 @@ export const festivalActions = {
   'fest.stage': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
-    const fn = requireFestival(ctx);
+    const fn = requireFestival(ctx, 'trail');
     const { def } = fn;
     const f = festCopy(ctx, fn);
     const stage = vInt(a.stage, 1, FEST_STAGES, 'stage');
@@ -234,7 +287,7 @@ export const festivalActions = {
   /** Быстрый рейд этапа, пройденного на 3 звезды: билеты → жетоны и очки без боя. */
   'fest.sweep': (ctx: Ctx, a: Action) => {
     requireUnlocked(ctx, 'events');
-    const f = festCopy(ctx, requireFestival(ctx));
+    const f = festCopy(ctx, requireFestival(ctx, 'trail'));
     const stage = vInt(a.stage, 1, FEST_STAGES, 'stage');
     const times = vInt(a.times ?? 1, 1, FEST_TICKETS, 'times');
     assert(f.stars[stage - 1] >= 3, 'notDone');
@@ -253,7 +306,7 @@ export const festivalActions = {
   'fest.boss': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
-    const fn = requireFestival(ctx);
+    const fn = requireFestival(ctx, 'trail');
     const { def } = fn;
     const f = festCopy(ctx, fn);
     assert(f.boss.used < FEST_BOSS_ATTEMPTS, 'noAttempts');
@@ -304,9 +357,10 @@ export const festivalActions = {
   'fest.task': (ctx: Ctx, a: Action) => {
     const { s, now } = ctx;
     requireUnlocked(ctx, 'events');
-    const f = festCopy(ctx, requireFestival(ctx));
+    const fn = requireFestival(ctx);
+    const f = festCopy(ctx, fn);
     const id = vStr(a.id, 'id');
-    assert(festDailyTasks(dayKey(now), f.cycle).includes(id), 'badParam', { name: 'id' });
+    assert(festDailyTasks(dayKey(now), f.cycle, fn.def.kind).includes(id), 'badParam', { name: 'id' });
     assert(!f.tasks.includes(id), 'claimed');
     assert(festTaskValue(s, id) >= FEST_TASK_MAP[id].target, 'notDone');
     const cur: Cur = { eventTokens: FEST_TASK_REWARD.tokens };
@@ -322,9 +376,10 @@ export const festivalActions = {
   'fest.goal': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'events');
-    const f = festCopy(ctx, requireFestival(ctx));
+    const fn = requireFestival(ctx);
+    const f = festCopy(ctx, fn);
     const g = FEST_GOAL_MAP[vStr(a.id, 'id')];
-    assert(g, 'badParam', { name: 'id' });
+    assert(g && (!g.kind || g.kind === fn.def.kind), 'badParam', { name: 'id' });
     assert(!f.goals.includes(g.id), 'claimed');
     assert(festGoalValue(s, f, g.metric) >= g.target, 'notDone');
     const cur = scaleReward(cfg, s, g.cur) as Cur;
@@ -381,7 +436,8 @@ export const festivalActions = {
   'fest.buy': (ctx: Ctx, a: Action) => {
     const { s } = ctx;
     requireUnlocked(ctx, 'events');
-    const { def, cycle } = requireFestival(ctx);
+    const fn = requireFestival(ctx);
+    const { def, cycle } = fn;
     const offer = festShop(def).find((o) => o.id === vStr(a.offer, 'offer'));
     assert(offer, 'badParam', { name: 'offer' });
     // облики — навсегда, остальное — на праздник
@@ -403,6 +459,13 @@ export const festivalActions = {
       if (p[1] !== undefined && p[1] !== String(cycle)) delete s.shop.bought[k];
     }
     if (offer.give.cur) give(ctx, offer.give.cur);
+    // вход на турнир и кирки для копей
+    if (offer.give.entry || offer.give.picks) {
+      const f = festCopy(ctx, fn);
+      if (offer.give.entry) f.tour = { ...tourOf(f), bonus: tourOf(f).bonus + offer.give.entry };
+      if (offer.give.picks) f.mine = { ...mineOf(s, f), picks: mineOf(s, f).picks + offer.give.picks };
+      s.festival = f;
+    }
     const shards = offer.give.shards ? addFestShards(ctx, def, offer.give.shards) : undefined;
     if (offer.give.skin) s.skins.push(offer.give.skin);
     const hearts = offer.give.heart ? grantHeart(ctx) : 0;

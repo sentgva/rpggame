@@ -30,3 +30,5 @@ export * from './bond';
 export * from './artifacts';
 export * from './festival';
 export * from './affixes';
+export * from './tourney';
+export * from './mine';

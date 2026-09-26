@@ -26,7 +26,7 @@ const DAY = 24 * HOUR;
 /** Даты в командах — по Москве (UTC+3). */
 export const MSK = 3 * HOUR;
 
-const FEST_ICON: Record<FestivalId, string> = { bloodmoon: '🌕', tides: '🌊', sakura: '🌸' };
+const FEST_ICON: Record<FestivalId, string> = { bloodmoon: '🌕', tides: '🌊', sakura: '🌸', tourney: '🏆', mine: '💎' };
 
 const ALIASES: Record<string, FestivalId> = {
   bloodmoon: 'bloodmoon',
@@ -41,6 +41,15 @@ const ALIASES: Record<string, FestivalId> = {
   прилив: 'tides',
   sakura: 'sakura',
   сакура: 'sakura',
+  tourney: 'tourney',
+  tour: 'tourney',
+  arena: 'tourney',
+  турнир: 'tourney',
+  mine: 'mine',
+  mines: 'mine',
+  gems: 'mine',
+  копи: 'mine',
+  шахта: 'mine',
 };
 
 function parseFest(s: string | undefined): FestivalId | null {
@@ -124,7 +133,7 @@ const T = {
       '<code>/fest end 12.10</code> — новая дата конца текущего праздника',
       '<code>/fest del 2</code> — убрать запись №2 из списка',
       '<code>/fest auto</code> — вернуть авто-ротацию',
-      'Праздники: <code>луна</code> (Кровавая Луна), <code>приливы</code>, <code>сакура</code>.',
+      'Праздники: <code>луна</code> (Кровавая Луна), <code>приливы</code>, <code>сакура</code>, <code>турнир</code>, <code>копи</code>.',
       'Прогресс игроков сохраняется, если продлить или укоротить идущий праздник; новый праздник начинается с нуля.',
     ].join('\n'),
     started: (n: string, end: string) => `✅ Запущен ${n} — до ${end} МСК`,
@@ -134,7 +143,7 @@ const T = {
     removed: (k: number) => `🗑 Запись №${k} убрана`,
     auto: '🔁 Включена авто-ротация праздников',
     removedOverlap: (k: number) => `(снято пересекающихся записей: ${k})`,
-    errFest: 'Не понял праздник. Варианты: луна, приливы, сакура.',
+    errFest: 'Не понял праздник. Варианты: луна, приливы, сакура, турнир, копи.',
     errDate: 'Не понял дату. Формат: ДД.ММ или ДД.ММ.ГГГГ, время можно добавить: ДД.ММ ЧЧ:ММ.',
     errDays: 'Число дней — от 1 до 120.',
     errNum: 'Укажите номер записи из списка: /fest del 2',
@@ -169,7 +178,7 @@ const T = {
       '<code>/fest end 12.10</code> — new end date for the current festival',
       '<code>/fest del 2</code> — remove entry #2 from the list',
       '<code>/fest auto</code> — back to auto rotation',
-      'Festivals: <code>moon</code> (Blood Moon), <code>tides</code>, <code>sakura</code>.',
+      'Festivals: <code>moon</code> (Blood Moon), <code>tides</code>, <code>sakura</code>, <code>tourney</code>, <code>mine</code>.',
       "Players keep their progress when the running festival is extended or shortened; a new festival starts from zero.",
     ].join('\n'),
     started: (n: string, end: string) => `✅ Started ${n} — until ${end} MSK`,
@@ -179,7 +188,7 @@ const T = {
     removed: (k: number) => `🗑 Entry #${k} removed`,
     auto: '🔁 Auto rotation is on',
     removedOverlap: (k: number) => `(overlapping entries removed: ${k})`,
-    errFest: "Unknown festival. Options: moon, tides, sakura.",
+    errFest: "Unknown festival. Options: moon, tides, sakura, tourney, mine.",
     errDate: 'Unknown date. Format: DD.MM or DD.MM.YYYY, optionally followed by HH:MM.',
     errDays: 'Days must be from 1 to 120.',
     errNum: 'Give the entry number from the list: /fest del 2',

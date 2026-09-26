@@ -7,7 +7,7 @@ const SCENE_H = 100;
 const W = SCENE_W;
 const H = SCENE_H;
 
-export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura';
+export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura' | 'tourney' | 'mine';
 
 type C = string | RGBA;
 type Pt = [number, number];
@@ -1107,6 +1107,89 @@ const SCENES: Record<SceneBg, (p: Painter) => void> = {
     }
     // лепестки
     for (let i = 0; i < 60; i++) p.set(p.rng.int(W), p.rng.int(H), p.rng.next() < 0.5 ? '#ffc4d8' : '#ff9ac0', 0.9);
+  },
+
+  tourney(p) {
+    // вечерняя арена Вальхаллы: трибуны, флаги, песок
+    p.vgrad(0, 0, W, 40, '#2a1a3a', '#e0905a');
+    p.glow(64, 40, 44, '#ffd070', 0.3);
+    p.stars(12, 0, 0, W, 18);
+    // трибуны — ярусы арки
+    for (let row = 0; row < 3; row++) {
+      const y = 30 + row * 9;
+      p.rect(0, y, W, 9, ['#5a4a5a', '#4a3a4a', '#3a2c3a'][row]);
+      for (let x = 2 + (row % 2) * 4; x < W; x += 8) {
+        p.rect(x, y + 2, 4, 5, '#2a1e2a');
+        // зрители — цветные точки
+        p.set(x + 1, y + 3, ['#e03a3a', '#3d7be0', '#f2d46b', '#4fbf5a'][(x + row) % 4]);
+        p.set(x + 2, y + 3, '#f4d3b8');
+      }
+    }
+    // колонны и флаги
+    for (const x of [8, 40, 88, 120]) {
+      p.rect(x - 2, 22, 5, 36, '#d8ccb8');
+      p.rect(x - 3, 20, 7, 3, '#f2e6d8');
+      p.vl(x, 8, 20, '#6a4a2a');
+      const c = x < 64 ? '#e03a3a' : '#3d7be0';
+      p.poly([[x + 1, 8], [x + 12, 11], [x + 1, 14]], c);
+      p.hl(x + 1, x + 8, 11, '#f2d46b');
+    }
+    // песок арены и круг
+    p.vgrad(0, 57, W, 43, '#d8b070', '#a07840', 3);
+    p.ellipse(64, 82, 52, 12, '#c89a5a');
+    p.ellipse(64, 82, 48, 10, '#d8b070');
+    for (let i = 0; i < 40; i++) p.set(p.rng.int(W), 60 + p.rng.int(40), '#b88a50', 0.8);
+    // оружие на стойке
+    p.vl(18, 70, 90, '#6a4a2a');
+    p.line(14, 72, 22, 72, '#6a4a2a');
+    p.vl(15, 62, 72, '#c8d0dc');
+    p.vl(21, 64, 72, '#c8d0dc');
+    p.circle(108, 84, 5, '#9a6a3a');
+    p.circle(108, 84, 3, '#e6b23a');
+  },
+
+  mine(p) {
+    // пещера: своды, рельсы, фонари и кристаллы
+    p.vgrad(0, 0, W, H, '#140e1a', '#2a1e30', 3);
+    // своды
+    p.poly([[0, 0], [W, 0], [W, 18], [110, 26], [90, 16], [70, 24], [48, 14], [26, 24], [0, 16]], '#0a060c');
+    p.poly([[0, 100], [0, 70], [14, 62], [26, 74], [0, 100]], '#0e0a12');
+    p.poly([[W, 100], [W, 66], [112, 60], [100, 72], [W, 100]], '#0e0a12');
+    // кристаллы
+    for (const [x, y, c, hgt] of [
+      [20, 60, '#c05aff', 14],
+      [28, 64, '#ff6a8a', 9],
+      [104, 58, '#40e0d0', 13],
+      [112, 62, '#c05aff', 8],
+      [60, 22, '#ff6a8a', 7],
+      [76, 20, '#40e0d0', 6],
+    ] as [number, number, string, number][]) {
+      p.poly([[x, y], [x + 3, y - hgt], [x + 6, y]], c);
+      p.poly([[x + 3, y - hgt], [x + 6, y], [x + 4, y]], '#ffffff', 0.35);
+      p.glow(x + 3, y - hgt / 2, 10, c, 0.25);
+    }
+    // рельсы в глубину
+    p.poly([[40, 100], [58, 50], [70, 50], [88, 100]], '#2a1c1a');
+    for (let y = 52; y < H; y += 5) {
+      const half = 6 + (y - 50) * 0.45;
+      p.hl(64 - half, 64 + half, y, '#5a3a24');
+    }
+    p.line(58, 50, 40, 100, '#9a9aa8');
+    p.line(70, 50, 88, 100, '#9a9aa8');
+    // вагонетка с рудой
+    p.rect(74, 78, 22, 10, '#6a4a3a');
+    p.rect(74, 78, 22, 2, '#8a6a4a');
+    p.circle(78, 89, 2, '#3a3a3a');
+    p.circle(92, 89, 2, '#3a3a3a');
+    for (const [x, c] of [[77, '#ff6a8a'], [82, '#c05aff'], [87, '#40e0d0'], [92, '#f2d46b']] as [number, string][]) p.circle(x, 77, 2, c);
+    // фонари на стойках
+    for (const x of [34, 94]) {
+      p.vl(x, 34, 60, '#4a3020');
+      p.rect(x - 2, 30, 5, 5, '#ffc860');
+      p.glow(x, 32, 14, '#ffb050', 0.35);
+    }
+    // пыль
+    for (let i = 0; i < 40; i++) p.set(p.rng.int(W), p.rng.int(H), '#c8a8e8', 0.35);
   },
 };
 

@@ -14,6 +14,8 @@ import { encounterActions, rollEncounter } from './actions/encounters';
 import { bondActions } from './actions/bond';
 import { artifactActions } from './actions/artifacts';
 import { festivalActions } from './actions/festival';
+import { tourneyActions } from './actions/tourney';
+import { mineActions } from './actions/mine';
 import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
@@ -38,6 +40,8 @@ export const HANDLERS: Record<string, Handler> = {
   ...bondActions,
   ...artifactActions,
   ...festivalActions,
+  ...tourneyActions,
+  ...mineActions,
   ...devActions,
   ...serverActions,
 };

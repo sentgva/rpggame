@@ -3,7 +3,10 @@ import {
   FESTIVALS,
   FEST_BOSS_ATTEMPTS,
   FEST_CHAPTER,
-  FEST_GOALS,
+  festGoalsFor,
+  mineOf,
+  tourEntriesLeft,
+  type FestGoalDef,
   FEST_MILESTONES,
   FEST_STAGES,
   FEST_TASK_MAP,
@@ -48,15 +51,17 @@ import { useNow } from '../BattleTab';
 import { BackHeader, Locked, RewardList, shortDate, showReward } from '../common';
 import { stageText } from '../MapTab';
 import { playMode } from './Endgame';
+import { MineTab } from './FestMine';
+import { TourneyTab } from './FestTourney';
 import st from './Festival.module.css';
 
-type Tab = 'path' | 'boss' | 'tasks' | 'rewards' | 'shop';
+type Tab = 'path' | 'boss' | 'tourney' | 'mine' | 'tasks' | 'rewards' | 'shop';
 
 /** Последняя вкладка праздника — удобство игрока, хранится в браузере. */
 function savedTab(): Tab {
   try {
     const v = localStorage.getItem('festTab');
-    return (['path', 'boss', 'tasks', 'rewards', 'shop'] as Tab[]).includes(v as Tab) ? (v as Tab) : 'path';
+    return (['path', 'boss', 'tourney', 'mine', 'tasks', 'rewards', 'shop'] as Tab[]).includes(v as Tab) ? (v as Tab) : 'path';
   } catch {
     return 'path';
   }
@@ -85,9 +90,22 @@ export function Festival() {
   const unlocked = isUnlocked({ s, cfg }, 'events');
   const f = festivalState({ s, cfg, now }, cur);
   const today = dayKey(now);
-  const tasks = festDailyTasks(today, f.cycle);
-  const taskReady = tasks.some((id) => !f.tasks.includes(id) && festTaskValue(s, id) >= FEST_TASK_MAP[id].target) || FEST_GOALS.some((g) => !f.goals.includes(g.id) && festGoalValue(s, f, g.metric) >= g.target);
+  const kind = def.kind;
+  const tasks = festDailyTasks(today, f.cycle, kind);
+  const goals = festGoalsFor(kind);
+  const taskReady = tasks.some((id) => !f.tasks.includes(id) && festTaskValue(s, id) >= FEST_TASK_MAP[id].target) || goals.some((g) => !f.goals.includes(g.id) && festGoalValue(s, f, g.metric) >= g.target);
   const rewardReady = FEST_MILESTONES.some((m, i) => f.points >= m.at && !f.claimed.includes(i));
+  // вкладки главной механики — свои у каждого вида праздника
+  const main: { id: Tab; label: string; badge?: boolean }[] =
+    kind === 'tourney'
+      ? [{ id: 'tourney', label: t('fest.tabTourney'), badge: tourEntriesLeft(f) > 0 && (!f.tour?.run || f.tour.run.phase === 'done') }]
+      : kind === 'mine'
+        ? [{ id: 'mine', label: t('fest.tabMine'), badge: mineOf(s, f).picks > 0 }]
+        : [
+            { id: 'path', label: t('fest.tabPath') },
+            { id: 'boss', label: t('fest.tabBoss'), badge: f.boss.used < FEST_BOSS_ATTEMPTS },
+          ];
+  const shown: Tab = main.some((x) => x.id === tab) || ['tasks', 'rewards', 'shop'].includes(tab) ? tab : main[0].id;
 
   return (
     <div className={css.col} style={themeVars(def)}>
@@ -98,21 +116,22 @@ export function Festival() {
       ) : (
         <>
           <Tabs<Tab>
-            value={tab}
+            value={shown}
             onChange={setTab}
             items={[
-              { id: 'path', label: t('fest.tabPath') },
-              { id: 'boss', label: t('fest.tabBoss'), badge: f.boss.used < FEST_BOSS_ATTEMPTS },
+              ...main,
               { id: 'tasks', label: t('fest.tabTasks'), badge: taskReady },
               { id: 'rewards', label: t('fest.tabRewards'), badge: rewardReady },
               { id: 'shop', label: t('fest.tabShop') },
             ]}
           />
-          {tab === 'path' && <PathTab def={def} f={f} />}
-          {tab === 'boss' && <BossTab def={def} f={f} now={now} />}
-          {tab === 'tasks' && <TasksTab f={f} tasks={tasks} />}
-          {tab === 'rewards' && <RewardsTab def={def} f={f} />}
-          {tab === 'shop' && <ShopTab now={now} />}
+          {shown === 'path' && <PathTab def={def} f={f} />}
+          {shown === 'boss' && <BossTab def={def} f={f} now={now} />}
+          {shown === 'tourney' && <TourneyTab def={def} f={f} />}
+          {shown === 'mine' && <MineTab def={def} f={f} />}
+          {shown === 'tasks' && <TasksTab f={f} tasks={tasks} goalsList={goals} />}
+          {shown === 'rewards' && <RewardsTab def={def} f={f} />}
+          {shown === 'shop' && <ShopTab now={now} />}
         </>
       )}
     </div>
@@ -263,7 +282,7 @@ function PathTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
           <Icon name="info" size={18} />
         </button>
       </div>
-      {def.chapters.map((name, c) => (
+      {def.trail!.chapters.map((name, c) => (
         <Panel key={c} title={t('fest.chapter', { n: c + 1, name: tl(name) })} className={st.chapter}>
           <div className={st.nodes}>
             {Array.from({ length: FEST_CHAPTER }, (_, i) => {
@@ -309,7 +328,7 @@ function openStage(def: FestivalDef, f: FestivalState, stage: number) {
   const first = festFirstReward(stage);
   const raid = festRaidReward(stage);
   const chapter = Math.ceil(stage / FEST_CHAPTER) - 1;
-  const act = def.acts[chapter];
+  const act = def.trail!.acts[chapter];
   const boss = units.find((u) => u.kind === 'boss');
   const title =
     kind === 'trial' ? `${t('fest.trial')}: ${tl(HEROINE_MAP[def.hero].name)}` : kind === 'guardian' ? `${t('fest.stage', { n: stage })} · ${t('fest.guardian')}` : t('fest.stage', { n: stage });
@@ -495,14 +514,14 @@ function BossTab({ def, f, now }: { def: FestivalDef; f: FestivalState; now: num
 
 // ——— задания и цели ———
 
-function TasksTab({ f, tasks }: { f: FestivalState; tasks: string[] }) {
+function TasksTab({ f, tasks, goalsList }: { f: FestivalState; tasks: string[]; goalsList: FestGoalDef[] }) {
   const s = useGameState();
   const claim = async (type: string, id: string) => {
     const r = await useGame.getState().act(type, { id });
     if (r.ok) showReward(t('fest.claim'), { cur: r.result.cur }, <div className={st.pointsGain}>{t('fest.pointsGain', { n: r.result.points })}</div>);
   };
-  const goals = [...FEST_GOALS].sort((a, b) => {
-    const rank = (g: (typeof FEST_GOALS)[number]) => (f.goals.includes(g.id) ? 2 : festGoalValue(s, f, g.metric) >= g.target ? 0 : 1);
+  const goals = [...goalsList].sort((a, b) => {
+    const rank = (g: FestGoalDef) => (f.goals.includes(g.id) ? 2 : festGoalValue(s, f, g.metric) >= g.target ? 0 : 1);
     return rank(a) - rank(b);
   });
   return (
@@ -691,7 +710,7 @@ function ShopTab({ now }: { now: number }) {
               ) : o.give.shards ? (
                 <HeroImg id={def.hero} className="pixel" width={44} height={44} />
               ) : (
-                <Icon name={o.give.heart ? 'hearts' : o.give.item ? 'chest' : Object.keys(o.give.cur ?? {})[0] ?? 'gift'} size={36} />
+                <Icon name={o.give.heart ? 'hearts' : o.give.item ? 'chest' : o.give.entry ? 'arena' : o.give.picks ? 'forge' : (Object.keys(o.give.cur ?? {})[0] ?? 'gift')} size={36} />
               )}
               <div className={css.grow}>
                 <div className={st.taskName}>{tl(o.name)}</div>
@@ -784,7 +803,7 @@ export function announceFestival() {
           <b>{tl(hero.name)}</b>
           <span className={css.tiny}>— {tl(hero.title)}</span>
         </div>
-        <div className={css.tiny}>{t('fest.announceText', { t: fmtTime(end - now) })}</div>
+        <div className={css.tiny}>{t(`fest.announceText.${def.kind}`, { t: fmtTime(end - now) })}</div>
         <Button
           block
           size="big"

@@ -118,6 +118,25 @@ import {
   skinFestival,
   type FestivalSchedule,
   ELITE_AFFIX_MAP,
+  FEST_TASKS_KIND,
+  MINE_DAILY,
+  MINE_START,
+  MINE_START_IDX,
+  MINE_W,
+  TOUR_CHAMP_REWARD,
+  TOUR_ENTRIES,
+  TOUR_LEVEL,
+  TOUR_LOSSES,
+  TOUR_PICKS,
+  TOUR_WINS,
+  festGoalsFor,
+  mineBoard,
+  mineNeedsFight,
+  mineOf,
+  mineVisible,
+  tourEntriesLeft,
+  tourOpponent,
+  tourUnits,
   stageAffixes,
   withAffixes,
   type PlayerState,
@@ -1044,13 +1063,15 @@ describe('праздники Легиона', () => {
   const act = (s: PlayerState, a: Record<string, unknown>, now = T1) => applyAction(s, a as never, { cfg, now, dev: true });
 
   it('праздники сменяются каждые 14 дней по кругу', () => {
-    const ids = [0, 1, 2, 3].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
-    expect(ids).toEqual(['bloodmoon', 'tides', 'sakura', 'bloodmoon']);
+    const ids = [0, 1, 2, 3, 4, 5].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
+    expect(ids).toEqual(['bloodmoon', 'tourney', 'tides', 'mine', 'sakura', 'bloodmoon']);
+    // виды чередуются: подряд не идут два одинаковых
+    for (let k = 0; k < FESTIVALS.length; k++) expect(FESTIVALS[k].kind === 'trail' && FESTIVALS[(k + 1) % FESTIVALS.length].kind === 'trail' && k !== FESTIVALS.length - 1).toBe(false);
     const f = festivalAt(T1)!;
     expect(f.end - f.start).toBe(FESTIVAL_DAYS * DAY);
     expect(f.start).toBeLessThanOrEqual(T1);
     // и до «эпохи» — тоже по кругу, без дыр
-    expect(festivalAt(FESTIVAL_EPOCH - 1000)!.def.id).toBe('sakura');
+    expect(festivalAt(FESTIVAL_EPOCH - 1000)!.def.id).toBe(FESTIVALS[FESTIVALS.length - 1].id);
   });
 
   it('героини праздников: не в призыве, с врагами, обликами и лавкой', () => {
@@ -1059,8 +1080,10 @@ describe('праздники Легиона', () => {
       expect(h.festival).toBe(fd.id);
       expect(h.rarity).toBe('UR');
       expect(Object.values(SUMMON_POOL).flat()).not.toContain(fd.hero);
-      expect(ENEMY_MAP[fd.boss]?.colossus).toBe(true);
-      expect(ENEMY_MAP[fd.trialBoss]?.look).toEqual(h.look);
+      if (fd.kind === 'trail') {
+        expect(ENEMY_MAP[fd.trail!.boss]?.colossus).toBe(true);
+        expect(ENEMY_MAP[fd.trail!.trialBoss]?.look).toEqual(h.look);
+      }
       for (const sk of [fd.finalSkin, ...fd.shopSkins]) expect(SKIN_MAP[sk]?.source).toBe('event');
       expect(SKIN_MAP[fd.finalSkin].hero).toBe(fd.hero);
       // облики праздников — не за кристаллы
@@ -1111,7 +1134,7 @@ describe('праздники Легиона', () => {
     const total = [6, 12, 18].reduce((a, st) => a + festFirstReward(st).shards, 0);
     expect(s.shards[hero]).toBe(total);
     const units = festStageEnemies(cfg, festivalAt(T1)!.def, s.festival!.lvl, FEST_STAGES);
-    expect(units.some((u) => u.kind === 'boss' && u.ref === festivalAt(T1)!.def.trialBoss)).toBe(true);
+    expect(units.some((u) => u.kind === 'boss' && u.ref === festivalAt(T1)!.def.trail!.trialBoss)).toBe(true);
     expect(festGoalValue(s, s.festival!, 'stars')).toBe(54);
   });
 
@@ -1194,8 +1217,8 @@ describe('праздники Легиона', () => {
     s = act(s, { type: 'fest.buy', offer: skin.id }).state;
     expect(s.skins).toContain(skin.give.skin);
     expect(() => act(s, { type: 'fest.buy', offer: skin.id })).toThrow(GameError);
-    // через три праздника (тот же праздник по кругу) лимит осколков снова свободен
-    const later = T1 + 3 * FESTIVAL_DAYS * DAY;
+    // через полный круг (тот же праздник снова) лимит осколков свободен
+    const later = T1 + FESTIVALS.length * FESTIVAL_DAYS * DAY;
     expect(festivalAt(later)!.def.id).toBe(def.id);
     expect(() => act(s, { type: 'fest.buy', offer: sh.id }, later)).not.toThrow();
     expect(festBought(s, sh.id, undefined, festivalAt(T1)!.cycle)).toBe(sh.limit);
@@ -1205,9 +1228,9 @@ describe('праздники Легиона', () => {
     let s = ready();
     s = act(s, { type: 'fest.stage', stage: 1 }).state;
     expect(s.festival!.points).toBeGreaterThan(0);
-    const next = T1 + FESTIVAL_DAYS * DAY;
+    const next = T1 + 2 * FESTIVAL_DAYS * DAY;
     const f = festivalState({ s, cfg, now: next });
-    expect(f.cycle).toBe(s.festival!.cycle + 1);
+    expect(f.cycle).toBe(s.festival!.cycle + 2);
     expect(f.points).toBe(0);
     expect(f.stars.every((x) => x === 0)).toBe(true);
     expect(festStageLevel(f.lvl, 1)).toBeLessThan(festStageLevel(f.lvl, 17));
@@ -1255,7 +1278,7 @@ describe('облики праздников: где получить', () => {
     expect(skinFestival('lira_summer')).toBeNull();
     const sak = festivalNext('sakura', now)!;
     expect(sak.active).toBe(false);
-    expect(sak.start).toBe(FESTIVAL_EPOCH + 2 * FESTIVAL_DAYS * DAY);
+    expect(sak.start).toBe(FESTIVAL_EPOCH + 4 * FESTIVAL_DAYS * DAY);
     expect(festivalAt(sak.start)!.def.id).toBe('sakura');
     expect(festivalNext('bloodmoon', now)).toMatchObject({ active: true, start: FESTIVAL_EPOCH });
   });
@@ -1341,5 +1364,141 @@ describe('«Что нового»', () => {
         if (e.art.skin) expect(SKIN_MAP[e.art.skin]?.hero).toBe(e.art.hero);
       }
     }
+  });
+});
+
+describe('Турнир Валькирий и Самоцветные копи', () => {
+  const DAY = 86400000;
+  const TT = FESTIVAL_EPOCH + FESTIVAL_DAYS * DAY + 3600000; // идёт турнир
+  const TM = FESTIVAL_EPOCH + 3 * FESTIVAL_DAYS * DAY + 3600000; // идут копи
+  function ready(now: number, oneShot = false): PlayerState {
+    let s = fresh();
+    for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 30 }, { cfg, now, dev: true }).state;
+    s = { ...s, account: { ...s.account, lvl: 12 }, party: { ...s.party, presets: [['lira', 'astrid', 'seyra', 'keira', null, null], ...s.party.presets.slice(1)] } };
+    return { ...s, dev: { ...s.dev, oneShot } };
+  }
+  const act = (s: PlayerState, a: Record<string, unknown>, now: number) => applyAction(s, a as never, { cfg, now, dev: true });
+
+  it('у каждого праздника свой вид: на турнире нет пути, в копях — турнира', () => {
+    expect(festivalAt(TT)!.def.kind).toBe('tourney');
+    expect(festivalAt(TM)!.def.kind).toBe('mine');
+    const s = ready(TT);
+    expect(() => act(s, { type: 'fest.stage', stage: 1 }, TT)).toThrow('noFestival');
+    expect(() => act(s, { type: 'mine.dig', cell: MINE_START_IDX - MINE_W }, TT)).toThrow('noFestival');
+    expect(() => act(ready(TM), { type: 'tour.start' }, TM)).toThrow('noFestival');
+    // задания дня и цели — свои у каждого вида
+    const tt = festDailyTasks(dayKey(TT), festivalAt(TT)!.cycle, 'tourney');
+    expect(FEST_TASKS_KIND.tourney.map((t) => t.id)).toContain(tt[0]);
+    expect(festGoalsFor('mine').some((g) => g.metric === 'mineFloor')).toBe(true);
+    expect(festGoalsFor('mine').some((g) => g.metric === 'stars')).toBe(false);
+    expect(festGoalsFor('trail').some((g) => g.metric === 'tourWins')).toBe(false);
+  });
+
+  it('турнир: драфт из трёх, бои до 3 поражений, замена после победы, 2 входа в день', () => {
+    let s = ready(TT);
+    expect(() => act(s, { type: 'tour.fight' }, TT)).toThrow('noRun');
+    s = act(s, { type: 'tour.start' }, TT).state;
+    expect(() => act(s, { type: 'tour.start' }, TT)).toThrow('runActive');
+    for (let k = 0; k < TOUR_PICKS; k++) {
+      const run = s.festival!.tour!.run!;
+      expect(run.phase).toBe('draft');
+      expect(new Set(run.offer).size).toBe(3);
+      expect(run.offer.some((id) => run.picks.includes(id))).toBe(false);
+      s = act(s, { type: 'tour.pick', index: 0 }, TT).state;
+    }
+    expect(s.festival!.tour!.run!.picks).toHaveLength(TOUR_PICKS);
+    expect(s.festival!.tour!.run!.phase).toBe('fight');
+    expect(s.quests.daily.tourDraft).toBe(1);
+    // героини драфта не обязаны быть у игрока — отряд строится отдельно
+    const units = tourUnits(cfg, s, s.festival!.tour!.run!.picks, TOUR_LEVEL, 0);
+    expect(units).toHaveLength(TOUR_PICKS);
+    expect(units.every((u) => u.lvl === TOUR_LEVEL && u.side === 0)).toBe(true);
+    // сыграем до конца забега
+    let guard = 0;
+    while (s.festival!.tour!.run!.phase !== 'done' && guard++ < 20) {
+      const run = s.festival!.tour!.run!;
+      if (run.phase === 'swap') s = act(s, { type: 'tour.swap', index: 1, slot: 0 }, TT).state;
+      else s = act(s, { type: 'tour.fight' }, TT).state;
+    }
+    const run = s.festival!.tour!.run!;
+    expect(run.phase).toBe('done');
+    expect(run.wins === TOUR_WINS || run.losses === TOUR_LOSSES).toBe(true);
+    expect(s.festival!.tour!.best).toBe(run.wins);
+    expect(s.festival!.points).toBeGreaterThanOrEqual(run.wins * 35);
+    // второй вход сегодня есть, третьего — нет
+    s = act(s, { type: 'tour.start' }, TT).state;
+    s = act(s, { type: 'tour.retire' }, TT).state;
+    expect(() => act(s, { type: 'tour.start' }, TT)).toThrow('noAttempts');
+    expect(() => act(s, { type: 'tour.start' }, TT + DAY)).not.toThrow();
+  });
+
+  it('турнир: 7 побед — чемпионка, осколки героини праздника; соперницы с раундами сильнее', () => {
+    let s = ready(TT, true);
+    s = act(s, { type: 'tour.start' }, TT).state;
+    for (let k = 0; k < TOUR_PICKS; k++) s = act(s, { type: 'tour.pick', index: 0 }, TT).state;
+    for (let w = 0; w < TOUR_WINS; w++) {
+      if (s.festival!.tour!.run!.phase === 'swap') s = act(s, { type: 'tour.swap' }, TT).state;
+      s = act(s, { type: 'tour.fight' }, TT).state;
+    }
+    const hero = festivalAt(TT)!.def.hero;
+    expect(s.festival!.tour!.champs).toBe(1);
+    expect(s.shards[hero]).toBe(TOUR_CHAMP_REWARD.shards);
+    const a = tourOpponent(1, 1, hero);
+    const b = tourOpponent(1, TOUR_WINS, hero);
+    expect(b.lvl).toBeGreaterThan(a.lvl);
+    expect(b.final).toBe(true);
+    expect(b.team).toContain(hero);
+  });
+
+  it('копи: копать рядом с раскопанным, кирка за шаг, соседи видны, лестница ведёт ниже', () => {
+    let s = ready(TM, true);
+    const m0 = mineOf(s, festivalState({ s, cfg, now: TM }));
+    expect(m0.picks).toBe(MINE_START);
+    expect(m0.dug).toEqual([MINE_START_IDX]);
+    expect(() => act(s, { type: 'mine.dig', cell: 0 }, TM)).toThrow(GameError);
+    const board = mineBoard(m0.seed, 1);
+    expect(board.filter((t) => t === 'stairs')).toHaveLength(1);
+    expect(mineBoard(m0.seed, 1)).toEqual(board);
+    expect(mineVisible([MINE_START_IDX]).size).toBe(4);
+    // идём к лестнице по кратчайшему пути (с oneShot чудовища не страшны)
+    const stairs = board.indexOf('stairs');
+    const path: number[] = [];
+    let cur = MINE_START_IDX;
+    while (cur !== stairs) {
+      const [cx, cy] = [cur % MINE_W, Math.floor(cur / MINE_W)];
+      const [tx, ty] = [stairs % MINE_W, Math.floor(stairs / MINE_W)];
+      cur = cx !== tx ? cur + Math.sign(tx - cx) : cur + Math.sign(ty - cy) * MINE_W;
+      path.push(cur);
+    }
+    for (const cell of path) s = act(s, { type: 'mine.dig', cell }, TM).state;
+    const m = s.festival!.mine!;
+    expect(m.floor).toBe(2);
+    expect(m.best).toBe(2);
+    expect(m.dug).toEqual([MINE_START_IDX]);
+    expect(m.steps).toBe(path.length);
+    expect(s.quests.daily.mineStep).toBe(path.length);
+    expect(s.festival!.points).toBeGreaterThan(0);
+  });
+
+  it('копи: без кирок не копать; за день — новые кирки; лавка продаёт кирки и входы', () => {
+    let s = ready(TM, true);
+    s = { ...s, festival: { ...festivalState({ s, cfg, now: TM }), mine: { ...mineOf(s, festivalState({ s, cfg, now: TM })), picks: 0 } } };
+    const cell = MINE_START_IDX - MINE_W;
+    expect(() => act(s, { type: 'mine.dig', cell }, TM)).toThrow('noPicks');
+    expect(festivalState({ s, cfg, now: TM + DAY }).mine!.picks).toBe(MINE_DAILY);
+    s = { ...s, cur: { ...s.cur, eventTokens: 10000 } };
+    s = act(s, { type: 'fest.buy', offer: 'fs_picks' }, TM).state;
+    expect(s.festival!.mine!.picks).toBe(10);
+    expect(() => act(s, { type: 'mine.dig', cell }, TM)).not.toThrow();
+    // вход на турнир продаётся только на турнире
+    expect(() => act(s, { type: 'fest.buy', offer: 'fs_entry' }, TM)).toThrow(GameError);
+    let t = ready(TT);
+    t = { ...t, cur: { ...t.cur, eventTokens: 10000 } };
+    t = act(t, { type: 'fest.buy', offer: 'fs_entry' }, TT).state;
+    expect(tourEntriesLeft(t.festival!)).toBe(TOUR_ENTRIES + 1);
+    // чудовище: бой нужен, страж лестницы — на каждом третьем этаже
+    expect(mineNeedsFight('monster', 1)).toBe(true);
+    expect(mineNeedsFight('stairs', 1)).toBe(false);
+    expect(mineNeedsFight('stairs', 3)).toBe(true);
   });
 });

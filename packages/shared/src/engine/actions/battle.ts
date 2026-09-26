@@ -42,8 +42,8 @@ export interface BattleSummary {
   dmgDone?: Record<number, number>;
 }
 
-/** Запуск боя с общими настройками (dev-читы, таймер). */
-export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], timeLimit: number): BattleSummary & { raw: BattleResult } {
+/** Запуск боя с общими настройками (dev-читы, таймер). noArtifacts — бой без артефактов отряда (турнир). */
+export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], timeLimit: number, opt: { noArtifacts?: boolean } = {}): BattleSummary & { raw: BattleResult } {
   const { s, cfg } = ctx;
   assert(heroes.length > 0, 'emptyParty');
   const seed = nextBattleSeed(ctx);
@@ -57,7 +57,7 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     quiet: ctx.server,
     manual: ctx.control?.manual,
     inputs: ctx.control?.inputs,
-    artifacts: activeArtifacts(s),
+    artifacts: opt.noArtifacts ? [] : activeArtifacts(s),
   });
   return {
     seed,

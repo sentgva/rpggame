@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-26h',
+    date: '26.09.2026',
+    icon: '🏆',
+    title: { ru: 'Турнир и Самоцветные копи', en: 'Tourney and Gem Mines' },
+    lead: { ru: 'Два новых праздника в ротации — и оба играются совсем иначе', en: 'Two new festivals in the rotation — and both play completely differently' },
+    color: '#ffd24a',
+    art: { hero: 'freya' },
+    items: [
+      { ru: '🏆 Турнир Валькирий: драфт из чужих героинь одного уровня, 7 побед до титула, 3 поражения — и забег окончен', en: '🏆 Valkyrie Tourney: draft heroines you don’t own at one level, 7 wins for the title, 3 losses end the run' },
+      { ru: '💎 Самоцветные копи: копай поле в тумане, выбирай путь к лестнице, спускайся глубже за богатством', en: '💎 Gem Mines: dig a fogged board, pick your path to the stairs, go deeper for richer loot' },
+      { ru: '💃 UR-героини Фрейя и Рубина — чемпионки новых праздников', en: '💃 UR heroines Freya and Rubina — champions of the new festivals' },
+    ],
+  },
+  {
     id: '2026-09-26g',
     date: '26.09.2026',
     icon: '🎉',

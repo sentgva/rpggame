@@ -448,6 +448,22 @@ HEROINES.push(
       { hair: '#F4A8C8', style: 'ponytail', skin: SK.fair, eyes: '#C0306A', outfit: '#F2E6F0', trim: '#C0306A', acc: 'flower', accColor: '#F4B8CC', extra: 'none', wear: 'yukata' }),
     festival: 'sakura',
   },
+  {
+    ...h('freya', 'Фрейя', 'Freya', 'guardian', 'light', 'UR',
+      { ru: 'Королева Турнира', en: 'Queen of the Tourney' },
+      { ru: 'Бессменная чемпионка турниров Вальхаллы. Говорят, она ни разу не проиграла — и ни разу не отказалась от нового вызова.', en: 'The undefeated champion of the Valhalla tourneys. They say she has never lost — and never refused a new challenge.' },
+      { ru: 'Выходи на арену, Командор. Покажи, кого ты привёл.', en: 'Step into the arena, Commander. Show me who you brought.' },
+      { hair: '#F2D46B', style: 'braid', skin: SK.fair, eyes: '#3D7BE0', outfit: '#E6E6F0', trim: '#E6B23A', acc: 'helmet', accColor: '#F2F0E6', extra: 'wings' }),
+    festival: 'tourney',
+  },
+  {
+    ...h('rubina', 'Рубина', 'Rubina', 'berserker', 'fire', 'UR',
+      { ru: 'Королева Самоцветов', en: 'Queen of Gems' },
+      { ru: 'Хозяйка Самоцветных копей: слышит, где в скале спрятан камень, и разбивает её одним ударом кирки. Сокровища любит чуть больше, чем драки, — но только чуть.', en: 'Mistress of the Gem Mines: she hears where a stone hides in the rock and splits it with one swing of her pick. She loves treasure a little more than fighting — but only a little.' },
+      { ru: 'Слышишь, как звенит? Там, внизу, что-то блестит. Копаем!', en: 'Hear that ringing? Something shines down there. Dig!' },
+      { hair: '#C0203A', style: 'wild', skin: SK.tan, eyes: '#FF4A6A', outfit: '#4A2A1E', trim: '#E03A5A', acc: 'tiara', accColor: '#FF6A8A', extra: 'none' }),
+    festival: 'mine',
+  },
 );
 
 export const HERALDS = HEROINES.filter((x) => x.herald);

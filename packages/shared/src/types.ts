@@ -356,6 +356,44 @@ export interface FestivalState {
   base: Record<string, number>;
   /** босс праздника: уровень, снятое HP текущего уровня, попытки сегодня, победы, лучший урон */
   boss: { lvl: number; dmg: number; used: number; kills: number; best: number };
+  /** «Турнир Валькирий»: текущий забег, входы сегодня (и купленные), рекорд, победы, чемпионства */
+  tour?: TourneyState;
+  /** «Самоцветные копи»: этаж, раскопанные клетки, кирки */
+  mine?: MineState;
+}
+
+/** Забег турнира: драфт из предложенных героинь, затем бои до 3 поражений или 7 побед. */
+export interface TourneyRun {
+  seed: number;
+  picks: string[];
+  /** предложение на выбор (драфт или замена после победы) */
+  offer: string[];
+  phase: 'draft' | 'fight' | 'swap' | 'done';
+  wins: number;
+  losses: number;
+}
+
+export interface TourneyState {
+  run?: TourneyRun;
+  /** входов использовано сегодня */
+  entries: number;
+  /** купленные в лавке входы (не сгорают) */
+  bonus: number;
+  best: number;
+  wins: number;
+  champs: number;
+}
+
+export interface MineState {
+  floor: number;
+  seed: number;
+  picks: number;
+  /** раскопанные клетки текущего этажа */
+  dug: number[];
+  chests: number;
+  steps: number;
+  /** самый глубокий этаж за праздник */
+  best: number;
 }
 
 /** Активная встреча на экране боя. */
