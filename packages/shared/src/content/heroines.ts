@@ -38,6 +38,10 @@ export interface Look {
   extra?: 'wings' | 'darkWings' | 'tail' | 'snake' | 'fishTail' | 'scorpion' | 'vines' | 'gears' | 'none';
   /** Сменный наряд вместо классового костюма (у обликов; у Зарины — родной наряд танцовщицы). */
   wear?: Wear;
+  /** Объём груди: −1 стройнее, 0 обычный, 1–2 пышнее. */
+  bust?: number;
+  /** Бёдра: 0 обычные, 1–2 шире (с полными бёдрами ног). */
+  hips?: number;
 }
 
 export interface HeroineDef {

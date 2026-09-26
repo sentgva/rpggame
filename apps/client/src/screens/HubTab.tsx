@@ -11,6 +11,7 @@ import { Achievements } from './hub/Achievements';
 import { Ascension } from './hub/Ascension';
 import { Care } from './hub/Care';
 import { Constellation } from './hub/Constellation';
+import { Creator } from './hub/Creator';
 import { DevPanel } from './hub/DevPanel';
 import { Guild } from './hub/Guild';
 import { Mail } from './hub/Mail';
@@ -49,6 +50,8 @@ export default function HubTab() {
       return <Settings />;
     case 'dev':
       return <DevPanel />;
+    case 'creator':
+      return <Creator />;
     case 'story':
       return <Story />;
     case 'care':
@@ -86,7 +89,7 @@ function HubRoot() {
     { id: 'news', icon: 'news', label: t('hub.news') },
     { id: 'settings', icon: 'settings', label: t('hub.settings') },
   ];
-  if (isDev) all.push({ id: 'dev', icon: 'dev', label: t('hub.dev') });
+  if (isDev) all.push({ id: 'dev', icon: 'dev', label: t('hub.dev') }, { id: 'creator', icon: 'heroes', label: t('hub.creator') });
   // главное — крупно, остальное — сеткой ниже
   const MAIN = ['summon', 'care', 'quests', 'shop'];
   const main = MAIN.map((id) => all.find((x) => x.id === id)!).filter(Boolean);

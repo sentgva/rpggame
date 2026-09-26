@@ -1,4 +1,4 @@
-import { BASE_ITEM_MAP, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Item, type Look } from '@idle/shared';
+import { BASE_ITEM_MAP, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Element, type Item, type Look } from '@idle/shared';
 import { renderIcon } from './icons';
 import { renderItemIcon } from './itemArt';
 import { CLASS_OUTFIT, renderFigure, type OutfitKind, type Pose } from './figure';
@@ -124,6 +124,25 @@ export function portraitUrl(heroId: string, skin?: string): string {
     ctx.drawImage(src, 13, 1, 22, 22, 0, 0, 22, 22);
     u = c.toDataURL();
     urlCache.set(key, u);
+  }
+  return u;
+}
+
+/** Произвольная фигура (конструктор героинь): рисуется по параметрам, без привязки к героине из игры. */
+export function customCanvas(look: Look, cls: string, element: Element, pose: Pose = {}, armed = true): HTMLCanvasElement {
+  return bitmapToCanvas(
+    renderFigure({ look, weapon: armed ? CLASS_WEAPON[cls] : 'none', body: CLASS_BODY[cls], outfit: CLASS_OUTFIT[cls], element }, pose),
+  );
+}
+
+const customCache = new Map<string, string>();
+export function customUrl(look: Look, cls: string, element: Element, pose: Pose = {}, armed = true): string {
+  const key = JSON.stringify([look, cls, element, pose.arms, pose.eyes, !!pose.flap, armed]);
+  let u = customCache.get(key);
+  if (!u) {
+    if (customCache.size > 400) customCache.clear();
+    u = customCanvas(look, cls, element, pose, armed).toDataURL();
+    customCache.set(key, u);
   }
   return u;
 }

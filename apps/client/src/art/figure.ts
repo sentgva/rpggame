@@ -29,7 +29,9 @@ export const CLASS_OUTFIT: Record<string, OutfitKind> = {
 
 export type Tone = '0' | '+' | '-' | '=';
 export type Eyes = 'open' | 'half' | 'closed' | 'wink';
-export type Arms = 'idle' | 'idle2' | 'attack';
+export type Arms = 'idle' | 'idle2' | 'attack' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss';
+/** Позы конструктора (без оружия): боевые кадры — idle/idle2/attack. */
+export const EXTRA_POSES: Arms[] = ['hips', 'behindHead', 'victory', 'wave', 'crossed', 'shy', 'kiss'];
 export interface Pose {
   eyes?: Eyes;
   arms?: Arms;
@@ -143,9 +145,56 @@ const ARMS: Record<Arms, { L: ArmGeo; R: ArmGeo }> = {
     L: { shoulder: [17, 19], elbow: [13, 24], hand: [18, 28] },
     R: { shoulder: [30, 19], elbow: [34, 18], hand: [38, 21] },
   },
+  // обе руки на бёдрах
+  hips: {
+    L: { shoulder: [17, 19], elbow: [12, 24], hand: [18, 28] },
+    R: { shoulder: [30, 19], elbow: [35, 24], hand: [30, 28] },
+  },
+  // руки за головой: кисти прячутся за волосами
+  behindHead: {
+    L: { shoulder: [17, 19], elbow: [11, 12], hand: [16, 6] },
+    R: { shoulder: [30, 19], elbow: [36, 12], hand: [32, 6] },
+  },
+  // кулак вверх
+  victory: {
+    L: { shoulder: [17, 19], elbow: [13, 24], hand: [18, 28] },
+    R: { shoulder: [30, 19], elbow: [35, 13], hand: [36, 5] },
+  },
+  // машет рукой
+  wave: {
+    L: { shoulder: [17, 19], elbow: [13, 24], hand: [18, 28] },
+    R: { shoulder: [30, 19], elbow: [37, 17], hand: [37, 10] },
+  },
+  // руки скрещены под грудью
+  crossed: {
+    L: { shoulder: [17, 19], elbow: [16, 25], hand: [29, 23] },
+    R: { shoulder: [30, 19], elbow: [31, 25], hand: [19, 23] },
+  },
+  // кисти сцеплены внизу перед собой
+  shy: {
+    L: { shoulder: [17, 19], elbow: [17, 25], hand: [23, 30] },
+    R: { shoulder: [30, 19], elbow: [30, 25], hand: [25, 30] },
+  },
+  // воздушный поцелуй: кисть у губ
+  kiss: {
+    L: { shoulder: [17, 19], elbow: [13, 24], hand: [18, 28] },
+    R: { shoulder: [30, 19], elbow: [34, 21], hand: [27, 13] },
+  },
 };
 
+/** Руки, которые в позе идут перед торсом и одеждой (рисуются отдельным слоем поверх). */
+const FRONT_ARMS: Partial<Record<Arms, ('L' | 'R')[]>> = { crossed: ['L', 'R'], shy: ['L', 'R'], kiss: ['R'] };
+
 let arms = ARMS.idle;
+/** Слой рук «спереди» (позы конструктора); null — руки рисуются прямо под торсом, как в бою. */
+let armLayer: Canvas | null = null;
+let frontSides: ('L' | 'R')[] = [];
+/** Толщина горизонтальных предплечий — поперёк руки (в новых позах руки бывают почти горизонтальны). */
+let perpLimbs = false;
+
+function armCanvas(c: Canvas, side: 'L' | 'R'): Canvas {
+  return armLayer && frontSides.includes(side) ? armLayer : c;
+}
 
 /** Толстый сегмент (руки, рукава). */
 function limb(c: Canvas, a: P, b: P, m: string, t: Tone = '0', w = 2) {
@@ -153,13 +202,18 @@ function limb(c: Canvas, a: P, b: P, m: string, t: Tone = '0', w = 2) {
   for (let k = 0; k <= steps; k++) {
     const x = Math.round(a[0] + ((b[0] - a[0]) * k) / steps);
     const y = Math.round(a[1] + ((b[1] - a[1]) * k) / steps);
-    for (let dx = 0; dx < w; dx++) c.set(x + dx - Math.floor(w / 2), y, m, t);
+    const flat = perpLimbs && Math.abs(b[0] - a[0]) > Math.abs(b[1] - a[1]);
+    for (let d = 0; d < w; d++) {
+      if (flat) c.set(x, y + d - Math.floor(w / 2), m, t);
+      else c.set(x + d - Math.floor(w / 2), y, m, t);
+    }
   }
 }
 
 /** Рукав/перчатка на участке руки. */
-function armPart(c: Canvas, side: 'L' | 'R', part: 'upper' | 'fore' | 'hand', m: string, t: Tone = '0') {
+function armPart(c0: Canvas, side: 'L' | 'R', part: 'upper' | 'fore' | 'hand', m: string, t: Tone = '0') {
   const A = arms[side];
+  const c = armCanvas(c0, side);
   if (part === 'upper') limb(c, A.shoulder, A.elbow, m, t, 3);
   else if (part === 'fore') limb(c, A.elbow, A.hand, m, t);
   else c.rect(A.hand[0] - 1, A.hand[1] - 1, A.hand[0], A.hand[1], m, t);
@@ -204,6 +258,26 @@ const LEG_R: [number, number, number][] = [
   [46, 26, 30],
 ];
 
+/** Силуэт торса [y, x0, x1]: по нему же фигура меняет объём (см. shapeBody). */
+const TORSO: [number, number, number][] = [
+  [17, 20, 27],
+  [18, 17, 30],
+  [19, 16, 31],
+  [20, 16, 31],
+  [21, 16, 31],
+  [22, 17, 30],
+  [23, 18, 29],
+  [24, 19, 28],
+  [25, 20, 27],
+  [26, 20, 27],
+  [27, 19, 28],
+  [28, 18, 29],
+  [29, 17, 30],
+  [30, 17, 30],
+  [31, 17, 30],
+  [32, 18, 30],
+];
+
 /** Нога с y0 по y1 материалом m (чулки, сапоги, поножи). */
 function legs(c: Canvas, y0: number, y1: number, m: string, t: Tone = '0', which: 'both' | 'L' | 'R' = 'both') {
   for (const [rows, side] of [
@@ -239,33 +313,15 @@ function drawBody(c: Canvas, withLegs: boolean) {
   c.rect(22, 15, 25, 17, 'S');
   c.hl(22, 25, 16, 'S', '-');
   // руки — под торсом, плечо перекрывает сустав
-  for (const A of [arms.L, arms.R]) {
-    limb(c, A.shoulder, A.elbow, 'S', '0', 3);
-    limb(c, A.elbow, A.hand, 'S');
-    c.rect(A.hand[0] - 1, A.hand[1] - 1, A.hand[0], A.hand[1], 'S');
+  for (const side of ['L', 'R'] as const) {
+    const A = arms[side];
+    const ac = armCanvas(c, side);
+    limb(ac, A.shoulder, A.elbow, 'S', '0', 3);
+    limb(ac, A.elbow, A.hand, 'S');
+    ac.rect(A.hand[0] - 1, A.hand[1] - 1, A.hand[0], A.hand[1], 'S');
   }
   // торс: плечи, грудь, тонкая талия, широкие бёдра
-  c.rows(
-    [
-      [17, 20, 27],
-      [18, 17, 30],
-      [19, 16, 31],
-      [20, 16, 31],
-      [21, 16, 31],
-      [22, 17, 30],
-      [23, 18, 29],
-      [24, 19, 28],
-      [25, 20, 27],
-      [26, 20, 27],
-      [27, 19, 28],
-      [28, 18, 29],
-      [29, 17, 30],
-      [30, 17, 30],
-      [31, 17, 30],
-      [32, 18, 30],
-    ],
-    'S',
-  );
+  c.rows(TORSO, 'S');
   // ключицы, объём груди, ложбинка, пупок
   c.set(21, 18, 'S', '-');
   c.set(26, 18, 'S', '-');
@@ -284,6 +340,79 @@ function drawBody(c: Canvas, withLegs: boolean) {
   c.vl(25, 33, 35, 'S', '-');
   c.set(19, 38, 'S', '+');
   c.set(26, 38, 'S', '+');
+}
+
+// ——— объём фигуры ———
+
+/** Насколько раздвинуть строку торса в каждую сторону: грудь (−1…2). */
+const BUST_ROWS: Record<number, Record<number, number>> = {
+  [-1]: { 19: -1, 20: -1, 21: -1 },
+  1: { 19: 1, 20: 1, 21: 1, 22: 1 },
+  2: { 19: 1, 20: 2, 21: 2, 22: 1 },
+};
+/** Бёдра (0…2): торс и внешняя сторона ног. */
+const HIP_ROWS: Record<number, { torso: Record<number, number>; legs: Record<number, number> }> = {
+  1: { torso: { 28: 1, 29: 1, 30: 1, 31: 1, 32: 1 }, legs: { 33: 1, 34: 1, 35: 1, 36: 1 } },
+  2: { torso: { 27: 1, 28: 1, 29: 2, 30: 2, 31: 2, 32: 2 }, legs: { 33: 2, 34: 2, 35: 1, 36: 1, 37: 1 } },
+};
+
+/**
+ * Меняет объём уже одетой фигуры: строки торса раздвигаются от середины (или сдвигаются к ней), ноги —
+ * наружу от своей оси. Одежда двигается вместе с телом, поэтому покрытие не меняется и дыр не бывает:
+ * освободившиеся пиксели заполняются соседом-одеждой или тем, что было позади тела (волосы, крылья).
+ */
+function shapeBody(c: Canvas, under: string[], bust: number, hips: number, withLegs: boolean) {
+  const rowsD = new Map<number, number>();
+  for (const [y, d] of Object.entries(BUST_ROWS[bust] ?? {})) rowsD.set(Number(y), d);
+  const hp = HIP_ROWS[hips];
+  for (const [y, d] of Object.entries(hp?.torso ?? {})) rowsD.set(Number(y), d);
+  const W = c.w;
+  for (const [y, x0, x1] of TORSO) {
+    const d = rowsD.get(y) ?? 0;
+    if (!d) continue;
+    const old = c.g.slice(y * W, y * W + W);
+    const put = (x: number, v: string) => {
+      if (x >= 0 && x < W) c.g[y * W + x] = v;
+    };
+    if (d > 0) {
+      for (let x = x0; x <= 23; x++) put(x - d, old[x]);
+      for (let x = 24 - d; x <= 23; x++) put(x, old[23]);
+      for (let x = x1; x >= 24; x--) put(x + d, old[x]);
+      for (let x = 24; x <= 23 + d; x++) put(x, old[24]);
+    } else {
+      const k = -d;
+      const fill = (p: number, nb: number) => {
+        const o = old[nb] ?? '';
+        put(p, o && o !== under[y * W + nb] ? o : under[y * W + p]);
+      };
+      for (let x = 23 - k; x >= x0; x--) put(x + k, old[x]);
+      for (let x = 24 + k; x <= x1; x++) put(x - k, old[x]);
+      for (let p = x0; p < x0 + k; p++) fill(p, x0 - 1);
+      for (let p = x1 - k + 1; p <= x1; p++) fill(p, x1 + 1);
+    }
+  }
+  if (!withLegs || !hp) return;
+  for (const [rows, side] of [
+    [LEG_L, 'L'],
+    [LEG_R, 'R'],
+  ] as const)
+    for (const [y, x0, x1] of rows) {
+      const d = hp.legs[y] ?? 0;
+      if (!d) continue;
+      const old = c.g.slice(y * W, y * W + W);
+      const put = (x: number, v: string) => {
+        if (x >= 0 && x < W) c.g[y * W + x] = v;
+      };
+      if (side === 'L') {
+        const cl = Math.floor((x0 + x1) / 2);
+        for (let x = x0; x <= cl; x++) put(x - d, old[x]);
+        for (let x = cl - d + 1; x <= cl; x++) put(x, old[cl]);
+      } else {
+        const cr = Math.ceil((x0 + x1) / 2);
+        for (let x = x1; x >= cr; x--) put(x + d, old[x]);
+        for (let x = cr; x < cr + d; x++) put(x, old[cr]);
+      }
+    }
 }
 
 // ——— лицо ———
@@ -2119,24 +2248,38 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
   const c = new Canvas(FIG, FIG);
   const L = spec.look;
   const kind = spec.outfit ?? 'witch';
-  arms = ARMS[pose.arms ?? 'idle'];
+  const armsKind = pose.arms ?? 'idle';
+  arms = ARMS[armsKind];
+  frontSides = FRONT_ARMS[armsKind] ?? [];
+  armLayer = frontSides.length ? new Canvas(FIG, FIG) : null;
+  perpLimbs = EXTRA_POSES.includes(armsKind);
   const handR = arms.R.hand;
   const handL = arms.L.hand;
+  const bust = Math.max(-1, Math.min(2, Math.round(L.bust ?? 0)));
+  const hips = Math.max(0, Math.min(2, Math.round(L.hips ?? 0)));
 
   extraBack(c, L.extra, !!pose.flap);
   accessoryBack(c, L.acc);
   drawHairBack(c, L.style);
+  const under = bust || hips ? c.g.slice() : null;
   const replaced = L.extra === 'snake' || L.extra === 'fishTail';
   drawBody(c, !replaced);
   if (replaced) lowerExtra(c, L.extra);
   if (L.wear) wearOutfit(c, L.wear, !replaced);
   else outfit(c, kind, !replaced);
+  if (under) shapeBody(c, under, bust, hips, !replaced);
   drawFace(c, pose.eyes ?? 'open');
   hairTop(c);
+  if (armLayer) {
+    for (let i = 0; i < armLayer.g.length; i++) if (armLayer.g[i]) c.g[i] = armLayer.g[i];
+    armLayer = null;
+  }
   accessory(c, L.acc);
+  // кисть на бедре уезжает вместе с шириной бёдер
+  const hipShift = HIP_ROWS[hips]?.torso[handL[1]] ?? 0;
   // оружие следует за кистями (координаты оружия заданы от эталонных кистей),
   // но не вылезает за кадр — длинное древко просто «проскальзывает» в кулаке
-  shiftInside(c, weaponLeft, spec.weapon, handL[0] - 17, handL[1] - 31);
+  shiftInside(c, weaponLeft, spec.weapon, handL[0] - hipShift - 17, handL[1] - 31);
   weaponLeft(c, spec.weapon);
   shiftInside(c, weaponRight, spec.weapon, handR[0] - 35, handR[1] - 30);
   weaponRight(c, spec.weapon);
@@ -2146,6 +2289,8 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
   autoShade(c);
   outline(c);
   arms = ARMS.idle;
+  frontSides = [];
+  perpLimbs = false;
 
   const pal = palette(spec);
   const data = new Uint8ClampedArray(c.w * c.h * 4);

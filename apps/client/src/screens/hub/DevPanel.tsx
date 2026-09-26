@@ -45,6 +45,9 @@ export function DevPanel() {
       <div className={css.tiny} style={{ color: '#ff8070' }}>
         {t('dev.warning')}
       </div>
+      <Button kind="secondary" onClick={() => useUi.getState().push({ id: 'creator' })}>
+        🎨 {t('hub.creator')}
+      </Button>
       <Tabs<DevTab> value={tab} onChange={setTab} items={tabs.map((x) => ({ id: x, label: t(`dev.${x}`) }))} />
       {tab === 'resources' && <Resources />}
       {tab === 'heroes' && <Heroes />}

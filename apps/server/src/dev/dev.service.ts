@@ -1,6 +1,7 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { createPlayer, type PlayerState } from '@idle/shared';
 import { BalanceService } from '../balance/balance.service';
+import { BotService } from '../bot/bot.service';
 import { DbService } from '../db/db.service';
 import { env, isDevUser } from '../env';
 import { PlayerService } from '../game/player.service';
@@ -17,6 +18,7 @@ export class DevService {
     @Inject(PlayerService) private readonly players: PlayerService,
     @Inject(BalanceService) private readonly balance: BalanceService,
     @Inject(SocialService) private readonly social: SocialService,
+    @Inject(BotService) private readonly bot: BotService,
   ) {}
 
   async handle(uid: string, op: string, body: any): Promise<unknown> {
@@ -26,8 +28,11 @@ export class DevService {
       return this.social.leaderboard(String(body?.board ?? 'stage'), uid);
     }
     if (!isDevUser(uid)) throw new ForbiddenException();
-    await this.log(uid, op, body);
+    // картинку конструктора в журнал не пишем — только длину описания
+    await this.log(uid, op, op === 'creator.send' ? { chars: String(body?.text ?? '').length } : body);
     switch (op) {
+      case 'creator.send':
+        return this.sendCreation(uid, body);
       case 'snapshot.save': {
         const slot = this.slot(body);
         await this.players.flushOne(uid);
@@ -72,6 +77,21 @@ export class DevService {
       default:
         return null;
     }
+  }
+
+  /** Конструктор героинь: прислать разработчику в личку картинку и готовое описание облика. */
+  private async sendCreation(uid: string, body: any): Promise<{ ok: boolean; error?: { code: string } }> {
+    const text = String(body?.text ?? '').slice(0, 3500);
+    const title = String(body?.title ?? '').slice(0, 80);
+    const b64 = String(body?.png ?? '').replace(/^data:image\/png;base64,/, '');
+    if (!/^\d+$/.test(uid)) return { ok: false, error: { code: 'noChat' } };
+    if (!text || b64.length > 300_000) return { ok: false, error: { code: 'badParam' } };
+    const png = Buffer.from(b64, 'base64');
+    if (png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') return { ok: false, error: { code: 'badParam' } };
+    const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const sent = await this.bot.sendPhoto(uid, png, `🎨 <b>${esc(title || 'Героиня')}</b> — из конструктора`);
+    const code = await this.bot.sendHtml(uid, `<pre>${esc(text)}</pre>`);
+    return sent && code ? { ok: true } : { ok: false, error: { code: 'notDelivered' } };
   }
 
   private slot(body: any): number {

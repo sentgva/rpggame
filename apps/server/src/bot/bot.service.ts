@@ -595,6 +595,18 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
+  /** Картинка с подписью (HTML) — например, героиня из конструктора. */
+  async sendPhoto(chatId: string, png: Buffer, caption: string): Promise<boolean> {
+    if (!this.bot) return false;
+    try {
+      await this.bot.api.sendPhoto(chatId, new InputFile(png, 'heroine.png'), { caption, parse_mode: 'HTML' });
+      return true;
+    } catch (e) {
+      this.log.warn(`sendPhoto to ${chatId} failed: ${String(e)}`);
+      return false;
+    }
+  }
+
   async send(chatId: string, text: string, lang: 'ru' | 'en' = 'ru'): Promise<boolean> {
     if (!this.bot) return false;
     try {
