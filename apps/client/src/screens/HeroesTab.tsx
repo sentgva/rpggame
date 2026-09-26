@@ -6,22 +6,17 @@ import {
   HEROINE_MAP,
   HERO_RARITIES,
   buildHeroine,
-  formatNum,
-  isUnlocked,
   partySlots,
   type ClassId,
   type Element,
   type HeroRarity,
 } from '@idle/shared';
 import { useMemo, useState } from 'react';
-import { ArtifactIcon } from '../components/ArtifactIcon';
-import { BannerButton } from '../components/BannerButton';
 import { HeroImg } from '../components/HeroImg';
 import { Button, HeroCard, Icon, Panel, Tabs, css, cx } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
-import { navigate, useUi } from '../store/ui';
-import st from './HeroesTab.module.css';
+import { useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
 import { HeroDetail } from './heroes/HeroDetail';
 
@@ -103,18 +98,8 @@ function HeroesRoot() {
     ...Object.entries(classes).filter(([, n]) => n >= 2).map(([c]) => ({ icon: c, text: tl(CLASSES[c as ClassId].synergyText) })),
   ];
 
-  const power = slots.reduce((sum, id) => sum + (id && s.heroines[id] ? buildHeroine(cfg, s, s.heroines[id]).power : 0), 0);
-  const artOpen = isUnlocked({ s, cfg }, 'artifacts');
-
   return (
-    <div className={css.col} style={{ paddingBottom: 4 }}>
-      <div className={css.screenHead} style={{ gridTemplateColumns: '1fr', marginBottom: 0 }}>
-        <div className={css.plaque}>
-          <span>
-            {t('heroes.power')}: {formatNum(power)}
-          </span>
-        </div>
-      </div>
+    <div className={css.col}>
       <Panel
         title={t('heroes.party')}
         right={
@@ -238,17 +223,6 @@ function HeroesRoot() {
           </div>
         </>
       )}
-      <div className={st.dock}>
-        <BannerButton
-          icon={<ArtifactIcon id="aether_prism" size={44} dim={!artOpen} />}
-          label={t('heroes.artifacts')}
-          compact
-          tint="#9b8ac4"
-          locked={!artOpen}
-          onClick={() => (artOpen ? navigate('hub', { id: 'summon', params: { tab: 'artifacts' } }) : useUi.getState().toast(t('art.locked', { stage: cfg.unlocks.stage.artifacts })))}
-        />
-        <BannerButton compact icon={<Icon name="weapon" size={46} />} label={t('heroes.equipment')} tint="#c9a45c" onClick={() => navigate('gear')} />
-      </div>
     </div>
   );
 }
@@ -265,17 +239,18 @@ function PartySlot({ id, active, onClick }: { id: string | null; active: boolean
         flex: 1,
         aspectRatio: '1',
         maxWidth: 64,
-        border: `1.5px ${active ? 'solid var(--gold)' : 'dashed var(--line-2)'}`,
-        background: 'radial-gradient(circle at 50% 35%, #2a2f3c, #14161d 75%)',
+        borderRadius: 6,
+        border: `2px ${active ? 'solid var(--accent-2)' : 'dashed var(--frame)'}`,
+        background: 'radial-gradient(circle at 50% 35%, #3a2a30, #140e12 75%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
         position: 'relative',
-        boxShadow: active ? '0 0 10px rgba(201,164,92,.45)' : undefined,
+        boxShadow: active ? '0 0 10px rgba(242,200,106,.5)' : undefined,
       }}
     >
-      {h ? <HeroImg className="pixel" id={h.id} skin={h.skin} style={{ width: '100%', height: '100%' }} /> : <span style={{ fontSize: 26, fontWeight: 300, lineHeight: 1, color: 'var(--text-3)' }}>+</span>}
+      {h ? <HeroImg className="pixel" id={h.id} skin={h.skin} style={{ width: '100%', height: '100%' }} /> : <Icon name="plus" size={22} style={{ opacity: 0.4 }} />}
       {h && <span style={{ position: 'absolute', bottom: 0, right: 3, fontSize: 10, fontWeight: 800, textShadow: '0 0 2px #000' }}>{h.lvl}</span>}
     </div>
   );

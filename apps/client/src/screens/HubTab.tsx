@@ -1,9 +1,7 @@
-import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, achievementClaimable, artifactFreeReady, bondState, isUnlocked } from '@idle/shared';
-import { BannerButton } from '../components/BannerButton';
-import { HeroImg } from '../components/HeroImg';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, achievementClaimable, artifactFreeReady, bondState, isUnlocked } from '@idle/shared';
 import { openNews } from '../components/News';
 import { Icon, css } from '../components/ui';
-import { t, tl } from '../i18n';
+import { t } from '../i18n';
 import { questClaimable } from '../store/badges';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
@@ -21,14 +19,13 @@ import { Settings } from './hub/Settings';
 import { Shop } from './hub/Shop';
 import { Story } from './hub/Story';
 import { Summon } from './hub/Summon';
-import st from './HubTab.module.css';
 
 export default function HubTab() {
   const stack = useUi((u) => u.stacks.hub);
   const top = stack[stack.length - 1];
   switch (top?.id) {
     case 'summon':
-      return <Summon initial={top.params?.tab} />;
+      return <Summon />;
     case 'shop':
       return <Shop initial={top.params?.tab} />;
     case 'quests':
@@ -69,69 +66,47 @@ function HubRoot() {
   const careBadge =
     (care.length > 0 && care.every((b) => b.talk === 0 && b.treat === 0 && !b.spa && !b.date)) ||
     ((s.bondHearts ?? 0) >= BOND_COSTUME_HEARTS && BOND_HEROES.some((id) => s.heroines[id] && (s.bond?.[id]?.lvl ?? 0) >= BOND_MAX && !s.skins.includes(`${id}_bond`)));
-  const main: Item[] = [
-    { id: 'summon', icon: 'summon', label: t('hub.summon'), tint: '#9b8ac4', badge: !s.day.freeSummon || s.cur.scrolls > 0 || (isUnlocked({ s, cfg }, 'artifacts') && artifactFreeReady({ s, now })) },
-    { id: 'care', icon: 'care', label: t('hub.care'), tint: '#c98b94', badge: careBadge },
-    { id: 'quests', icon: 'quest', label: t('hub.quests'), tint: '#6fa3a0', badge: questClaimable(s) > 0 || s.quests.login.claimedKey !== s.day.key },
-    { id: 'shop', icon: 'shop', label: t('hub.shop'), tint: '#c9a45c' },
-  ];
-  const more: Item[] = [
+  const items: { id: string; icon: string; label: string; badge?: boolean; locked?: boolean }[] = [
+    { id: 'summon', icon: 'summon', label: t('hub.summon'), badge: !s.day.freeSummon || s.cur.scrolls > 0 || (isUnlocked({ s, cfg }, 'artifacts') && artifactFreeReady({ s, now })) },
+    { id: 'shop', icon: 'shop', label: t('hub.shop') },
+    { id: 'quests', icon: 'quest', label: t('hub.quests'), badge: questClaimable(s) > 0 || s.quests.login.claimedKey !== s.day.key },
     { id: 'pass', icon: 'pass', label: t('hub.pass') },
     { id: 'mail', icon: 'mail', label: t('hub.mail'), badge: s.mail.some((m) => !m.claimed && m.rewards) },
     { id: 'achievements', icon: 'trophy', label: t('hub.achievements'), badge: achievementClaimable(s) > 0 },
     { id: 'constellation', icon: 'constellation', label: t('hub.constellation'), locked: !isUnlocked({ s, cfg }, 'constellation') },
     { id: 'ascension', icon: 'ascension', label: t('hub.ascension'), locked: !isUnlocked({ s, cfg }, 'ascension') },
     ...(social ? [{ id: 'guild', icon: 'guildCoins', label: t('hub.guild') }] : []),
+    { id: 'care', icon: 'care', label: t('hub.care'), badge: careBadge },
     { id: 'story', icon: 'xp', label: t('hub.story') },
     { id: 'news', icon: 'news', label: t('hub.news') },
     { id: 'settings', icon: 'settings', label: t('hub.settings') },
   ];
-  if (isDev) more.push({ id: 'dev', icon: 'dev', label: t('hub.dev') });
-  const leader = s.party.presets[s.party.active].find(Boolean) ?? 'lira';
-  const open = (id: string) => {
-    haptic.tap();
-    if (id === 'news') openNews(true);
-    else useUi.getState().push({ id });
-  };
+  if (isDev) items.push({ id: 'dev', icon: 'dev', label: t('hub.dev') });
 
   return (
-    <div className={css.col} style={{ gap: 12 }}>
-      <div className={st.hero}>
-        <div className={st.heroText}>
-          <div className={st.heroKicker}>{t('hub.kicker')}</div>
-          <div className={st.heroTitle}>{t('hub.title')}</div>
-          <div className={st.heroSub}>{t('hub.sub', { name: tl(HEROINE_MAP[leader]?.name) })}</div>
-        </div>
-        <HeroImg id={leader} skin={s.heroines[leader]?.skin} className={st.heroImg} />
+    <div className={css.col}>
+      <div className={css.title} style={{ margin: '2px 4px' }}>
+        {t('hub.title')}
       </div>
-
-      <div className={st.main}>
-        {main.map((it) => (
-          <BannerButton key={it.id} icon={<Icon name={it.icon} size={56} />} label={it.label} tint={it.tint} badge={it.badge} onClick={() => open(it.id)} />
-        ))}
-      </div>
-
-      <div className={st.more}>
-        {more.map((it) => (
-          <button key={it.id} className={st.moreTile} style={it.locked ? { opacity: 0.4 } : undefined} onClick={() => open(it.id)}>
-            <span className={st.moreIcon}>
-              <Icon name={it.icon} size={44} />
-              {it.badge && <span className={css.dot} style={{ top: 4, right: 4 }} />}
-              {it.locked && <Icon name="lock" size={18} style={{ position: 'absolute', bottom: 2, right: 2 }} />}
-            </span>
-            <span className={st.moreLabel}>{it.label}</span>
+      <div className={css.grid3}>
+        {items.map((it) => (
+          <button
+            key={it.id}
+            className={css.panel}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '14px 6px', opacity: it.locked ? 0.5 : 1, color: 'inherit' }}
+            onClick={() => {
+              haptic.tap();
+              if (it.id === 'news') openNews(true);
+              else useUi.getState().push({ id: it.id });
+            }}
+          >
+            <Icon name={it.icon} size={44} />
+            <span style={{ fontFamily: 'var(--font-pixel)', fontSize: 16 }}>{it.label}</span>
+            {it.badge && <span className={css.dot} style={{ top: 6, right: 6 }} />}
+            {it.locked && <Icon name="lock" size={16} style={{ position: 'absolute', top: 6, left: 6 }} />}
           </button>
         ))}
       </div>
     </div>
   );
-}
-
-interface Item {
-  id: string;
-  icon: string;
-  label: string;
-  tint?: string;
-  badge?: boolean;
-  locked?: boolean;
 }

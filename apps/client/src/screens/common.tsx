@@ -133,32 +133,20 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
   );
 }
 
-/** Заголовок вложенного экрана: «назад» слева, гербовая плашка по центру (дублирует системную кнопку Telegram). */
+/** Кнопка «назад» для вложенных экранов (дублирует системную кнопку Telegram). */
 export function BackHeader({ title, right }: { title: ReactNode; right?: ReactNode }) {
   return (
-    <div className={css.screenHead}>
+    <div className={css.row} style={{ marginBottom: 8 }}>
       <button
         onClick={() => useUi.getState().pop()}
-        style={{
-          width: 38,
-          height: 36,
-          border: '1px solid rgba(0,0,0,.7)',
-          borderRadius: 4,
-          background: 'linear-gradient(180deg, #3a4254, #2c3241)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.1), 0 2px 0 rgba(0,0,0,.45)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+        style={{ background: 'transparent', border: 0, padding: 2, cursor: 'pointer', display: 'flex' }}
         aria-label={t('common.back')}
       >
-        <Icon name="back" size={24} />
+        <Icon name="back" size={28} />
       </button>
-      <div className={css.plaque}>
-        <span>{title}</span>
-      </div>
-      <div className={css.headSide}>{right}</div>
+      <span className={css.title}>{title}</span>
+      <span className={css.grow} />
+      {right}
     </div>
   );
 }

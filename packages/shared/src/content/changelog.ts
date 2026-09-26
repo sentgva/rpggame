@@ -11,17 +11,6 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-09-26e',
-    date: '26.09.2026',
-    title: { ru: 'Новый облик интерфейса', en: 'A fresh interface' },
-    items: [
-      { ru: '⚔️ Новое меню: гербовые заголовки экранов, разделы с пунктиром, объёмные кнопки и пиксельные заголовки', en: '⚔️ New menus: crest title plaques, dotted section headers, chunky buttons and pixel headings' },
-      { ru: '🛡 Крупные кнопки-баннеры для главных разделов и режимов, а активная вкладка меню поднимается в медальоне', en: '🛡 Large banner buttons for main sections and modes, and the active menu tab rises in a medallion' },
-      { ru: '🎨 Спокойная палитра: героини и предметы теперь ярче всего на экране', en: '🎨 A calmer palette: heroines and items now stand out the most' },
-      { ru: '🏕 Лагерь проще и крупнее: баннер с лидером отряда, четыре главных раздела и большие иконки остальных', en: '🏕 A simpler, bigger camp: a banner with your squad leader, four main sections and large icons for the rest' },
-    ],
-  },
-  {
     id: '2026-09-26c',
     date: '26.09.2026',
     title: { ru: 'Сокровищница Эфира', en: 'The Aether Vault' },

@@ -34,10 +34,10 @@ export function UltBar() {
       onClick={(e) => e.stopPropagation()}
     >
       {!warn && manual && showTip() && (
-        <div style={{ background: 'rgba(16,18,24,.88)', color: 'var(--text)', border: '1px solid var(--line-2)', padding: '2px 9px', fontSize: 11 }}>{t('ult.tip')}</div>
+        <div style={{ background: 'rgba(20,12,16,.85)', color: '#f2e6d8', borderRadius: 6, padding: '2px 8px', fontSize: 11 }}>{t('ult.tip')}</div>
       )}
       {warn && (
-        <div style={{ background: 'rgba(110,30,26,.9)', color: '#ffe0c8', border: '1px solid #d0615e', padding: '2px 10px', fontSize: 12, fontWeight: 800, animation: 'pulse .6s ease-in-out infinite alternate' }}>
+        <div style={{ background: 'rgba(120,20,10,.88)', color: '#ffe8a0', border: '1px solid #ff8a4a', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontWeight: 800, animation: 'pulse .6s ease-in-out infinite alternate' }}>
           ⚡ {t('ult.interruptHint')}
         </div>
       )}
@@ -75,7 +75,7 @@ export function UltBar() {
                 src={portraitUrl(h.ref, skins?.[h.ref]?.skin)}
                 alt=""
                 draggable={false}
-                style={{ width: '100%', height: '100%', borderRadius: 7, display: 'block', background: '#171a22', opacity: ready || h.pending ? 1 : 0.7 }}
+                style={{ width: '100%', height: '100%', borderRadius: 7, display: 'block', background: '#1c1216', opacity: ready || h.pending ? 1 : 0.7 }}
               />
               {(ready || h.pending) && (
                 <span
@@ -104,10 +104,11 @@ export function UltBar() {
           style={{
             height: 30,
             alignSelf: 'center',
-            padding: '0 10px',
-            border: '1px solid var(--line-2)',
-            background: manual ? 'rgba(16,18,24,.88)' : 'linear-gradient(180deg, #8cc486, #5e9a5a)',
-            color: manual ? 'var(--text)' : '#0f2410',
+            padding: '0 8px',
+            borderRadius: 6,
+            border: '1px solid var(--frame)',
+            background: manual ? 'rgba(20,12,16,.85)' : 'rgba(60,120,60,.85)',
+            color: '#f2e6d8',
             fontSize: 11,
             fontWeight: 800,
             cursor: manual ? 'pointer' : 'default',

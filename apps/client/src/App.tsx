@@ -127,7 +127,7 @@ function TopBar() {
       </div>
       <div className={styles.acc}>
         <div className={styles.accName}>{s.title ? `« ${s.name} »` : s.name}</div>
-        <Bar value={s.account.xp} max={need} height={6} color="linear-gradient(180deg,#8fc3c0,#5f8f8c)" />
+        <Bar value={s.account.xp} max={need} height={7} color="linear-gradient(180deg,#8ad0ff,#3d7be0)" />
       </div>
       <div className={styles.res}>
         <Icon name="gold" size={22} />
@@ -169,11 +169,11 @@ function BottomNav() {
 const dotStyle: React.CSSProperties = {
   position: 'absolute',
   top: -2,
-  right: -5,
-  width: 9,
-  height: 9,
+  right: -4,
+  width: 10,
+  height: 10,
+  borderRadius: '50%',
   background: 'var(--edge)',
-  transform: 'rotate(45deg)',
-  boxShadow: '0 0 0 1.5px #14161d, 0 0 6px rgba(208,97,94,.7)',
-  zIndex: 3,
+  border: '1.5px solid #1a0a0a',
+  boxShadow: '0 0 6px rgba(224,58,58,.8)',
 };

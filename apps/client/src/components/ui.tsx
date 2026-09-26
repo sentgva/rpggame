@@ -342,9 +342,7 @@ export function Sheet({ title, children, onClose, center }: { title?: ReactNode;
           <span className={s.grow}>{title}</span>
           {onClose && (
             <button className={s.closeBtn} onClick={onClose} aria-label={t('common.close')}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <Icon name="close" size={22} />
             </button>
           )}
         </div>

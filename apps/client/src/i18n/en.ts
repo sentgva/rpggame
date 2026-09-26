@@ -205,9 +205,6 @@ export const en: typeof ru = {
 
   'heroes.title': 'Heroines',
   'heroes.party': 'Party',
-  'heroes.power': 'Squad power',
-  'heroes.artifacts': 'Artifacts',
-  'heroes.equipment': 'Equipment',
   'heroes.preset': 'Preset {n}',
   'heroes.front': 'Front row',
   'heroes.back': 'Back row',
@@ -405,8 +402,6 @@ export const en: typeof ru = {
   'mode.guildDesc': 'Social module is disabled',
 
   'hub.title': 'Camp',
-  'hub.kicker': 'Valkyrie Legion',
-  'hub.sub': '{name} awaits your orders',
   'hub.summon': 'Summon',
   'hub.shop': 'Shop',
   'hub.quests': 'Quests',

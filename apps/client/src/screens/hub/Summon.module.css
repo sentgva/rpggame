@@ -5,7 +5,7 @@
 .banner {
   position: relative;
   height: 170px;
-  border-radius: 0;
+  border-radius: 6px;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -54,9 +54,9 @@
   min-height: 104px;
   justify-content: center;
   padding: 6px 4px;
-  border-radius: 0;
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, #262b37, #1a1d26);
+  border-radius: 8px;
+  border: 2px solid #5a4430;
+  background: linear-gradient(180deg, #2a1e18, #1a120e);
   color: inherit;
   font-family: inherit;
   cursor: pointer;
@@ -73,7 +73,7 @@
 
 .slotEmpty {
   font-size: 34px;
-  color: var(--text-3);
+  color: #8a6a4a;
   line-height: 1;
 }
 

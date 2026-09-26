@@ -1,12 +1,6 @@
 import '@fontsource/manrope/500.css';
 import '@fontsource/manrope/700.css';
 import '@fontsource/manrope/800.css';
-import '@fontsource/m-plus-rounded-1c/cyrillic-500.css';
-import '@fontsource/m-plus-rounded-1c/cyrillic-700.css';
-import '@fontsource/m-plus-rounded-1c/cyrillic-800.css';
-import '@fontsource/m-plus-rounded-1c/latin-500.css';
-import '@fontsource/m-plus-rounded-1c/latin-700.css';
-import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles/global.css';

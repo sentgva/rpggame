@@ -83,8 +83,9 @@ export default function GearTab() {
               flex: 'none',
               width: 52,
               height: 52,
-              border: `1.5px solid ${id === heroId ? 'var(--gold)' : party.includes(id) ? 'var(--line-2)' : 'var(--frame-dark)'}`,
-              background: id === heroId ? 'radial-gradient(circle at 50% 35%, #4a3f2a, #171a22 75%)' : 'radial-gradient(circle at 50% 35%, #2a2f3c, #14161d 75%)',
+              borderRadius: 6,
+              border: `2px solid ${id === heroId ? 'var(--accent-2)' : party.includes(id) ? 'var(--frame)' : '#2a1e22'}`,
+              background: 'radial-gradient(circle at 50% 35%, #3a2a30, #140e12 75%)',
               cursor: 'pointer',
             }}
           >

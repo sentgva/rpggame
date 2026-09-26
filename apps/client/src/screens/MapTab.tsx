@@ -16,8 +16,8 @@ import { Icon, Panel, Sheet, Tabs, css, cx } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
+import { haptic } from '../tg/telegram';
 import { ModeScreen, MODES } from './modes/Modes';
-import { BannerButton } from '../components/BannerButton';
 
 export default function MapTab() {
   const stack = useUi((u) => u.stacks.map);
@@ -89,8 +89,9 @@ function MapRoot() {
           style={{
             position: 'relative',
             height: 300,
+            borderRadius: 4,
             overflow: 'hidden',
-            border: '1px solid var(--line-2)',
+            border: '1px solid var(--frame)',
             backgroundImage: `url(${bgCache.get(act)})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -112,39 +113,40 @@ function MapRoot() {
         </div>
       </Panel>
 
-      <div className={css.panelTitle} style={{ margin: '6px 2px 0' }}>
-        <span className={css.grow}>{t('map.modes')}</span>
-      </div>
-      <div className={css.col} style={{ gap: 2 }}>
-        {MODES.map((m, i) => {
-          const unlocked = m.feature ? isUnlocked({ s, cfg }, m.feature) : true;
-          const need = m.feature
-            ? (cfg.unlocks.stage as Record<string, number>)[m.feature] !== undefined
-              ? t('common.unlocksAt', { stage: stageText((cfg.unlocks.stage as Record<string, number>)[m.feature]) })
-              : t('common.unlocksLvl', { lvl: (cfg.unlocks.level as Record<string, number>)[m.feature] })
-            : '';
-          return (
-            <BannerButton
-              key={m.id}
-              icon={<Icon name={m.icon} size={52} />}
-              label={t(m.title)}
-              sub={unlocked ? t(m.desc) : `🔒 ${need}`}
-              tint={MODE_TINTS[i % MODE_TINTS.length]}
-              locked={!unlocked}
-              onClick={() => {
-                if (!unlocked) return useUi.getState().toast(need, 'info');
-                useUi.getState().push({ id: m.id });
-              }}
-            />
-          );
-        })}
-      </div>
+      <Panel title={t('map.modes')}>
+        <div className={css.list}>
+          {MODES.map((m) => {
+            const unlocked = m.feature ? isUnlocked({ s, cfg }, m.feature) : true;
+            const need = m.feature
+              ? (cfg.unlocks.stage as Record<string, number>)[m.feature] !== undefined
+                ? t('common.unlocksAt', { stage: stageText((cfg.unlocks.stage as Record<string, number>)[m.feature]) })
+                : t('common.unlocksLvl', { lvl: (cfg.unlocks.level as Record<string, number>)[m.feature] })
+              : '';
+            return (
+              <div
+                key={m.id}
+                className={css.listItem}
+                style={{ cursor: 'pointer', opacity: unlocked ? 1 : 0.55 }}
+                onClick={() => {
+                  haptic.tap();
+                  if (!unlocked) return useUi.getState().toast(need, 'info');
+                  useUi.getState().push({ id: m.id });
+                }}
+              >
+                <Icon name={m.icon} size={36} />
+                <div className={css.grow}>
+                  <b>{t(m.title)}</b>
+                  <div className={css.tiny}>{unlocked ? t(m.desc) : need}</div>
+                </div>
+                {!unlocked && <Icon name="lock" size={20} />}
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
     </div>
   );
 }
-
-/** Цветная кромка баннеров режимов — приглушённые тона по кругу. */
-const MODE_TINTS = ['#6fa3a0', '#c9a45c', '#9b8ac4', '#c98b94', '#6f9fcf', '#b8784a'];
 
 export function stageText(global: number): string {
   const ref = stageRef(Math.min(2, Math.floor((global - 1) / 200)) as Difficulty, ((global - 1) % 200) + 1);
@@ -167,7 +169,7 @@ function StagePath({ act, diff, cleared }: { act: number; diff: Difficulty; clea
   return (
     <>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-        <polyline points={nodes.map((n) => `${n.x},${n.y}`).join(' ')} fill="none" stroke="#ffffff" strokeOpacity="0.45" strokeWidth="1.2" strokeDasharray="2 1.5" />
+        <polyline points={nodes.map((n) => `${n.x},${n.y}`).join(' ')} fill="none" stroke="#e0a13a" strokeOpacity="0.5" strokeWidth="1.2" strokeDasharray="2 1.5" />
       </svg>
       {nodes.map((n) => {
         const boss = n.ref.kind !== 'normal';
@@ -183,18 +185,18 @@ function StagePath({ act, diff, cleared }: { act: number; diff: Difficulty; clea
               width: size,
               height: size,
               transform: 'translate(-50%, -50%)',
-              borderRadius: boss ? 2 : '50%',
-              border: `2px solid ${n.state === 'done' ? '#e2c283' : n.state === 'current' ? '#fff' : '#3a4252'}`,
-              background: n.state === 'done' ? 'radial-gradient(circle,#8a6d34,#3a2c14)' : n.state === 'current' ? 'radial-gradient(circle,#c98b94,#6a3a42)' : 'rgba(16,18,24,.9)',
+              borderRadius: boss ? 8 : '50%',
+              border: `2px solid ${n.state === 'done' ? '#e0a13a' : n.state === 'current' ? '#f2e6d8' : '#3a2a26'}`,
+              background: n.state === 'done' ? 'radial-gradient(circle,#6a4a20,#2a1a10)' : n.state === 'current' ? 'radial-gradient(circle,#b8322c,#4a1410)' : '#1a1216',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
-              boxShadow: n.state === 'current' ? '0 0 10px rgba(201,139,148,.9)' : undefined,
+              boxShadow: n.state === 'current' ? '0 0 10px #e03a3a' : undefined,
               animation: n.state === 'current' ? 'pulse 1.2s ease-in-out infinite' : undefined,
-              color: n.state === 'locked' ? 'var(--text-3)' : '#fff',
+              color: n.state === 'locked' ? '#6f5f55' : '#f2e6d8',
             }}
           >
             {boss ? <Icon name="skull" size={size - 12} style={{ opacity: n.state === 'locked' ? 0.4 : 1 }} /> : n.ref.stage}

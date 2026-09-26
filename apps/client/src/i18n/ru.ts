@@ -203,9 +203,6 @@ export const ru = {
 
   'heroes.title': 'Героини',
   'heroes.party': 'Отряд',
-  'heroes.power': 'Сила отряда',
-  'heroes.artifacts': 'Артефакты',
-  'heroes.equipment': 'Снаряжение',
   'heroes.preset': 'Пресет {n}',
   'heroes.front': 'Передний ряд',
   'heroes.back': 'Задний ряд',
@@ -403,8 +400,6 @@ export const ru = {
   'mode.guildDesc': 'Социальный модуль отключён',
 
   'hub.title': 'Лагерь',
-  'hub.kicker': 'Легион Валькирий',
-  'hub.sub': '{name} ждёт приказов',
   'hub.summon': 'Призыв',
   'hub.shop': 'Магазин',
   'hub.quests': 'Задания',
