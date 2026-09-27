@@ -375,6 +375,22 @@ describe('действия', () => {
     expect(s.items[newUid].enh).toBe(10);
     expect(s.items[oldUid].enh).toBe(0);
   });
+
+  it('«Снять всё» снимает все вещи, а предметы остаются в инвентаре', () => {
+    let s = fresh();
+    for (const slot of ['weapon', 'armor', 'ring'] as const) {
+      const g = applyAction(s, { type: 'dev.item', slot, rarity: 2, lvl: 10 }, { cfg, now: T0, dev: true });
+      s = g.state;
+    }
+    s = applyAction(s, { type: 'item.autoEquip', hero: 'lira' }, { cfg, now: T0 }).state;
+    const worn = Object.values(s.heroines.lira.gear).filter(Boolean) as string[];
+    expect(worn.length).toBeGreaterThan(0);
+    const r = applyAction(s, { type: 'item.unequipAll', hero: 'lira' }, { cfg, now: T0 });
+    expect(r.result).toEqual({ removed: worn.length });
+    expect(Object.values(r.state.heroines.lira.gear).filter(Boolean)).toHaveLength(0);
+    for (const uid of worn) expect(r.state.items[uid]).toBeTruthy();
+    expect(() => applyAction(s, { type: 'item.unequipAll', hero: 'nobody' }, { cfg, now: T0 })).toThrow('noHero');
+  });
 });
 
 describe('ручные ульты и Сокрушительный удар', () => {

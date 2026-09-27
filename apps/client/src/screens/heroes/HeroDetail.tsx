@@ -28,7 +28,7 @@ import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { haptic } from '../../tg/telegram';
 import { sfx } from '../../audio/sfx';
-import { BackHeader, openItem, skinSourceText } from '../common';
+import { BackHeader, UnequipAllButton, openItem, skinSourceText } from '../common';
 import { SkillTree } from './SkillTree';
 
 type TabId = 'stats' | 'tree' | 'gear' | 'skins' | 'bio';
@@ -216,9 +216,12 @@ function HeroGear({ heroId }: { heroId: string }) {
     <Panel
       title={t('gear.title')}
       right={
-        <Button size="small" kind="secondary" onClick={() => void useGame.getState().act('item.autoEquip', { hero: heroId })}>
-          {t('gear.auto')}
-        </Button>
+        <div className={css.row} style={{ gap: 4 }}>
+          <UnequipAllButton hero={heroId} />
+          <Button size="small" kind="secondary" onClick={() => void useGame.getState().act('item.autoEquip', { hero: heroId })}>
+            {t('gear.auto')}
+          </Button>
+        </div>
       }
     >
       <div className={css.list}>

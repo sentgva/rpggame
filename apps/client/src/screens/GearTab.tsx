@@ -28,7 +28,7 @@ import { Button, Cost, Icon, ItemSlot, Panel, Tabs, confirmDialog, css, cx, form
 import { getLang, t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
-import { openItem } from './common';
+import { UnequipAllButton, openItem } from './common';
 
 const LEFT: EquipSlot[] = ['weapon', 'helmet', 'armor', 'gloves', 'boots'];
 const RIGHT: EquipSlot[] = ['offhand', 'amulet', 'cloak', 'belt', 'ring1', 'ring2'];
@@ -97,15 +97,18 @@ export default function GearTab() {
       <Panel
         title={tl(HEROINE_MAP[heroId].name)}
         right={
-          <Button
-            size="small"
-            onClick={async () => {
-              const r = await useGame.getState().act('item.autoEquip', { hero: heroId });
-              if (r.ok) useUi.getState().toast(t('gear.autoDone', { n: r.result.changes }), 'good');
-            }}
-          >
-            {t('gear.auto')}
-          </Button>
+          <div className={css.row} style={{ gap: 4 }}>
+            <UnequipAllButton hero={heroId} />
+            <Button
+              size="small"
+              onClick={async () => {
+                const r = await useGame.getState().act('item.autoEquip', { hero: heroId });
+                if (r.ok) useUi.getState().toast(t('gear.autoDone', { n: r.result.changes }), 'good');
+              }}
+            >
+              {t('gear.auto')}
+            </Button>
+          </div>
         }
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 8, alignItems: 'center' }}>

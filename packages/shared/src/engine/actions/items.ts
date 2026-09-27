@@ -135,6 +135,15 @@ export const itemActions = {
     return {};
   },
 
+  /** Снять с героини все вещи (они остаются в инвентаре). */
+  'item.unequipAll': (ctx: Ctx, a: Action) => {
+    const h = ctx.s.heroines[vStr(a.hero, 'hero')];
+    assert(h, 'noHero');
+    const removed = Object.values(h.gear).filter(Boolean).length;
+    h.gear = {};
+    return { removed };
+  },
+
   'item.autoEquip': (ctx: Ctx, a: Action) => {
     const { s } = ctx;
     const ids = a.hero ? [vStr(a.hero, 'hero')] : (s.party.presets[s.party.active].filter(Boolean) as string[]);

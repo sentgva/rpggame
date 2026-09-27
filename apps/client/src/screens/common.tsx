@@ -2,9 +2,9 @@ import { HEROINE_MAP, SKIN_MAP, festivalNext, formatNum, skinFestival, type Item
 import type { ReactNode } from 'react';
 import { heroUrl } from '../art/runtime';
 import { HeroImg } from '../components/HeroImg';
-import { Button, CUR_ICON, Icon, ItemSlot, Sheet, css } from '../components/ui';
+import { Button, CUR_ICON, Icon, ItemSlot, Sheet, confirmDialog, css } from '../components/ui';
 import { t, tl } from '../i18n';
-import { useGame } from '../store/game';
+import { useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
 import { ItemDetails } from './ItemDetails';
 
@@ -158,4 +158,25 @@ export function skinSourceText(id: string, full = false): string {
   const at = when.active ? t('src.festNow') : t('src.festFrom', { date: shortDate(when.start) });
   if (!full) return `${name} · ${at}`;
   return t(fest.final ? 'src.festFinal' : 'src.festShop', { name, when: when.active ? t('src.festNowLong', { date: shortDate(when.end) }) : t('src.festFromLong', { from: shortDate(when.start), to: shortDate(when.end) }) });
+}
+
+/** Снять с героини всё снаряжение одной кнопкой (с подтверждением; вещи остаются в инвентаре). */
+export function UnequipAllButton({ hero }: { hero: string }) {
+  const gear = useGameState().heroines[hero]?.gear ?? {};
+  const n = Object.values(gear).filter(Boolean).length;
+  return (
+    <Button
+      size="small"
+      kind="secondary"
+      disabled={n === 0}
+      onClick={() =>
+        confirmDialog(t('gear.unequipAllAsk', { n }), async () => {
+          const r = await useGame.getState().act('item.unequipAll', { hero });
+          if (r.ok) useUi.getState().toast(t('gear.unequipAllDone', { n: r.result.removed }), 'good');
+        })
+      }
+    >
+      {t('gear.unequipAll')}
+    </Button>
+  );
 }
