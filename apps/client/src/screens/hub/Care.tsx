@@ -40,8 +40,11 @@ import {
   type Place,
   type RoomId,
   type Treat,
+  TOUCH_LINES,
+  type Personality,
 } from '@idle/shared';
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import type { Arms, Eyes } from '../../art/figure';
 import { heroUrl } from '../../art/runtime';
 import { sceneUrl, type SceneBg } from '../../art/scenes';
 import { HeroImg } from '../../components/HeroImg';
@@ -213,6 +216,17 @@ type Scene =
   | { kind: 'morning' };
 
 /** Пиксельный фон сцены. */
+/** Реакция на касание: по голове — жмурится от удовольствия, по телу — по характеру. */
+const TOUCH_HEAD: { arms: Arms; eyes: Eyes } = { arms: 'relaxed', eyes: 'closed' };
+const TOUCH_BODY: Record<Personality, { arms: Arms; eyes: Eyes }> = {
+  proud: { arms: 'crossed', eyes: 'half' },
+  playful: { arms: 'kiss', eyes: 'wink' },
+  gentle: { arms: 'shy', eyes: 'closed' },
+  mysterious: { arms: 'hips', eyes: 'half' },
+  fierce: { arms: 'victory', eyes: 'open' },
+  shy: { arms: 'shy', eyes: 'closed' },
+};
+
 function sceneBg(sc: Scene): SceneBg {
   switch (sc.kind) {
     case 'camp':
@@ -252,6 +266,20 @@ function CareHero({ hero }: { hero: string }) {
   const costs = bondCosts({ cfg, s });
   const [scene, setScene] = useState<Scene>({ kind: 'camp' });
   const [line, setLine] = useState(() => tl(GREETINGS[tr.p][greetingTier(b.lvl)]));
+  // касание: поза и глаза на пару секунд, реплика и сердечки
+  const [touch, setTouch] = useState<{ arms: Arms; eyes: Eyes; hearts: { id: number; x: number; y: number; d: number }[] } | null>(null);
+  const touchTimer = useRef(0);
+  useEffect(() => () => clearTimeout(touchTimer.current), []);
+  function touchHero(zone: 'head' | 'body', x: number, y: number) {
+    haptic.tap();
+    const lines = TOUCH_LINES[tr.p][zone];
+    setLine(tl(lines[Math.floor(Math.random() * lines.length)]));
+    const react = zone === 'head' ? TOUCH_HEAD : TOUCH_BODY[tr.p];
+    const id = Date.now();
+    setTouch({ ...react, hearts: Array.from({ length: zone === 'head' ? 3 : 2 }, (_, i) => ({ id: id + i, x: x - 6 + (i - 1) * 14, y: y - 10, d: i * 120 })) });
+    clearTimeout(touchTimer.current);
+    touchTimer.current = window.setTimeout(() => setTouch(null), 1900);
+  }
   const [gain, setGain] = useState<{ n: number; key: number } | null>(null);
   const costume = `${hero}_bond`;
   const hasCostume = s.skins.includes(costume);
@@ -477,8 +505,27 @@ function CareHero({ hero }: { hero: string }) {
             <span className={st.zzz} style={{ animationDelay: '1.8s' }}>Z</span>
           </>
         ) : (
-          <HeroImg id={hero} skin={skin} className={st.hero} unarmed flirt />
+          <HeroImg
+            id={hero}
+            skin={skin}
+            className={st.hero}
+            unarmed
+            flirt
+            arms={touch?.arms}
+            eyes={touch?.eyes}
+            onClick={(e) => {
+              // голова — верхняя треть фигуры; сердечки — там, куда нажали (в координатах сцены)
+              const box = e.currentTarget.getBoundingClientRect();
+              const scene = e.currentTarget.parentElement!.getBoundingClientRect();
+              touchHero((e.clientY - box.top) / box.height < 0.3 ? 'head' : 'body', e.clientX - scene.left, e.clientY - scene.top);
+            }}
+          />
         )}
+        {touch?.hearts.map((h) => (
+          <span key={h.id} className={st.touchHeart} style={{ left: h.x, top: h.y, animationDelay: `${h.d}ms` }}>
+            ♥
+          </span>
+        ))}
         {scene.kind === 'bath' && (
           <>
             <div className={st.tub} />

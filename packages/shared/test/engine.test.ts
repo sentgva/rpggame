@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PHOTO_DAILY,
+  PHOTO_ALBUM_MAX,
+  photoTaste,
+  photoScore,
+  photoOutfitFits,
   DEFAULT_CONFIG as cfg,
   GameError,
   applyAction,
@@ -1500,5 +1505,65 @@ describe('Турнир Валькирий и Самоцветные копи', (
     expect(mineNeedsFight('monster', 1)).toBe(true);
     expect(mineNeedsFight('stairs', 1)).toBe(false);
     expect(mineNeedsFight('stairs', 3)).toBe(true);
+  });
+});
+
+describe('Фотосессия', () => {
+  const act = (s: PlayerState, a: Record<string, unknown>, now = T0) => applyAction(s, a as never, { cfg, now, dev: true });
+  const owned = (id: string) => act(fresh(), { type: 'dev.hero', id, lvl: 10 }).state;
+
+  it('звёзды: за любимые место, позу, выражение и наряд под место; смазанный кадр — минус звезда', () => {
+    const t = photoTaste('selene');
+    const best = photoScore('selene', { ...t, skin: undefined, timing: 'perfect' });
+    // обычный наряд подходит только лагерю
+    expect(best.stars).toBe(t.loc === 'camp' ? 5 : 4);
+    expect(best.match).toMatchObject({ loc: true, pose: true, face: true });
+    const other = (['beach', 'sunset', 'onsen', 'sakura', 'stars', 'camp'] as const).find((l) => l !== t.loc && l !== 'camp')!;
+    expect(photoScore('selene', { ...t, loc: other, timing: 'miss' }).stars).toBe(2);
+    // купальник подходит пляжу, бельё — звёздной ночи
+    const beach = SKINS.find((k) => k.set === 'summer')!;
+    expect(photoOutfitFits('beach', beach.id)).toBe(true);
+    expect(photoOutfitFits('stars', beach.id)).toBe(false);
+    expect(photoOutfitFits('camp', undefined)).toBe(true);
+    // у разных героинь вкусы разные
+    const tastes = new Set(['lira', 'astrid', 'seyra', 'keira', 'selene', 'velvet', 'mirabel', 'hanna'].map((h) => JSON.stringify(photoTaste(h))));
+    expect(tastes.size).toBeGreaterThan(4);
+  });
+
+  it('награда — за первые кадры дня, каждый кадр в альбоме, угаданное запоминается', () => {
+    let s = owned('selene');
+    const t = photoTaste('selene');
+    const c0 = s.cur.crystals;
+    const shot = { type: 'photo.shoot', hero: 'selene', loc: t.loc, pose: t.pose, face: t.face, timing: 'perfect' };
+    let lastResult: any;
+    for (let i = 0; i < PHOTO_DAILY + 1; i++) {
+      const r = act(s, shot);
+      s = r.state;
+      lastResult = r.result;
+      if (i < PHOTO_DAILY) expect((r.result as any).rewarded).toBe(true);
+    }
+    expect(lastResult.rewarded).toBe(false);
+    expect(s.cur.crystals).toBeGreaterThan(c0);
+    expect(s.photo!.album.length).toBe(PHOTO_DAILY + 1);
+    expect(s.photo!.known.selene).toMatchObject({ loc: t.loc, pose: t.pose, face: t.face });
+    // UR-героиня получает близость
+    expect((s.bond?.selene?.xp ?? 0) + (s.bond?.selene?.lvl ?? 0)).toBeGreaterThan(0);
+    // на следующий день — снова с наградой
+    expect((act(s, shot, T0 + 86400000).result as any).rewarded).toBe(true);
+    // альбом ограничен
+    for (let i = 0; i < PHOTO_ALBUM_MAX + 3; i++) s = act(s, shot).state;
+    expect(s.photo!.album.length).toBe(PHOTO_ALBUM_MAX);
+    s = act(s, { type: 'photo.delete', index: 0 }).state;
+    expect(s.photo!.album.length).toBe(PHOTO_ALBUM_MAX - 1);
+  });
+
+  it('нельзя снимать чужую героиню и в чужом облике', () => {
+    const s = owned('selene');
+    expect(() => act(s, { type: 'photo.shoot', hero: 'velvet', loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
+    const foreign = SKINS.find((k) => k.hero !== 'selene')!;
+    expect(() => act(s, { type: 'photo.shoot', hero: 'selene', skin: foreign.id, loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
+    const own = SKINS.find((k) => k.hero === 'selene');
+    if (own) expect(() => act(s, { type: 'photo.shoot', hero: 'selene', skin: own.id, loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
+    expect(() => act(s, { type: 'photo.shoot', hero: 'selene', loc: 'bedroom', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
   });
 });

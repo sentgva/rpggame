@@ -65,7 +65,7 @@ function heroFor(ctx: Ctx, a: Action): string {
 }
 
 /** Опыт близости с повышением уровней и наградами пиков. */
-function gain(ctx: Ctx, hero: string, b: BondState, xp: number) {
+export function bondGain(ctx: Ctx, hero: string, b: BondState, xp: number) {
   const out = { xp, levelUps: [] as number[], rewards: {} as Record<string, number>, shards: 0 };
   b.xp += xp;
   while (b.lvl < BOND_MAX && b.xp >= BOND_XP[b.lvl]) {
@@ -100,7 +100,7 @@ export const bondActions = {
     const { index } = bondTopic(hero, b.day, b.talk);
     b.talk++;
     const xp = Math.round(BOND_GAIN.talk[answer] * (1 + ROOM_BONUS * roomLvl(ctx, 'living')));
-    return { hero, topic: index, answer, ...gain(ctx, hero, b, xp) };
+    return { hero, topic: index, answer, ...bondGain(ctx, hero, b, xp) };
   },
 
   'bond.treat': (ctx: Ctx, a: Action) => {
@@ -113,7 +113,7 @@ export const bondActions = {
     const like = treat === t.treat ? 0 : treat === t.dislike ? 2 : 1;
     b.treat++;
     const xp = Math.round([BOND_GAIN.treatFav, BOND_GAIN.treat, BOND_GAIN.treatBad][like] * (1 + ROOM_BONUS * roomLvl(ctx, 'kitchen')));
-    return { hero, treat, like, ...gain(ctx, hero, b, xp) };
+    return { hero, treat, like, ...bondGain(ctx, hero, b, xp) };
   },
 
   /** Горячие источники (в купальниках): раз в день, за кристаллы. */
@@ -123,7 +123,7 @@ export const bondActions = {
     assert(!b.spa, 'usedToday');
     spend(ctx, bondCosts(ctx).spa);
     b.spa = true;
-    return { hero, ...gain(ctx, hero, b, BOND_GAIN.spa) };
+    return { hero, ...bondGain(ctx, hero, b, BOND_GAIN.spa) };
   },
 
   /** Свидание: с 3-го уровня близости, раз в день; любимое место — больше близости. */
@@ -136,7 +136,7 @@ export const bondActions = {
     spend(ctx, bondCosts(ctx).date);
     const fav = place === bondTraits(hero).place;
     b.date = true;
-    return { hero, place, fav, ...gain(ctx, hero, b, fav ? BOND_GAIN.dateFav : BOND_GAIN.date) };
+    return { hero, place, fav, ...bondGain(ctx, hero, b, fav ? BOND_GAIN.dateFav : BOND_GAIN.date) };
   },
 
   /** Обустроить комнату резиденции (или улучшить её). */
@@ -159,7 +159,7 @@ export const bondActions = {
     const b = { ...bondState(ctx, hero) };
     assert(!b.bath, 'usedToday');
     b.bath = true;
-    return { hero, ...gain(ctx, hero, b, BATH_GAIN.base + BATH_GAIN.perLvl * lvl) };
+    return { hero, ...bondGain(ctx, hero, b, BATH_GAIN.base + BATH_GAIN.perLvl * lvl) };
   },
 
   /** Ночёвка в спальне: с близости 5, одна героиня за ночь; утром — подарок (минуты дохода). */
@@ -174,7 +174,7 @@ export const bondActions = {
     const gift = scaleReward(ctx.cfg, ctx.s, { gold: minutes, xp: minutes });
     give(ctx, gift);
     ctx.s.home = { ...homeState(ctx), slept: b.day, sleptWith: hero };
-    return { hero, gift, ...gain(ctx, hero, b, SLEEP_GAIN.base + SLEEP_GAIN.perLvl * lvl) };
+    return { hero, gift, ...bondGain(ctx, hero, b, SLEEP_GAIN.base + SLEEP_GAIN.perLvl * lvl) };
   },
 
   /** Наряд близости: только на 10-м уровне и за Сердца Эфира. */

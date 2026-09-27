@@ -35,6 +35,10 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   unarmed?: boolean;
   /** время от времени кокетливо позирует (только без оружия): руки на бёдрах, за головой, поцелуй, взмах */
   flirt?: boolean;
+  /** заданная поза рук (фотосессия, реакции) — поверх живой анимации */
+  arms?: Arms;
+  /** заданное выражение глаз; 'open' — обычное моргание */
+  eyes?: Eyes;
 };
 
 /** Кокетливые позы: поза рук и (для поцелуя) подмигивание. */
@@ -42,7 +46,7 @@ const FLIRT: { arms: Arms; eyes?: Eyes }[] = [{ arms: 'hips' }, { arms: 'behindH
 const FLIRT_MS = 1900;
 
 /** Героиня, которая дышит, моргает и иногда подмигивает. */
-export function HeroImg({ id, skin, still, unarmed, flirt, alt = '', style, ...rest }: Props) {
+export function HeroImg({ id, skin, still, unarmed, flirt, arms, eyes, alt = '', style, ...rest }: Props) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
   const herald = !!HEROINE_MAP[id]?.herald;
   useEffect(() => {
@@ -80,7 +84,11 @@ export function HeroImg({ id, skin, still, unarmed, flirt, alt = '', style, ...r
         animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', '),
       }
     : style;
-  return <img {...rest} style={st} alt={alt} {...spriteSrc(heroUrl(id, skin, frame ?? {}, unarmed))} draggable={false} />;
+  // заданные поза и глаза — поверх дыхания и моргания (моргание остаётся, если глаза обычные)
+  const f = { ...(frame ?? {}) };
+  if (arms) f.arms = arms;
+  if (eyes && eyes !== 'open') f.eyes = eyes;
+  return <img {...rest} style={st} alt={alt} {...spriteSrc(heroUrl(id, skin, f, unarmed))} draggable={false} />;
 }
 
 /** Враг с «живой» анимацией; Колоссы машут крыльями/хвостом и светятся своей стихией. */

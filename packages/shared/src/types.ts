@@ -403,6 +403,27 @@ export interface EncounterState {
   until: number;
 }
 
+export interface PhotoEntry {
+  hero: string;
+  skin?: string;
+  loc: string;
+  pose: string;
+  face: string;
+  stars: number;
+  at: number;
+}
+
+export interface PhotoState {
+  day: string;
+  /** кадров с наградой сегодня */
+  shots: number;
+  album: PhotoEntry[];
+  /** что уже известно о вкусах героини (угаданные место, поза, выражение) */
+  known: Record<string, { loc?: string; pose?: string; face?: string }>;
+  /** лучший кадр за всё время (звёзды) */
+  best: number;
+}
+
 export interface PlayerState {
   v: number;
   id: string;
@@ -416,6 +437,8 @@ export interface PlayerState {
   home?: HomeState;
   artifacts?: ArtifactState;
   festival?: FestivalState;
+  /** Фотосессия: кадры с наградой за день, альбом, разгаданные вкусы героинь. */
+  photo?: PhotoState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

@@ -29,6 +29,7 @@ export * from './changelog';
 export * from './bond';
 export * from './artifacts';
 export * from './festival';
+export * from './photo';
 export * from './affixes';
 export * from './tourney';
 export * from './mine';

@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-27c',
+    date: '27.09.2026',
+    icon: '📸',
+    title: { ru: 'Фотосессия', en: 'Photoshoot' },
+    lead: { ru: 'Снимай героинь на пляже, на закате и у источников — и собирай альбом', en: 'Shoot heroines on the beach, at sunset and at the springs — and fill an album' },
+    color: '#ff9ac8',
+    art: { hero: 'melody', skin: 'melody_beach' },
+    items: [
+      { ru: '📸 Выбирай наряд, место, позу и выражение, лови затвор — у каждой героини свои любимые, угадай их для 5★', en: '📸 Pick outfit, place, pose and expression, time the shutter — every heroine has favorites, guess them for 5★' },
+      { ru: '💎 Три кадра в день приносят кристаллы и близость, лучшие снимки — в альбом', en: '💎 Three shots a day give crystals and affection, the best go to the album' },
+      { ru: '💕 В «Уходе» героиню можно погладить по голове — или смутить', en: '💕 In Care you can pat a heroine on the head — or make her blush' },
+    ],
+  },
+  {
     id: '2026-09-27b',
     date: '27.09.2026',
     icon: '👙',

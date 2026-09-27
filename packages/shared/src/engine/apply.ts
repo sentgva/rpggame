@@ -16,6 +16,7 @@ import { artifactActions } from './actions/artifacts';
 import { festivalActions } from './actions/festival';
 import { tourneyActions } from './actions/tourney';
 import { mineActions } from './actions/mine';
+import { photoActions } from './actions/photo';
 import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
@@ -42,6 +43,7 @@ export const HANDLERS: Record<string, Handler> = {
   ...festivalActions,
   ...tourneyActions,
   ...mineActions,
+  ...photoActions,
   ...devActions,
   ...serverActions,
 };

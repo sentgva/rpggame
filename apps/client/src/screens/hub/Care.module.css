@@ -36,6 +36,7 @@
 }
 
 .hero {
+  cursor: pointer;
   position: absolute;
   left: 50%;
   bottom: 6px;
@@ -430,5 +431,31 @@
     opacity: 0;
     translate: 40px -70px;
     scale: 1.4;
+  }
+}
+
+/* сердечки от касания */
+.touchHeart {
+  position: absolute;
+  z-index: 3;
+  font-size: 18px;
+  color: #ff6a9a;
+  text-shadow: 0 0 6px #ff9ac8, 0 1px 1px #000;
+  pointer-events: none;
+  animation: touchHeart 1.3s ease-out both;
+}
+
+@keyframes touchHeart {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.9);
   }
 }

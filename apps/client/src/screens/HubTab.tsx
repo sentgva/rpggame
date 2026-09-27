@@ -1,4 +1,4 @@
-import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, achievementClaimable, artifactFreeReady, bondState, isUnlocked } from '@idle/shared';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, PHOTO_DAILY, achievementClaimable, artifactFreeReady, bondState, isUnlocked, photoState } from '@idle/shared';
 import { HeroImg } from '../components/HeroImg';
 import { openNews } from '../components/News';
 import { Icon, css, cx } from '../components/ui';
@@ -14,6 +14,7 @@ import { Constellation } from './hub/Constellation';
 import { DevPanel } from './hub/DevPanel';
 import { Guild } from './hub/Guild';
 import { Mail } from './hub/Mail';
+import { Photo } from './hub/Photo';
 import { Pass } from './hub/Pass';
 import { Quests } from './hub/Quests';
 import { Settings } from './hub/Settings';
@@ -55,6 +56,8 @@ export default function HubTab() {
       return <Care hero={top.params?.hero} home={top.params?.home} />;
     case 'festival':
       return <Festival />;
+    case 'photo':
+      return <Photo />;
     default:
       return <HubRoot />;
   }
@@ -81,6 +84,7 @@ function HubRoot() {
     { id: 'constellation', icon: 'constellation', label: t('hub.constellation'), locked: !isUnlocked({ s, cfg }, 'constellation') },
     { id: 'ascension', icon: 'ascension', label: t('hub.ascension'), locked: !isUnlocked({ s, cfg }, 'ascension') },
     { id: 'care', icon: 'care', label: t('hub.care'), badge: careBadge },
+    { id: 'photo', icon: 'camera', label: t('hub.photo'), badge: photoState({ s, now }).shots < PHOTO_DAILY && Object.keys(s.heroines).length > 0 },
     ...(social ? [{ id: 'guild', icon: 'guildCoins', label: t('hub.guild') }] : []),
     { id: 'story', icon: 'xp', label: t('hub.story') },
     { id: 'news', icon: 'news', label: t('hub.news') },

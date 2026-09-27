@@ -7,7 +7,7 @@ const SCENE_H = 100;
 const W = SCENE_W;
 const H = SCENE_H;
 
-export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura' | 'tourney' | 'mine';
+export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura' | 'tourney' | 'mine' | 'beach' | 'sunset';
 
 type C = string | RGBA;
 type Pt = [number, number];
@@ -207,7 +207,124 @@ function frame(p: Painter, x: number, y: number, w: number, h: number, c: C) {
 
 // ——— места ———
 
+/** Пальма: изогнутый ствол и веер листьев (для пляжа и заката). */
+function palm(p: Painter, x: number, base: number, h: number, lean: number, trunk: C, leaf: C, leafDark: C) {
+  const top: Pt = [x + lean, base - h];
+  for (let i = 0; i <= h; i++) {
+    const k = i / h;
+    const cx = Math.round(x + lean * k * k);
+    p.hl(cx - 1, cx + 1, base - i, trunk);
+    if (i % 3 === 0) p.set(cx - 1, base - i, leafDark, 0.5);
+  }
+  for (const [dx, dy, len] of [
+    [-1, 0, 14],
+    [1, 0, 14],
+    [-1, -1, 10],
+    [1, -1, 10],
+    [-1, 1, 11],
+    [1, 1, 11],
+  ] as [number, number, number][]) {
+    for (let i = 0; i < len; i++) {
+      const xx = top[0] + dx * i;
+      const yy = top[1] + dy * Math.round(i * 0.45) + Math.round((i * i) / (len * 1.4));
+      p.hl(xx - 1, xx + 1, yy, i % 4 === 3 ? leafDark : leaf);
+      p.set(xx, yy + 1, leafDark);
+    }
+  }
+  p.circle(top[0], top[1] + 1, 2, '#6a4a22');
+}
+
 const SCENES: Record<SceneBg, (p: Painter) => void> = {
+  beach(p) {
+    // солнечное небо, облака, море с пеной, песок, пальма, зонтик и полотенце
+    p.vgrad(0, 0, W, 46, '#3a9ee8', '#bfe6ff');
+    p.glow(104, 14, 20, '#fff6c0', 0.5);
+    p.circle(104, 14, 6, '#fff8d8');
+    for (const [cx, cy, rx] of [
+      [26, 14, 12],
+      [40, 12, 9],
+      [70, 22, 10],
+      [82, 20, 7],
+    ] as [number, number, number][]) {
+      p.ellipse(cx, cy, rx, 3, '#ffffff', 0.9);
+      p.ellipse(cx + 2, cy + 1, rx - 3, 2, '#dff2ff', 0.9);
+    }
+    p.vgrad(0, 46, W, 18, '#1a7ac8', '#38b4e0', 2);
+    for (let i = 0; i < 14; i++) {
+      const y = 48 + p.rng.int(14);
+      const x = p.rng.int(W);
+      p.hl(x, x + 2 + p.rng.int(6), y, '#9ee0ff', 0.6);
+    }
+    // полоса прибоя
+    for (let x = 0; x < W; x++) {
+      const y = 63 + Math.round(Math.sin(x / 7) * 1.5);
+      p.vl(x, y, y + 1, '#f4fbff', 0.9);
+      p.set(x, y + 2, '#a8e4f0', 0.7);
+    }
+    p.vgrad(0, 66, W, 34, '#f4dca0', '#e0bc78', 3);
+    for (let i = 0; i < 60; i++) p.set(p.rng.int(W), 68 + p.rng.int(32), '#c8a060', 0.6);
+    palm(p, 12, 92, 52, 10, '#8a5a2a', '#3aa84a', '#1e7a34');
+    // зонтик и полотенце справа
+    p.line(110, 58, 104, 92, '#6a4a2a');
+    p.poly(
+      [
+        [92, 60],
+        [110, 50],
+        [126, 60],
+      ],
+      '#ff5a7a',
+    );
+    for (const [x0, x1] of [
+      [96, 101],
+      [106, 111],
+      [116, 121],
+    ])
+      p.poly(
+        [
+          [x0, 58],
+          [110, 50],
+          [x1, 58],
+        ],
+        '#ffffff',
+      );
+    p.rect(84, 88, 30, 6, '#5ac0e8');
+    for (let x = 84; x < 114; x += 6) p.rect(x, 88, 3, 6, '#ffffff', 0.9);
+    // ракушки и морская звезда
+    p.set(40, 94, '#ffe0e8');
+    p.set(64, 86, '#fff0d0');
+    p.poly(
+      [
+        [74, 95],
+        [76, 91],
+        [78, 95],
+        [74, 93],
+        [78, 93],
+      ],
+      '#ff8a4a',
+    );
+  },
+  sunset(p) {
+    // закатное небо, половина солнца у горизонта, золотая дорожка, силуэты пальм
+    p.vgrad(0, 0, W, 52, '#2a1440', '#ff8a5a', 2);
+    p.vgrad(0, 30, W, 22, '#e0604a', '#ffc070', 2);
+    p.glow(64, 52, 30, '#ffd070', 0.45);
+    p.circle(64, 52, 12, '#ffe090');
+    for (let i = 0; i < 6; i++) p.hl(20 + i * 18, 30 + i * 18, 18 + (i % 3) * 5, '#ffb08a', 0.5);
+    p.vgrad(0, 52, W, 26, '#5a2a4a', '#2a1a3a', 2);
+    for (let y = 53; y < 78; y += 2) {
+      const w = 12 - Math.floor((y - 53) / 3);
+      if (w > 0) p.hl(64 - w - p.rng.int(3), 64 + w + p.rng.int(3), y, '#ffc070', 0.75);
+    }
+    for (let i = 0; i < 16; i++) {
+      const y = 55 + p.rng.int(22);
+      const x = p.rng.int(W);
+      p.hl(x, x + 2 + p.rng.int(5), y, '#ff9a6a', 0.4);
+    }
+    p.vgrad(0, 78, W, 22, '#4a2230', '#2a1420', 3);
+    palm(p, 10, 96, 60, 12, '#1a0c14', '#1e0e18', '#12080e');
+    palm(p, 120, 98, 44, -8, '#1a0c14', '#1e0e18', '#12080e');
+    for (let i = 0; i < 6; i++) p.set(20 + p.rng.int(90), 6 + p.rng.int(18), '#fff0d0');
+  },
   camp(p) {
     p.vgrad(0, 0, W, 64, '#0c0e2a', '#3a2a52');
     p.stars(55, 0, 0, W, 46);
