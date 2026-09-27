@@ -500,7 +500,7 @@ export const en: typeof ru = {
   'dev.warning': 'This account is flagged as dev and excluded from public leaderboards.',
   'dev.art': 'Art style',
   'dev.artHd': 'Soft HD',
-  'dev.artClassic': 'Old style',
+  'dev.artClassic': 'Main',
   'dev.artHint': 'Changes for all players: for you right away, for others on their next launch.',
   'dev.artConfirm': 'Switch the art style for all players? The game will restart.',
   'dev.artFail': 'Could not switch the style',

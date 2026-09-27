@@ -1,6 +1,7 @@
 import { ELEMENT_COLORS, ENEMY_MAP, HEROINE_MAP } from '@idle/shared';
 import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from 'react';
 import { frameKey, lifeFrame, newLife, type LifeFrame } from '../art/anim';
+import type { Arms, Eyes } from '../art/figure';
 import { enemyUrl, heroUrl, spriteSrc } from '../art/runtime';
 
 // один общий таймер на все «живые» портреты
@@ -32,10 +33,16 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   still?: boolean;
   /** без оружия в руках */
   unarmed?: boolean;
+  /** время от времени кокетливо позирует (только без оружия): руки на бёдрах, за головой, поцелуй, взмах */
+  flirt?: boolean;
 };
 
+/** Кокетливые позы: поза рук и (для поцелуя) подмигивание. */
+const FLIRT: { arms: Arms; eyes?: Eyes }[] = [{ arms: 'hips' }, { arms: 'behindHead' }, { arms: 'kiss', eyes: 'wink' }, { arms: 'wave' }, { arms: 'hips', eyes: 'wink' }];
+const FLIRT_MS = 1900;
+
 /** Героиня, которая дышит, моргает и иногда подмигивает. */
-export function HeroImg({ id, skin, still, unarmed, alt = '', style, ...rest }: Props) {
+export function HeroImg({ id, skin, still, unarmed, flirt, alt = '', style, ...rest }: Props) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
   const herald = !!HEROINE_MAP[id]?.herald;
   useEffect(() => {
@@ -43,14 +50,28 @@ export function HeroImg({ id, skin, still, unarmed, alt = '', style, ...rest }: 
     if (still || reducedMotion) return;
     const life = newLife(performance.now(), true, herald);
     let key = 'idle:open';
+    // кокетливая поза: какая и до какого момента; следующая — через 5–11 с
+    let pose: { arms: Arms; eyes?: Eyes; until: number } | null = null;
+    let nextPose = performance.now() + 2500 + Math.random() * 3500;
+    const posing = flirt && unarmed;
     return subscribe((now) => {
       const f = lifeFrame(life, now);
+      if (posing) {
+        if (!pose && now >= nextPose) pose = { ...FLIRT[Math.floor(Math.random() * FLIRT.length)], until: now + FLIRT_MS };
+        if (pose && now < pose.until) {
+          f.arms = pose.arms;
+          if (pose.eyes) f.eyes = pose.eyes;
+        } else if (pose) {
+          pose = null;
+          nextPose = now + 5000 + Math.random() * 6000;
+        }
+      }
       const k = frameKey(f);
       if (k === key) return;
       key = k;
       setFrame(k === 'idle:open' ? null : f);
     });
-  }, [id, skin, still, herald]);
+  }, [id, skin, still, herald, flirt, unarmed]);
   // Вестницы светятся цветом своей стихии
   const st: CSSProperties | undefined = herald && !still
     ? {

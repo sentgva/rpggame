@@ -80,7 +80,9 @@ function h(
   look: Look,
   boss = false,
 ): HeroineDef {
-  return { id, name: { ru, en }, cls, element, rarity, title, bio, quote, look, boss: boss || undefined };
+  // фигура по умолчанию: пышнее обычной, у UR — ещё на ступень (своё значение в look важнее)
+  const figure = { bust: rarity === 'UR' ? 2 : 1, hips: 1 };
+  return { id, name: { ru, en }, cls, element, rarity, title, bio, quote, look: { ...figure, ...look }, boss: boss || undefined };
 }
 
 export const HEROINES: HeroineDef[] = [

@@ -60,9 +60,9 @@ export function DevPanel() {
   );
 }
 
-/** Стиль графики для всех игроков: мягкий HD (по умолчанию) или прежний. */
+/** Стиль графики для всех игроков: основной (по умолчанию) или мягкий HD. */
 function ArtStylePanel() {
-  const cur = useCfg().art === 'classic' ? 'classic' : 'hd';
+  const cur = useCfg().art === 'hd' ? 'hd' : 'classic';
   const pick = (style: 'hd' | 'classic') => {
     if (style === cur) return;
     confirmDialog(t('dev.artConfirm'), async () => {
@@ -80,7 +80,7 @@ function ArtStylePanel() {
   return (
     <Panel title={t('dev.art')}>
       <div className={css.row} style={{ gap: 6 }}>
-        {(['hd', 'classic'] as const).map((x) => (
+        {(['classic', 'hd'] as const).map((x) => (
           <button key={x} className={cx(css.chip, cur === x && css.chipOn)} onClick={() => pick(x)}>
             {t(x === 'hd' ? 'dev.artHd' : 'dev.artClassic')}
           </button>

@@ -29,8 +29,8 @@ export class DevService {
     await this.log(uid, op, body);
     switch (op) {
       case 'art.style': {
-        // стиль графики для всех игроков: мягкий HD или прежний
-        const style = body?.style === 'classic' ? 'classic' : 'hd';
+        // стиль графики для всех игроков: основной или мягкий HD
+        const style = body?.style === 'hd' ? 'hd' : 'classic';
         await this.balance.saveArt(style);
         return { ok: true, style };
       }

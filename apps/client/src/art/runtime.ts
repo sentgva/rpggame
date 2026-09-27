@@ -10,14 +10,14 @@ const canvasCache = new Map<string, HTMLCanvasElement>();
 const urlCache = new Map<string, string>();
 
 /**
- * Стиль фигур: 'hd' — мягкий HD 96×96 (основной), 'classic' — прежний 48×48.
+ * Стиль фигур: 'classic' — основной 48×48, 'hd' — мягкий HD 96×96 (запасной).
  * Задаётся из конфига сервера при входе (переключатель — в разделе разработчика).
  */
 export type ArtStyle = 'hd' | 'classic';
-let style: ArtStyle = 'hd';
+let style: ArtStyle = 'classic';
 
 export function setArtStyle(next: ArtStyle | undefined) {
-  const v: ArtStyle = next === 'classic' ? 'classic' : 'hd';
+  const v: ArtStyle = next === 'hd' ? 'hd' : 'classic';
   if (v === style) return;
   style = v;
   canvasCache.clear();
@@ -114,6 +114,8 @@ export function unitCanvas(ref: string, opts: { mirror?: boolean; skin?: string 
 /** unarmed — без оружия в руках (сцены «Ухода»). */
 export function heroUrl(heroId: string, skin?: string, pose: Pose = {}, unarmed = false): string {
   const opts: Partial<SpriteSpec> = unarmed ? { weapon: 'none' } : {};
+  // без оружия боевая стойка выглядит странно (пустой кулак) — руки свободно опущены
+  if (unarmed && (!pose.arms || pose.arms === 'idle' || pose.arms === 'idle2')) pose = { ...pose, arms: 'relaxed' };
   const u0 = unarmed ? ':u' : '';
   const key = `url:${heroId}:${skin ?? ''}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}${u0}`;
   let u = urlCache.get(key);

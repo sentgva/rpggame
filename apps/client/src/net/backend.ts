@@ -70,7 +70,7 @@ class LocalBackend implements Backend {
   async init(): Promise<InitResult> {
     const now = Date.now();
     try {
-      if (localStorage.getItem(ART_KEY) === 'classic') this.cfg = { ...this.cfg, art: 'classic' };
+      if (localStorage.getItem(ART_KEY) === 'hd') this.cfg = { ...this.cfg, art: 'hd' };
     } catch {
       /* хранилище недоступно — стиль по умолчанию */
     }
@@ -146,7 +146,7 @@ class LocalBackend implements Backend {
     }
     if (op === 'log') return this.log.slice(-100).reverse();
     if (op === 'art.style') {
-      const style = body?.style === 'classic' ? 'classic' : 'hd';
+      const style = body?.style === 'hd' ? 'hd' : 'classic';
       this.cfg = { ...this.cfg, art: style };
       try {
         localStorage.setItem(ART_KEY, style);

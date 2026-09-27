@@ -20,17 +20,17 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-09-27',
+    id: '2026-09-27b',
     date: '27.09.2026',
-    icon: '✨',
-    title: { ru: 'Новая графика', en: 'New Art' },
-    lead: { ru: 'Все героини, облики и монстры перерисованы в мягком HD — вдвое детальнее', en: 'Every heroine, skin and monster is redrawn in soft HD — twice the detail' },
-    color: '#ff9ac8',
-    art: { hero: 'melody', skin: 'melody_beach' },
+    icon: '👙',
+    title: { ru: 'Пляжный сезон', en: 'Beach Season' },
+    lead: { ru: 'Героини стали пышнее, купальники — меньше и ярче', en: 'Curvier heroines, smaller and brighter swimsuits' },
+    color: '#ff7aa8',
+    art: { hero: 'seyra', skin: 'seyra_beach' },
     items: [
-      { ru: '👀 Выразительные глаза с бликами, улыбка и румянец', en: '👀 Expressive eyes with highlights, a smile and a blush' },
-      { ru: '🎨 Мягкие цвета, плавные края и цветной контур вместо чёрного', en: '🎨 Soft colors, smooth edges and a colored outline instead of black' },
-      { ru: '👙 Купальник с оборками теперь сидит по фигуре', en: '👙 The ruffled bikini now fits the figure' },
+      { ru: '👙 Все купальники перешиты: треугольники на тонких завязках, кольца, бандо с узлом, блеск ткани', en: '👙 Every swimsuit remade: string triangles, rings, a knotted bandeau, glossy fabric' },
+      { ru: '💃 Фигуры пышнее — у UR-героинь особенно', en: '💃 Curvier figures — especially the UR heroines' },
+      { ru: '😘 В «Уходе» героини позируют: руки за головой, на бёдрах, воздушный поцелуй', en: '😘 In Care heroines strike poses: hands behind the head, on the hips, a blown kiss' },
     ],
   },
   {

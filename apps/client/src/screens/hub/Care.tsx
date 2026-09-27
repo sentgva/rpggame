@@ -477,7 +477,7 @@ function CareHero({ hero }: { hero: string }) {
             <span className={st.zzz} style={{ animationDelay: '1.8s' }}>Z</span>
           </>
         ) : (
-          <HeroImg id={hero} skin={skin} className={st.hero} unarmed />
+          <HeroImg id={hero} skin={skin} className={st.hero} unarmed flirt />
         )}
         {scene.kind === 'bath' && (
           <>

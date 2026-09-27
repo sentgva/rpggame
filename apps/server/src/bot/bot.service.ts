@@ -272,7 +272,7 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   private welcomeImageUrl(): string | null {
     try {
       // версия в адресе — чтобы Telegram не показывал закэшированную старую картинку после перерисовки
-      return env.webAppUrl ? new URL('/welcome.png?v=hd', env.webAppUrl).toString() : null;
+      return env.webAppUrl ? new URL('/welcome.png?v=3', env.webAppUrl).toString() : null;
     } catch {
       return null;
     }

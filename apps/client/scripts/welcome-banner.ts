@@ -1,7 +1,7 @@
 /** Пиксельная картинка приветствия бота (/start): npx tsx --tsconfig scripts/tsconfig.json scripts/welcome-banner.ts public/welcome.png */
 import { writeFileSync } from 'node:fs';
 import { HEROINE_MAP } from '@idle/shared';
-import { CLASS_OUTFIT, renderFigureHD } from '../src/art/figure';
+import { CLASS_OUTFIT, renderFigure } from '../src/art/figure';
 import { CLASS_WEAPON } from '../src/art/sprite';
 import { encodePng } from './png';
 
@@ -47,7 +47,7 @@ for (let y = H - 64; y < H; y++)
 const cast = ['seyra', 'astrid', 'lira', 'velvet', 'mirabel', 'keira'];
 cast.forEach((id, i) => {
   const h = HEROINE_MAP[id];
-  const bmp = renderFigureHD(
+  const bmp = renderFigure(
     { look: h.look, weapon: CLASS_WEAPON[h.cls], body: 'robe', element: h.element, outfit: CLASS_OUTFIT[h.cls] },
     { eyes: i === 2 ? 'wink' : 'open', arms: i % 2 ? 'idle2' : 'idle' },
   );
@@ -66,7 +66,7 @@ cast.forEach((id, i) => {
       img[q + 1] *= 0.55;
       img[q + 2] *= 0.55;
     }
-  // HD-кадр 96×96 рисуем в том же размере, что прежний 48×48 ×S
+  // кадр 48×48 (или HD 96×96) — всегда в размере 48×S
   const k = (48 * S) / bmp.w;
   for (let y = 0; y < bmp.h * k; y++)
     for (let x = 0; x < bmp.w * k; x++) {

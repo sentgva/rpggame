@@ -25,7 +25,7 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
   /** Расписание праздников из server_settings (null — автоматическая ротация). */
   private festival: FestivalSchedule | null = null;
   private festivalLoaded = 0;
-  /** Стиль графики; null — по умолчанию (мягкий HD). */
+  /** Стиль графики; null — по умолчанию (основной). */
   private art: ArtStyle | null = null;
   private merged: Config | null = null;
 
@@ -68,7 +68,7 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
     try {
       const rows = await this.db.query<{ key: string; value: unknown }>('SELECT key, value FROM server_settings WHERE key = ANY($1)', [[FESTIVAL_KEY, ART_KEY]]);
       const val = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
-      this.art = val(ART_KEY) === 'classic' ? 'classic' : null;
+      this.art = val(ART_KEY) === 'hd' ? 'hd' : null;
       this.setFestival(val(FESTIVAL_KEY) as FestivalSchedule | null);
     } catch (e) {
       // БД недоступна — работаем с последним известным расписанием
@@ -98,7 +98,7 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
       'INSERT INTO server_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
       [ART_KEY, JSON.stringify(style)],
     );
-    this.art = style === 'classic' ? 'classic' : null;
+    this.art = style === 'hd' ? 'hd' : null;
     this.merged = null;
   }
 

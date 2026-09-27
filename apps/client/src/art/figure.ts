@@ -829,6 +829,66 @@ function bust(c: Canvas, m: string, style: 'micro' | 'balconette' | 'bandeau' | 
   );
 }
 
+/**
+ * Верх-«треугольники» на завязках: маленькие чашки по груди, блик на ткани, тонкие завязки на шею,
+ * между чашками и по бокам. center — чем соединены чашки: завязкой или кольцом (T).
+ */
+function triTop(c: Canvas, m: string, center: 'tie' | 'ring' = 'tie') {
+  c.rows(
+    [
+      [19, 19, 20],
+      [20, 18, 21],
+      [21, 17, 22],
+      [22, 18, 21],
+      [19, 27, 28],
+      [20, 26, 29],
+      [21, 25, 30],
+      [22, 26, 29],
+    ],
+    m,
+  );
+  // блик и тень по нижнему краю — ткань читается как глянцевая чашка
+  c.set(19, 20, m, '+');
+  c.set(27, 20, m, '+');
+  c.set(20, 19, m, '+');
+  c.set(28, 19, m, '+');
+  c.hl(18, 21, 22, m, '-');
+  c.hl(26, 29, 22, m, '-');
+  // завязки: на шею, по бокам
+  c.line(20, 18, 22, 16, m, '=');
+  c.line(27, 18, 25, 16, m, '=');
+  c.set(16, 21, m, '=');
+  c.set(31, 21, m, '=');
+  if (center === 'ring') {
+    c.set(23, 21, 'T', '+');
+    c.set(24, 21, 'T', '0');
+    c.set(23, 22, 'T', '0');
+    c.set(24, 22, 'T', '-');
+  } else c.hl(23, 24, 21, m, '=');
+}
+
+/** Низ на завязках: узкий треугольник спереди, высокие тонкие завязки на бёдрах. */
+function tieBottom(c: Canvas, m: string, ring = false) {
+  c.rows(
+    [
+      [29, 21, 26],
+      [30, 21, 26],
+      [31, 22, 25],
+      [32, 23, 24],
+    ],
+    m,
+  );
+  c.set(22, 29, m, '+');
+  c.set(23, 30, m, '+');
+  // завязки уходят вверх по бедру
+  c.line(20, 29, 17, 27, m, '=');
+  c.line(27, 29, 30, 27, m, '=');
+  if (ring) {
+    c.set(20, 29, 'T', '+');
+    c.set(27, 29, 'T', '+');
+  }
+}
+
 /** Низ-стринги: высокие боковые завязки и узкий треугольник спереди. */
 function stringBottom(c: Canvas, m: string, t: Tone = '0', ties = m) {
   c.rows(
@@ -1124,77 +1184,78 @@ function wearOutfit(c: Canvas, wear: NonNullable<Look['wear']>, withLegs: boolea
   };
   switch (wear) {
     case 'swim': {
-      // бикини на завязках и парео, завязанное на бедре
-      bust(c, 'B', 'micro');
-      stringBottom(c, 'B');
-      c.poly(
-        [
-          [17, 28],
-          [21, 29],
-          [22, 39],
-          [15, 42],
-        ],
-        'T',
-      );
-      c.line(17, 28, 15, 42, 'T', '-');
-      c.rect(17, 28, 18, 29, 'T', '+');
-      c.set(16, 30, 'T', '-');
+      // бикини-треугольники на завязках и узкая лента-парео, завязанная на бедре
+      triTop(c, 'B');
+      tieBottom(c, 'B');
+      c.set(17, 27, 'T', '+');
+      c.set(16, 28, 'T', '0');
+      c.line(17, 28, 15, 36, 'T', '0');
+      c.line(18, 28, 17, 35, 'T', '-');
       sandals();
       break;
     }
     case 'swim2': {
-      // бикини с оборками и бантиком: чашки по форме груди, оборка — по линии под грудью
-      bust(c, 'B', 'cups');
-      for (let x = 18; x <= 29; x++) if (x < 23 || x > 24) c.set(x, 23, 'T', x % 2 ? '+' : '0');
-      c.set(23, 22, 'T', '+');
-      c.set(24, 22, 'T', '+');
-      stringBottom(c, 'B');
-      for (let x = 19; x <= 28; x++) c.set(x, 29, 'T', x % 2 ? '+' : '0');
-      c.set(23, 30, 'T', '+');
-      c.set(24, 30, 'T', '+');
+      // треугольники с тонкой оборкой по краю, такая же оборка на плавках, бантик на бедре
+      triTop(c, 'B');
+      for (const [x0, x1] of [
+        [18, 21],
+        [26, 29],
+      ])
+        for (let x = x0; x <= x1; x++) c.set(x, 23, 'T', x % 2 ? '+' : '0');
+      tieBottom(c, 'B');
+      for (let x = 21; x <= 26; x++) c.set(x, 28, 'T', x % 2 ? '+' : '0');
+      c.set(29, 27, 'T', '+');
+      c.set(30, 26, 'T', '0');
+      c.set(30, 28, 'T', '0');
       if (withLegs) legs(c, 43, 43, 'T', '+');
       sandals();
       break;
     }
     case 'swim3': {
-      // монокини: V до пупка, высокие вырезы на бёдрах, кольцо-застёжка
-      bust(c, 'B', 'plunge');
-      c.rows([[28, 21, 26]], 'B');
-      stringBottom(c, 'B');
-      c.set(23, 26, 'T', '+');
-      c.set(24, 26, 'T', '+');
-      c.line(19, 18, 22, 16, 'B', '-');
-      c.line(28, 18, 25, 16, 'B', '-');
+      // бикини на золотых кольцах: между чашками и на бёдрах
+      triTop(c, 'B', 'ring');
+      tieBottom(c, 'B', true);
       sandals();
       break;
     }
     case 'swim4': {
-      // бандо, стринги и распахнутая пляжная рубашка
-      bust(c, 'B', 'bandeau');
-      stringBottom(c, 'B');
+      // тонкое бандо с узлом посередине, стринги и короткая рубашка, спущенная с плеч
+      c.rows(
+        [
+          [20, 17, 22],
+          [21, 16, 22],
+          [20, 25, 30],
+          [21, 25, 31],
+        ],
+        'B',
+      );
+      c.hl(17, 21, 20, 'B', '+');
+      c.hl(26, 29, 20, 'B', '+');
+      c.rect(23, 20, 24, 22, 'B', '-');
+      c.set(23, 20, 'B', '0');
+      tieBottom(c, 'B');
+      // рубашка: рукава на плечах, полы по бокам до талии
       bothArms(c, 'upper', 'T');
       c.poly(
         [
-          [16, 18],
-          [20, 18],
-          [19, 31],
-          [15, 31],
+          [15, 20],
+          [18, 20],
+          [18, 27],
+          [15, 28],
         ],
         'T',
       );
       c.poly(
         [
-          [27, 18],
-          [31, 18],
-          [32, 31],
-          [28, 31],
+          [29, 20],
+          [32, 20],
+          [32, 28],
+          [29, 27],
         ],
         'T',
       );
-      c.line(20, 18, 19, 30, 'T', '-');
-      c.line(27, 18, 28, 30, 'T', '-');
-      c.set(21, 17, 'T', '+');
-      c.set(26, 17, 'T', '+');
+      c.line(18, 20, 18, 27, 'T', '-');
+      c.line(29, 20, 29, 27, 'T', '-');
       sandals();
       break;
     }
@@ -2295,9 +2356,11 @@ function deltaE(a: RGBA, b: RGBA) {
  * Цвет белья: первый кандидат, заметно отличающийся от кожи (ΔE ≥ 45 — ткань читается как одежда
  * даже на 48 px), иначе самый контрастный.
  */
-function lingerieColor(skin: RGBA, cands: RGBA[]): RGBA {
-  for (const c of cands) if (deltaE(c, skin) >= 45) return c;
-  return cands.reduce((a, b) => (deltaE(b, skin) > deltaE(a, skin) ? b : a));
+function lingerieColor(skin: RGBA, cands: RGBA[], hair?: RGBA): RGBA {
+  // ткань должна отличаться от кожи и не сливаться с волосами (длинные волосы лежат рядом)
+  const score = (c: RGBA) => Math.min(deltaE(c, skin), hair ? deltaE(c, hair) * 1.5 : Infinity);
+  for (const c of cands) if (deltaE(c, skin) >= 45 && (!hair || deltaE(c, hair) >= 30)) return c;
+  return cands.reduce((a, b) => (score(b) > score(a) ? b : a));
 }
 
 // ——— HD (96×96) ———
@@ -2473,7 +2536,7 @@ function palette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
     O: tones(outfit),
     T: tones(trim),
     A: tones(hex(L.accColor ?? L.trim)),
-    B: tones(lingerieColor(skin, [outfit, trim, elem, darken(outfit, 0.55), hex('#2A1622')])),
+    B: tones(lingerieColor(skin, [outfit, trim, elem, darken(outfit, 0.55), hex('#2A1622')], hex(L.hair))),
     K: { '0': hex('#C8D0DE'), '+': hex('#F4F8FF'), '-': hex('#8A92A6'), '=': hex('#5A6072') },
     W: tones(hex('#8A5A34')),
     R: { '0': hex('#F2ECE4'), '+': hex('#FFFFFF'), '-': hex('#C8BCB4'), '=': hex('#9A8E88') },
@@ -2518,8 +2581,9 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
   perpLimbs = EXTRA_POSES.includes(armsKind);
   const handR = arms.R.hand;
   const handL = arms.L.hand;
-  const bust = Math.max(-1, Math.min(2, Math.round(L.bust ?? 0)));
-  const hips = Math.max(0, Math.min(2, Math.round(L.hips ?? 0)));
+  // без явного значения (враги) — та же чуть пышная фигура, что и у героинь
+  const bust = Math.max(-1, Math.min(2, Math.round(L.bust ?? 1)));
+  const hips = Math.max(0, Math.min(2, Math.round(L.hips ?? 1)));
 
   extraBack(c, L.extra, !!pose.flap);
   accessoryBack(c, L.acc);
