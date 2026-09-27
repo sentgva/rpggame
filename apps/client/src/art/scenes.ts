@@ -7,7 +7,7 @@ const SCENE_H = 100;
 const W = SCENE_W;
 const H = SCENE_H;
 
-export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura' | 'tourney' | 'mine' | 'beach' | 'sunset';
+export type SceneBg = 'camp' | 'spa' | 'living' | 'kitchen' | 'bath' | 'bedroom' | 'night' | 'fair' | 'tower' | 'lake' | 'pond' | 'tavern' | 'garden' | 'bloodmoon' | 'tides' | 'sakura' | 'tourney' | 'mine' | 'beach' | 'sunset';
 
 type C = string | RGBA;
 type Pt = [number, number];
@@ -917,6 +917,71 @@ const SCENES: Record<SceneBg, (p: Painter) => void> = {
       p.set(x, y, '#e8f07a');
       p.glow(x, y, 3, '#e8f07a', 0.25);
     }
+  },
+
+  pond(p) {
+    // ясный день: небо с облаками, лес на том берегу, озеро с бликами и кувшинками, мостки
+    p.vgrad(0, 0, W, 54, '#4aa8ec', '#cdeeff');
+    p.glow(102, 16, 18, '#fff6c0', 0.5);
+    p.circle(102, 16, 6, '#fff8d8');
+    for (const [cx, cy, rx] of [
+      [30, 12, 11],
+      [44, 10, 8],
+      [70, 22, 9],
+    ] as [number, number, number][]) {
+      p.ellipse(cx, cy, rx, 3, '#ffffff', 0.9);
+      p.ellipse(cx + 2, cy + 1, rx - 3, 2, '#e4f4ff', 0.9);
+    }
+    p.poly(
+      [
+        [0, 48],
+        [24, 42],
+        [50, 46],
+        [76, 40],
+        [104, 46],
+        [128, 42],
+        [128, 56],
+        [0, 56],
+      ],
+      '#6aa85a',
+    );
+    pines(p, 56, '#2e6a3a', 5, 12, 3, 6);
+    // вода с солнечной дорожкой
+    p.vgrad(0, 56, W, 30, '#4a9ade', '#2a6ab0', 3);
+    for (let i = 0; i < 18; i++) {
+      const y = 58 + p.rng.int(26);
+      const x = p.rng.int(W);
+      p.hl(x, x + 3 + p.rng.int(8), y, '#bfe8ff', 0.5);
+    }
+    for (let y = 58; y < 86; y += 2) {
+      const w = 2 + ((y * 7) % 5);
+      p.hl(102 - w, 102 + w, y, '#fff6c0', 0.55 - (y - 58) / 70);
+    }
+    // кувшинки
+    for (const [x, y] of [
+      [58, 80],
+      [66, 83],
+      [86, 76],
+    ] as [number, number][]) {
+      p.ellipse(x, y, 4, 1.5, '#3a8a3a');
+      p.set(x + 1, y - 1, '#ff9ac8');
+      p.set(x + 2, y - 1, '#ffd0e4');
+    }
+    // берег, камыш, мостки
+    p.vgrad(0, 84, W, 16, '#5a9a3a', '#3a7a2a', 3);
+    for (let i = 0; i < 40; i++) p.set(p.rng.int(W), 86 + p.rng.int(14), '#8ac85a');
+    for (let i = 0; i < 8; i++) p.set(p.rng.int(W), 88 + p.rng.int(12), p.rng.int(2) ? '#fff0a0' : '#ffb0d0');
+    for (const x0 of [0, 108]) {
+      for (let i = 0; i < 9; i++) {
+        const x = x0 + 2 + i * 2 + p.rng.int(2);
+        const h = 10 + p.rng.int(10);
+        p.vl(x, 88 - h, 88, '#4a8a3a');
+        if (i % 3 === 0) p.rect(x, 88 - h, 2, 4, '#8a5a2a');
+      }
+    }
+    p.rect(0, 70, 34, 4, '#9a6a3e');
+    for (let x = 0; x < 34; x += 5) p.vl(x, 70, 73, '#6a4628');
+    for (const x of [4, 18, 31]) p.rect(x, 74, 2, 12, '#5a3a24');
   },
 
   tavern(p) {

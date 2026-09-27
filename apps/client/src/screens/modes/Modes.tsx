@@ -1,12 +1,17 @@
 import {
+  ABYSS_HEAT_MILESTONES,
+  ABYSS_PACTS,
   ACTS,
   DUNGEONS,
+  EXPEDITION_EVENT_MAP,
   EXPEDITION_MAP,
   HEROINE_MAP,
   LAB_BUFFS,
   LAB_FLOORS,
   LAB_STEPS,
   RELIC_MAP,
+  abyssOmen,
+  abyssReward,
   abyssStage,
   activeParty,
   arenaLeague,
@@ -28,7 +33,7 @@ import { useEffect, useState } from 'react';
 import { heroUrl } from '../../art/runtime';
 import { showBattle } from '../../components/BattleModal';
 import { manualEnabled } from '../../battle/live';
-import { Bar, Button, Cost, Icon, Panel, css, cx, fmtTime, formatNum } from '../../components/ui';
+import { Bar, Button, Cost, Icon, Panel, css, cx, fmtTime, formatNum, openSheet } from '../../components/ui';
 import { getLang, t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
@@ -38,10 +43,12 @@ import { stageText } from '../MapTab';
 import { Shop } from '../hub/Shop';
 import { Horde, Rift, Spires } from './Endgame';
 import { Festival } from './Festival';
+import { Fishing } from './Fishing';
 
 export const MODES = [
   { id: 'festival', icon: 'festival', title: 'mode.festival', desc: 'mode.festivalDesc', feature: 'events' },
   { id: 'expeditions', icon: 'expedition', title: 'mode.expeditions', desc: 'mode.expeditionsDesc', feature: 'expeditions' },
+  { id: 'fishing', icon: 'fish', title: 'mode.fishing', desc: 'mode.fishingDesc', feature: 'fishing' },
   { id: 'dungeons', icon: 'dungeon', title: 'mode.dungeons', desc: 'mode.dungeonsDesc', feature: 'dungeons' },
   { id: 'tower', icon: 'tower', title: 'mode.tower', desc: 'mode.towerDesc', feature: 'tower' },
   { id: 'labyrinth', icon: 'labyrinth', title: 'mode.labyrinth', desc: 'mode.labyrinthDesc', feature: 'labyrinth' },
@@ -64,6 +71,8 @@ export function ModeScreen({ id }: { id: string }) {
       return <Arena />;
     case 'expeditions':
       return <Expeditions />;
+    case 'fishing':
+      return <Fishing />;
     case 'labyrinth':
       return <Labyrinth />;
     case 'rift':
@@ -260,26 +269,117 @@ function Dungeons() {
 }
 
 // ——— Бездна ———
+const PACTS_KEY = 'abyss.pacts';
+function loadPacts(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(PACTS_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((id) => ABYSS_PACTS.some((p) => p.id === id)) : [];
+  } catch {
+    return [];
+  }
+}
+
 function Abyss() {
   const s = useGameState();
   const level = s.modes.abyss + 1;
+  const [pacts, setPacts] = useState<string[]>(loadPacts);
+  const save = (next: string[]) => {
+    setPacts(next);
+    try {
+      localStorage.setItem(PACTS_KEY, JSON.stringify(next));
+    } catch {
+      /* нет хранилища — выбор живёт до выхода */
+    }
+  };
+  const toggle = (id: string) => save(pacts.includes(id) ? pacts.filter((x) => x !== id) : [...pacts, id]);
+  const heat = ABYSS_PACTS.filter((p) => pacts.includes(p.id)).reduce((acc, p) => acc + p.heat, 0);
+  const claimed = s.modes.abyssHeatClaimed ?? [];
+  const preview = abyssReward(level, heat, claimed);
+  const omen = abyssOmen(level);
+  const best = s.modes.abyssHeat ?? 0;
+  const fight = () =>
+    void fightAction('abyss.fight', { pacts }, `${t('mode.abyssLevel', { n: level })}${heat ? ` · 🔥${heat}` : ''}`, 10, (res) => (
+      <div className={css.col} style={{ alignItems: 'center' }}>
+        <RewardList r={{ cur: res.reward }} />
+        {(res.milestones ?? []).map((m: { heat: number }) => (
+          <div key={m.heat} className={css.tiny} style={{ color: '#ffc040' }}>
+            🔥 {t('mode.abyssMilestone', { n: m.heat })}
+          </div>
+        ))}
+      </div>
+    ));
   return (
     <div className={css.col}>
-      <BackHeader title={t('mode.abyss')} />
-      <Panel title={t('mode.abyssLevel', { n: level })}>
+      <BackHeader title={t('mode.abyss')} right={<span className={css.tiny}>{t('mode.abyssBestHeat', { n: best })}</span>} />
+      <Panel title={t('mode.abyssLevel', { n: level })} right={heat > 0 ? <b style={{ color: '#ff8a4a' }}>🔥 {heat}</b> : undefined}>
         <div className={css.row} style={{ gap: 12 }}>
           <Icon name="abyss" size={56} />
           <div className={css.grow}>
             <div className={css.tiny}>{t('mode.powerLevel', { n: abyssStage(level) })}</div>
             <div className={css.row} style={{ gap: 10 }}>
-              <Cost cur="divineMats" amount={1 + Math.floor(level / 5)} />
-              <Cost cur="crystals" amount={level % 10 === 0 ? 100 : 10} />
+              <Cost cur="divineMats" amount={preview.cur.divineMats} />
+              <Cost cur="crystals" amount={preview.cur.crystals} />
+              {preview.cur.scrolls ? <Cost cur="scrolls" amount={preview.cur.scrolls} /> : null}
             </div>
+            {heat > 0 && <div className={css.tiny} style={{ color: '#ff8a4a' }}>{t('mode.abyssMult', { n: 100 + heat })}</div>}
           </div>
         </div>
-        <Button block size="big" style={{ marginTop: 10 }} onClick={() => void fightAction('abyss.fight', {}, t('mode.abyssLevel', { n: level }), 10, (res) => <RewardList r={{ cur: res.reward }} />)}>
+        <div className={css.listItem} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, margin: '8px 0' }}>
+          <span className={css.tiny}>{t('mode.abyssOmen')}</span>
+          {omen ? (
+            <>
+              <b style={{ color: omen.hero ? 'var(--good)' : '#f08a5a' }}>{tl(omen.name)}</b>
+              <span className={css.tiny}>{tl(omen.desc)}</span>
+            </>
+          ) : (
+            <b>{t('mode.abyssGuard')}</b>
+          )}
+        </div>
+        <Button block size="big" kind={heat >= 120 ? 'danger' : 'primary'} onClick={fight}>
           {t('common.fight')}
+          {heat > 0 && ` · 🔥${heat}`}
         </Button>
+      </Panel>
+      <Panel title={t('mode.abyssPacts')} right={pacts.length > 0 ? <Button size="small" kind="secondary" onClick={() => save([])}>{t('mode.abyssClear')}</Button> : undefined}>
+        <div className={css.tiny} style={{ marginBottom: 6 }}>
+          {t('mode.abyssPactsHint')}
+        </div>
+        <div className={css.col} style={{ gap: 6 }}>
+          {ABYSS_PACTS.map((p) => {
+            const on = pacts.includes(p.id);
+            return (
+              <button
+                key={p.id}
+                className={css.listItem}
+                onClick={() => toggle(p.id)}
+                style={{ textAlign: 'left', font: 'inherit', color: 'inherit', cursor: 'pointer', borderColor: on ? '#ff8a4a' : undefined, boxShadow: on ? 'inset 0 0 0 1px #ff8a4a' : undefined, opacity: on ? 1 : 0.8 }}
+              >
+                <span style={{ fontSize: 22, width: 30, textAlign: 'center' }}>{p.icon}</span>
+                <span className={css.grow}>
+                  <b>{tl(p.name)}</b>
+                  <div className={css.tiny}>{tl(p.desc)}</div>
+                </span>
+                <b style={{ color: on ? '#ff8a4a' : undefined }}>🔥{p.heat}</b>
+              </button>
+            );
+          })}
+        </div>
+      </Panel>
+      <Panel title={t('mode.abyssHeat')}>
+        <Bar value={Math.min(best, 240)} max={240} height={10} />
+        <div className={css.row} style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+          {ABYSS_HEAT_MILESTONES.map((m) => {
+            const got = claimed.includes(m.heat);
+            return (
+              <div key={m.heat} className={css.listItem} style={{ flex: '1 1 40%', flexDirection: 'column', alignItems: 'center', gap: 2, opacity: got ? 0.55 : 1, borderColor: !got && heat >= m.heat ? '#ffc040' : undefined }}>
+                <b>
+                  🔥{m.heat} {got && '✓'}
+                </b>
+                <RewardList r={{ cur: { crystals: m.crystals, ...(m.scrolls ? { scrolls: m.scrolls } : {}), ...(m.divineMats ? { divineMats: m.divineMats } : {}) } }} />
+              </div>
+            );
+          })}
+        </div>
       </Panel>
     </div>
   );
@@ -372,7 +472,11 @@ function Expeditions() {
           pulse
           onClick={async () => {
             const r = await useGame.getState().act('expedition.claimAll');
-            if (r.ok) showReward(t('mode.expeditions'), { cur: r.result.cur, shards: r.result.shards });
+            if (!r.ok) return;
+            const events = (r.result.events ?? []) as { id: string; event: string }[];
+            if (r.result.n > 0) showReward(t('mode.expeditions'), { cur: r.result.cur, shards: r.result.shards });
+            // сначала — обычная добыча, поверх — события по очереди
+            showExpeditionEvents(events);
           }}
         >
           {t('common.claimAll')} ({s.modes.expeditions.filter((e) => now >= e.end).length})
@@ -392,13 +496,16 @@ function Expeditions() {
               </div>
               <Button
                 size="small"
+                pulse={!!e.event}
                 disabled={left > 0}
                 onClick={async () => {
                   const r = await useGame.getState().act('expedition.claim', { id: e.id });
-                  if (r.ok) showReward(tl(q.name), { cur: r.result.cur, shards: r.result.shards });
+                  if (!r.ok) return;
+                  if (r.result.event) showExpeditionEvents([{ id: e.id, event: r.result.event }]);
+                  else showReward(tl(q.name), { cur: r.result.cur, shards: r.result.shards });
                 }}
               >
-                {t('common.claim')}
+                {e.event ? `${EXPEDITION_EVENT_MAP[e.event]?.icon ?? ''} ${t('mode.expDecide')}` : t('common.claim')}
               </Button>
             </div>
           </Panel>
@@ -431,6 +538,69 @@ function Expeditions() {
           </Panel>
         );
       })}
+    </div>
+  );
+}
+
+/** События экспедиций (как в FTL): история, два выбора, иногда — бросок удачи. Показываются по очереди. */
+function showExpeditionEvents(list: { id: string; event: string }[]) {
+  if (!list.length) return;
+  const [first, ...rest] = list;
+  const ev = EXPEDITION_EVENT_MAP[first.event];
+  const exp = useGame.getState().state?.modes.expeditions.find((x) => x.id === first.id);
+  if (!ev || !exp) return showExpeditionEvents(rest);
+  const q = EXPEDITION_MAP[exp.quest];
+  openSheet(`${ev.icon} ${tl(ev.title)}`, (close) => <ExpeditionEventView id={first.id} heroes={exp.heroes} quest={tl(q.name)} ev={ev} onDone={() => {
+    close();
+    showExpeditionEvents(rest);
+  }} />);
+}
+
+function ExpeditionEventView({ id, heroes, quest, ev, onDone }: { id: string; heroes: string[]; quest: string; ev: (typeof EXPEDITION_EVENT_MAP)[string]; onDone: () => void }) {
+  const [out, setOut] = useState<{ lucky: boolean; text: { ru: string; en: string }; cur: Record<string, number>; shards?: Record<string, number>; chance?: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const choose = async (choice: 'a' | 'b') => {
+    setBusy(true);
+    const r = await useGame.getState().act('expedition.event', { id, choice });
+    setBusy(false);
+    if (!r.ok) return;
+    setOut({ ...r.result, chance: ev.choices[choice].outcome.chance });
+  };
+  return (
+    <div className={css.col}>
+      <div className={css.row} style={{ gap: 4, justifyContent: 'center' }}>
+        {heroes.map((h) => (
+          <img key={h} className="pixel" src={heroUrl(h)} width={56} height={56} alt="" />
+        ))}
+      </div>
+      <div className={css.tiny} style={{ textAlign: 'center' }}>
+        {quest}
+      </div>
+      {!out ? (
+        <>
+          <p style={{ margin: '4px 0', lineHeight: 1.45 }}>{tl(ev.text)}</p>
+          {(['a', 'b'] as const).map((c) => {
+            const o = ev.choices[c].outcome;
+            return (
+              <Button key={c} block kind={c === 'a' ? 'primary' : 'secondary'} disabled={busy} onClick={() => void choose(c)}>
+                {tl(ev.choices[c].label)}
+                {o.chance !== undefined && ` · 🎲 ${t('mode.expChance', { n: Math.round(o.chance * 100) })}`}
+              </Button>
+            );
+          })}
+        </>
+      ) : (
+        <>
+          <p style={{ margin: '4px 0', lineHeight: 1.45, textAlign: 'center', color: out.chance === undefined ? undefined : out.lucky ? 'var(--good)' : 'var(--bad)' }}>
+            {out.chance !== undefined && (out.lucky ? '🍀 ' : '💥 ')}
+            {tl(out.text)}
+          </p>
+          <RewardList r={{ cur: out.cur, shards: out.shards }} />
+          <Button block onClick={onDone}>
+            {t('common.ok')}
+          </Button>
+        </>
+      )}
     </div>
   );
 }

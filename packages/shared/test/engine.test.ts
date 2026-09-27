@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   PHOTO_DAILY,
   PHOTO_ALBUM_MAX,
+  FISH,
+  FISH_DAILY,
+  FISH_MAP,
+  FISH_COLLECTION,
+  ABYSS_PACTS,
+  ABYSS_HEAT_MILESTONES,
+  abyssOmen,
+  abyssReward,
+  EXPEDITION_EVENTS,
   photoTaste,
   photoScore,
   photoOutfitFits,
@@ -1581,5 +1590,103 @@ describe('Фотосессия', () => {
     const own = SKINS.find((k) => k.hero === 'selene');
     if (own) expect(() => act(s, { type: 'photo.shoot', hero: 'selene', skin: own.id, loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
     expect(() => act(s, { type: 'photo.shoot', hero: 'selene', loc: 'bedroom', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
+  });
+});
+
+describe('Рыбалка, договоры Бездны, события экспедиций', () => {
+  const act = (s: PlayerState, a: Record<string, unknown>, now = T0) => applyAction(s, a as never, { cfg, now, dev: true });
+  const opened = () => act(act(fresh(), { type: 'dev.hero', id: 'all', lvl: 30 }).state, { type: 'dev.progress', unlockAll: true, diff: 0, idx: 20, accLvl: 30 }).state;
+
+  it('рыбалка: заброс тратит наживку, рыба с места, улов даёт награды и запись в книгу', () => {
+    let s = opened();
+    const r = act(s, { type: 'fish.cast', spot: 'lake' });
+    s = r.state;
+    const cast = r.result as any;
+    expect(FISH_MAP[cast.fish].spot).toBe('lake');
+    expect(cast.bait).toBe(FISH_DAILY - 1);
+    expect(s.fishing!.hook?.fish).toBe(cast.fish);
+    const g0 = s.cur.gold;
+    const reel = act(s, { type: 'fish.reel', ok: true, perfect: true });
+    s = reel.state;
+    expect((reel.result as any).first).toBe(true);
+    expect(s.cur.gold).toBeGreaterThan(g0);
+    expect(s.fishing!.log[cast.fish].n).toBe(1);
+    expect(s.fishing!.hook).toBeUndefined();
+    expect(() => act(s, { type: 'fish.reel', ok: true })).toThrow('noHook');
+    // сорвалась — без награды
+    s = act(s, { type: 'fish.cast', spot: 'lake' }).state;
+    const g1 = s.cur.gold;
+    s = act(s, { type: 'fish.reel', ok: false }).state;
+    expect(s.cur.gold).toBe(g1);
+  });
+
+  it('рыбалка: места по уровню аккаунта, наживка кончается и восполняется утром, покупка', () => {
+    let s = act(opened(), { type: 'dev.progress', accLvl: 5 }).state;
+    expect(() => act(s, { type: 'fish.cast', spot: 'moon' })).toThrow('levelTooLow');
+    expect(() => act(s, { type: 'fish.cast', spot: 'deep' })).toThrow('badParam');
+    for (let i = 0; i < FISH_DAILY; i++) s = act(act(s, { type: 'fish.cast', spot: 'lake' }).state, { type: 'fish.reel', ok: false }).state;
+    expect(() => act(s, { type: 'fish.cast', spot: 'lake' })).toThrow('noBait');
+    s = act(s, { type: 'dev.cur', cur: 'gold', op: 'max' }).state;
+    s = act(s, { type: 'fish.bait' }).state;
+    expect(s.fishing!.bait).toBeGreaterThan(0);
+    expect(act(s, { type: 'fish.cast', spot: 'lake' }, T0 + 86400000).result).toMatchObject({ bait: expect.any(Number) });
+  });
+
+  it('рыбалка: коллекция видов даёт разовые награды', () => {
+    let s = opened();
+    // «поймали» 4 вида заранее — пятый откроет первую награду
+    const lake = FISH.filter((f) => f.spot !== 'lake').slice(0, FISH_COLLECTION[0].species - 1);
+    s = { ...s, fishing: { day: '', bait: 99, bought: 0, milestones: [], log: Object.fromEntries(lake.map((f) => [f.id, { n: 1, best: 1 }])) } };
+    const c0 = s.cur.crystals;
+    s = act(s, { type: 'fish.cast', spot: 'lake' }).state;
+    const r = act(s, { type: 'fish.reel', ok: true });
+    expect((r.result as any).collection).toHaveLength(1);
+    expect(r.state.fishing!.milestones).toEqual([FISH_COLLECTION[0].species]);
+    expect(r.state.cur.crystals).toBeGreaterThanOrEqual(c0 + FISH_COLLECTION[0].crystals);
+  });
+
+  it('Бездна: договоры повышают жар и награду, рубежи жара — один раз, неизвестный договор — ошибка', () => {
+    const s = opened();
+    expect(() => act(s, { type: 'abyss.fight', pacts: ['nope'] })).toThrow('badParam');
+    expect(() => act(s, { type: 'abyss.fight', pacts: ['blood', 'blood'] })).toThrow('badParam');
+    const two = ['frail', 'hourglass'];
+    const heat = ABYSS_PACTS.filter((p) => two.includes(p.id)).reduce((a, p) => a + p.heat, 0);
+    const res = act(s, { type: 'abyss.fight', pacts: two }).result as any;
+    expect(res.heat).toBe(heat);
+    expect(res.omen).toBe(abyssOmen(1)?.id ?? null);
+    // награда: ×(1 + жар/100), рубежи — только не взятые
+    const plain = abyssReward(7, 0, []);
+    const hot = abyssReward(7, 130, []);
+    expect(plain.milestones).toEqual([]);
+    expect(hot.milestones.map((m) => m.heat)).toEqual(ABYSS_HEAT_MILESTONES.filter((m) => m.heat <= 130).map((m) => m.heat));
+    expect(hot.cur.divineMats).toBeGreaterThan(plain.cur.divineMats);
+    expect(hot.cur.crystals).toBeGreaterThan(plain.cur.crystals + 250);
+    expect(abyssReward(7, 130, [60, 120]).milestones).toEqual([]);
+    // знамения: у стражей нет, у остальных — есть
+    expect(abyssOmen(5)).toBeNull();
+    expect(abyssOmen(7)).not.toBeNull();
+  });
+
+  it('экспедиции: по возвращении иногда случается событие с выбором, награда — после выбора', () => {
+    let s = opened();
+    const exp = (id: string) => ({ id, quest: 'ruins', heroes: ['lira'], start: T0 - 5e6, end: T0 - 1 });
+    s = { ...s, modes: { ...s.modes, expeditions: Array.from({ length: 12 }, (_, i) => exp('x' + i)) } };
+    const r = act(s, { type: 'expedition.claimAll' });
+    const res = r.result as any;
+    expect(res.events.length).toBeGreaterThan(0);
+    expect(res.n + res.events.length).toBe(12);
+    s = r.state;
+    expect(s.modes.expeditions).toHaveLength(res.events.length);
+    const { id, event } = res.events[0];
+    expect(EXPEDITION_EVENTS.map((e) => e.id)).toContain(event);
+    // повторный claim не перебрасывает событие
+    expect(act(s, { type: 'expedition.claim', id }).result).toMatchObject({ event, id });
+    expect(() => act(s, { type: 'expedition.event', id, choice: 'c' })).toThrow('badParam');
+    const d0 = s.cur.gold;
+    const out = act(s, { type: 'expedition.event', id, choice: 'b' });
+    expect((out.result as any).text).toBeTruthy();
+    expect(out.state.modes.expeditions.find((e) => e.id === id)).toBeUndefined();
+    expect(out.state.cur.gold).toBeGreaterThan(d0);
+    expect(() => act(out.state, { type: 'expedition.event', id, choice: 'a' })).toThrow('badParam');
   });
 });

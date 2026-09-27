@@ -273,3 +273,145 @@ export const RIFT_TACTICS: RiftTactic[] = [
   { id: 'ritual', name: { ru: 'Ритуал', en: 'Ritual' }, desc: { ru: '+40% урона ультимейтов, +30% энергии, −10% атаки', en: '+40% ultimate damage, +30% energy, −10% attack' }, stats: { dmgUlt: 0.4, energyRegen: 0.3, atkPct: -0.1 } },
 ];
 export const RIFT_TACTIC_MAP: Record<string, RiftTactic> = Object.fromEntries(RIFT_TACTICS.map((x) => [x.id, x]));
+
+// ——— Бездна: договоры (по мотивам «Договора наказания» Hades) ———
+
+/**
+ * Договор усложняет бой в Бездне и увеличивает награду на heat процентов. Договоры складываются;
+ * лучший суммарный «жар» победы — рекорд, за рубежи жара — разовые награды.
+ */
+export interface AbyssPact {
+  id: string;
+  icon: string;
+  name: L10n;
+  desc: L10n;
+  heat: number;
+  enemy?: EnemyMod;
+  hero?: Stats;
+  /** множитель лимита времени боя */
+  time?: number;
+}
+export const ABYSS_PACTS: AbyssPact[] = [
+  { id: 'blood', icon: '🩸', name: { ru: 'Кровь за кровь', en: 'Blood for Blood' }, desc: { ru: 'Враги: +30% атаки', en: 'Enemies: +30% attack' }, heat: 30, enemy: { atk: 1.3 } },
+  { id: 'bastion', icon: '🛡️', name: { ru: 'Твердыня', en: 'Bastion' }, desc: { ru: 'Враги: +50% здоровья', en: 'Enemies: +50% HP' }, heat: 35, enemy: { hp: 1.5 } },
+  { id: 'haste', icon: '💨', name: { ru: 'Спешка', en: 'Haste' }, desc: { ru: 'Враги: +20% скорости', en: 'Enemies: +20% speed' }, heat: 30, enemy: { spd: 1.2 } },
+  { id: 'iron', icon: '⛓️', name: { ru: 'Железо', en: 'Iron' }, desc: { ru: 'Враги: +60% защиты', en: 'Enemies: +60% defense' }, heat: 25, enemy: { def: 1.6 } },
+  { id: 'nomend', icon: '🥀', name: { ru: 'Без лекаря', en: 'No Mending' }, desc: { ru: 'Ваше лечение −50%', en: 'Your healing −50%' }, heat: 25, hero: { healPower: -0.5 } },
+  { id: 'frail', icon: '💔', name: { ru: 'Хрупкость', en: 'Frailty' }, desc: { ru: 'Здоровье отряда −20%', en: 'Squad HP −20%' }, heat: 30, hero: { hpPct: -0.2 } },
+  { id: 'hourglass', icon: '⏳', name: { ru: 'Песочные часы', en: 'Hourglass' }, desc: { ru: 'Времени на бой на 40% меньше', en: '40% less time for the fight' }, heat: 35, time: 0.6 },
+];
+export const ABYSS_PACT_MAP: Record<string, AbyssPact> = Object.fromEntries(ABYSS_PACTS.map((p) => [p.id, p]));
+/** Рубежи жара: разовая награда за первую победу с таким суммарным жаром. */
+export const ABYSS_HEAT_MILESTONES: { heat: number; crystals: number; scrolls?: number; divineMats?: number }[] = [
+  { heat: 60, crystals: 100 },
+  { heat: 120, crystals: 200, scrolls: 1 },
+  { heat: 180, crystals: 300, scrolls: 2, divineMats: 10 },
+  { heat: 240, crystals: 500, scrolls: 3, divineMats: 20 },
+];
+
+/**
+ * Награда за победу в Бездне с жаром heat: базовая (мифрил и кристаллы) × (1 + heat/100)
+ * плюс ещё не взятые рубежи жара (claimed — уже полученные).
+ */
+export function abyssReward(level: number, heat: number, claimed: readonly number[]): { cur: Record<string, number>; milestones: typeof ABYSS_HEAT_MILESTONES } {
+  const mult = 1 + heat / 100;
+  const cur: Record<string, number> = { divineMats: Math.round((1 + Math.floor(level / 5)) * mult), crystals: Math.round((level % 10 === 0 ? 100 : 10) * mult) };
+  const milestones = ABYSS_HEAT_MILESTONES.filter((m) => heat >= m.heat && !claimed.includes(m.heat));
+  for (const m of milestones) {
+    cur.crystals += m.crystals;
+    if (m.scrolls) cur.scrolls = (cur.scrolls ?? 0) + m.scrolls;
+    if (m.divineMats) cur.divineMats += m.divineMats;
+  }
+  return { cur, milestones };
+}
+
+/** Знамение уровня Бездны — как модификатор этажа Башни, у уровней стража (каждый 5-й) — без знамения. */
+export function abyssOmen(level: number): TowerMod | null {
+  if (level % 5 === 0) return null;
+  return TOWER_MODS[(level * 3 + Math.floor(level / 4)) % TOWER_MODS.length];
+}
+
+// ——— Экспедиции: события при возвращении (по мотивам FTL и Darkest Dungeon) ———
+
+export type ExpeditionChoice = 'a' | 'b';
+/**
+ * Исход выбора: множители награды экспедиции и добавки. chance — вероятность удачного исхода (иначе fail);
+ * без chance — исход один.
+ */
+export interface ExpeditionOutcome {
+  chance?: number;
+  win: { mult?: number; add?: Partial<Record<Currency, number>>; text: L10n };
+  fail?: { mult?: number; add?: Partial<Record<Currency, number>>; text: L10n };
+}
+export interface ExpeditionEvent {
+  id: string;
+  icon: string;
+  title: L10n;
+  text: L10n;
+  choices: Record<ExpeditionChoice, { label: L10n; outcome: ExpeditionOutcome }>;
+}
+/** Шанс, что по возвращении случится событие. */
+export const EXPEDITION_EVENT_CHANCE = 0.4;
+export const EXPEDITION_EVENTS: ExpeditionEvent[] = [
+  {
+    id: 'chest',
+    icon: '🧰',
+    title: { ru: 'Запертый сундук', en: 'A Locked Chest' },
+    text: { ru: 'У дороги отряд нашёл окованный сундук. Замок старый, но на крышке — подозрительные царапины.', en: 'By the road the squad finds an iron-bound chest. The lock is old, but the lid has suspicious scratches.' },
+    choices: {
+      a: { label: { ru: 'Вскрыть', en: 'Break it open' }, outcome: { chance: 0.6, win: { mult: 2, text: { ru: 'Внутри — чужой клад! Добыча удвоена.', en: 'Someone\'s hoard! The loot is doubled.' } }, fail: { mult: 0.6, text: { ru: 'Ловушка! Отряд еле унёс ноги и часть добычи.', en: 'A trap! The squad barely escaped with part of the loot.' } } } },
+      b: { label: { ru: 'Не рисковать', en: 'Don\'t risk it' }, outcome: { win: { mult: 1, text: { ru: 'Отряд вернулся с тем, что было.', en: 'The squad returns with what they had.' } } } },
+    },
+  },
+  {
+    id: 'merchant',
+    icon: '🧕',
+    title: { ru: 'Бродячая торговка', en: 'A Wandering Merchant' },
+    text: { ru: 'Торговка с караваном предлагает обменять часть добычи на кристаллы. Говорит, по-честному.', en: 'A merchant with a caravan offers crystals for part of the loot. Fair and square, she says.' },
+    choices: {
+      a: { label: { ru: 'Обменять', en: 'Trade' }, outcome: { win: { mult: 0.6, add: { crystals: 30 }, text: { ru: 'Сделка! Меньше золота, зато кристаллы.', en: 'Deal! Less gold, but crystals.' } } } },
+      b: { label: { ru: 'Отказаться', en: 'Decline' }, outcome: { win: { mult: 1, text: { ru: 'Торговка пожала плечами и ушла.', en: 'The merchant shrugs and leaves.' } } } },
+    },
+  },
+  {
+    id: 'traveler',
+    icon: '🩹',
+    title: { ru: 'Раненая путница', en: 'A Wounded Traveler' },
+    text: { ru: 'На обочине — раненая путница. Помочь — значит задержаться и потратить припасы.', en: 'A wounded traveler lies by the road. Helping means delay and spent supplies.' },
+    choices: {
+      a: { label: { ru: 'Помочь', en: 'Help her' }, outcome: { win: { mult: 0.8, add: { scrolls: 1 }, text: { ru: 'В благодарность она отдала свиток призыва.', en: 'In thanks she gives a summon scroll.' } } } },
+      b: { label: { ru: 'Пройти мимо', en: 'Walk past' }, outcome: { win: { mult: 1, text: { ru: 'Отряд молча прошёл мимо.', en: 'The squad walks past in silence.' } } } },
+    },
+  },
+  {
+    id: 'shrine',
+    icon: '⛩️',
+    title: { ru: 'Древний алтарь', en: 'An Ancient Altar' },
+    text: { ru: 'В чаще — алтарь, покрытый звёздной пылью. Говорят, он одаривает смелых. Или наказывает.', en: 'In the thicket stands an altar dusted with stardust. They say it rewards the bold. Or punishes them.' },
+    choices: {
+      a: { label: { ru: 'Помолиться', en: 'Pray' }, outcome: { chance: 0.5, win: { mult: 1, add: { starDust: 15 }, text: { ru: 'Алтарь засиял — звёздная пыль сама легла в сумки.', en: 'The altar glows — stardust fills the bags.' } }, fail: { mult: 0.85, text: { ru: 'Тишина. А часть добычи куда-то пропала…', en: 'Silence. And part of the loot is gone…' } } } },
+      b: { label: { ru: 'Уйти', en: 'Leave' }, outcome: { win: { mult: 1, text: { ru: 'Лучше не трогать чужих богов.', en: 'Better not to touch foreign gods.' } } } },
+    },
+  },
+  {
+    id: 'cards',
+    icon: '🃏',
+    title: { ru: 'Карты у костра', en: 'Cards by the Fire' },
+    text: { ru: 'Разбойницы у костра зовут сыграть «на всё». Улыбаются слишком широко.', en: 'Bandit girls by the fire invite a game "for everything". Their smiles are too wide.' },
+    choices: {
+      a: { label: { ru: 'Сыграть', en: 'Play' }, outcome: { chance: 0.5, win: { mult: 2, text: { ru: 'Отряд обыграл разбойниц — добыча вдвое!', en: 'The squad beats the bandits — double loot!' } }, fail: { mult: 0.5, text: { ru: 'Разбойницы явно мухлевали. Половины добычи как не бывало.', en: 'The bandits clearly cheated. Half the loot is gone.' } } } },
+      b: { label: { ru: 'Отказаться', en: 'Decline' }, outcome: { win: { mult: 1, text: { ru: 'Отряд вежливо отказался и ушёл спать.', en: 'The squad politely declines and goes to sleep.' } } } },
+    },
+  },
+  {
+    id: 'spring',
+    icon: '♨️',
+    title: { ru: 'Горячий источник', en: 'A Hot Spring' },
+    text: { ru: 'По пути — горячий источник. Героини просят задержаться и отдохнуть.', en: 'On the way — a hot spring. The heroines ask to stop and rest.' },
+    choices: {
+      a: { label: { ru: 'Отдохнуть', en: 'Rest' }, outcome: { win: { mult: 0.9, add: { dust: 30 }, text: { ru: 'Отдохнувший отряд по пути собрал магическую пыль.', en: 'Well-rested, the squad gathers magic dust on the way.' } } } },
+      b: { label: { ru: 'Спешить', en: 'Hurry on' }, outcome: { win: { mult: 1.1, text: { ru: 'Спешка окупилась: успели продать добычу подороже.', en: 'The hurry paid off: the loot sold for more.' } } } },
+    },
+  },
+];
+export const EXPEDITION_EVENT_MAP: Record<string, ExpeditionEvent> = Object.fromEntries(EXPEDITION_EVENTS.map((e) => [e.id, e]));

@@ -19,6 +19,7 @@ export { onExpedition } from './engine/actions/heroes';
 export { encounterOffer } from './engine/actions/encounters';
 export { bondCosts, bondState, homeState, sleptToday } from './engine/actions/bond';
 export { photoState } from './engine/actions/photo';
+export { fishBaitCost, fishingState } from './engine/actions/fishing';
 export { activeArtifacts, artifactFreeReady, artifactState, type ArtifactPull } from './engine/actions/artifacts';
 export { riftState, riftBoss, riftReward, riftThresholds, spireParty, spireReward, hordeState, hordeWaveReward, hordeBonus } from './engine/actions/endgame';
 export { tourEntriesLeft, tourNext, tourUnits } from './engine/actions/tourney';

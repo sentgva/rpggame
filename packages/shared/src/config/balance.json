@@ -349,7 +349,8 @@
       "horde": 35,
       "rift": 50,
       "spires": 70,
-      "artifacts": 25
+      "artifacts": 25,
+      "fishing": 8
     },
     "level": {
       "events": 10,

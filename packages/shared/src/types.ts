@@ -219,6 +219,24 @@ export interface Expedition {
   heroes: string[];
   start: number;
   end: number;
+  /** событие по возвращении, ждущее выбора игрока */
+  event?: string;
+}
+
+export interface FishingState {
+  day: string;
+  /** наживка в запасе */
+  bait: number;
+  /** пачек наживки куплено сегодня */
+  bought: number;
+  /** клюнувшая рыба (решена при забросе) */
+  hook?: { fish: string; spot: string; weight: number; hero?: string };
+  /** пойманные виды: сколько и лучший вес */
+  log: Record<string, { n: number; best: number }>;
+  /** полученные награды коллекции (число видов) */
+  milestones: number[];
+  /** героиня, с которой рыбачили в последний раз */
+  buddy?: string;
 }
 
 export interface RiftState {
@@ -439,6 +457,8 @@ export interface PlayerState {
   festival?: FestivalState;
   /** Фотосессия: кадры с наградой за день, альбом, разгаданные вкусы героинь. */
   photo?: PhotoState;
+  /** Рыбалка: наживка, клюнувшая рыба, коллекция. */
+  fishing?: FishingState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;
@@ -494,6 +514,9 @@ export interface PlayerState {
     spires?: Partial<Record<Element, number>>;
     /** Нашествие: забег на выживание (один в день). */
     horde?: HordeState;
+    /** Бездна: лучший жар договоров в победе и полученные награды рубежей жара. */
+    abyssHeat?: number;
+    abyssHeatClaimed?: number[];
   };
   quests: {
     dayKey: string;

@@ -1,6 +1,11 @@
 import {
+  ABYSS_PACTS,
+  ABYSS_PACT_MAP,
   ACTS,
   ARENA_BOT_NAMES,
+  EXPEDITION_EVENTS,
+  EXPEDITION_EVENT_CHANCE,
+  EXPEDITION_EVENT_MAP,
   DUNGEON_MAP,
   EXPEDITION_MAP,
   EXPEDITION_QUESTS,
@@ -13,6 +18,8 @@ import {
   RELIC_MAP,
   SUMMON_POOL,
   TOWER_SKIN_FLOORS,
+  abyssOmen,
+  abyssReward,
   abyssStage,
   dungeonStage,
   gemKey,
@@ -23,9 +30,10 @@ import {
   TOWER_HARD_REWARD,
   dungeonOfDay,
   towerMod,
+  type ExpeditionChoice,
 } from '../../content';
 import { Rng, hashStr, mixSeed } from '../../rng';
-import type { ArenaOpponent, HeroineState, LabyrinthRun, SpecialEffect, Stats } from '../../types';
+import type { ArenaOpponent, Currency, Expedition, HeroineState, LabyrinthRun, SpecialEffect, Stats } from '../../types';
 import type { Action } from '../apply';
 import type { UnitInit } from '../battle';
 import {
@@ -39,6 +47,7 @@ import {
   track,
   trackMax,
   vInt,
+  vOneOf,
   vStr,
   vStrArr,
   xpPerMin,
@@ -253,6 +262,28 @@ function arenaUnits(ctx: Ctx, opp: ArenaOpponent): UnitInit[] {
   }));
 }
 
+/** Награда экспедиции (с множителем и добавкой от события) и её завершение. */
+function grantExpedition(ctx: Ctx, e: Expedition, mult: number, add?: Partial<Record<Currency, number>>) {
+  const { s, cfg } = ctx;
+  const q = EXPEDITION_MAP[e.quest];
+  const r = q.reward;
+  const base = scaleReward(cfg, s, { gold: r.gold, forgeMats: r.forgeMats, dust: r.dust, starDust: r.starDust, crystals: r.crystals, scrolls: r.scrolls });
+  const cur: Record<string, number> = {};
+  for (const [k, v] of Object.entries(base)) if (v) cur[k] = Math.max(0, Math.round((v as number) * mult));
+  for (const [k, v] of Object.entries(add ?? {})) if (v) cur[k] = (cur[k] ?? 0) + v;
+  give(ctx, cur);
+  let shards: Record<string, number> | undefined;
+  if (r.shards) {
+    const hero = e.heroes[ctx.rng.int(e.heroes.length)];
+    const n = Math.max(1, Math.round(r.shards * Math.min(1, mult)));
+    s.shards[hero] = (s.shards[hero] ?? 0) + n;
+    shards = { [hero]: n };
+  }
+  s.modes.expeditions = s.modes.expeditions.filter((x) => x.id !== e.id);
+  track(ctx, 'expedition', 1);
+  return { cur, shards };
+}
+
 export const modeActions = {
   'dungeon.fight': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
@@ -348,9 +379,17 @@ export const modeActions = {
     return { battle: stripRaw(b), win: b.win, floor, reward, hard, mod: mod?.id ?? null };
   },
 
-  'abyss.fight': (ctx: Ctx) => {
+  /**
+   * Бездна: знамение уровня (как в Башне) и договоры по выбору игрока — враги сильнее, отряд слабее или
+   * меньше времени, зато награда больше на суммарный «жар». За рубежи жара — разовые награды.
+   */
+  'abyss.fight': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'abyss');
+    const pacts = a.pacts === undefined ? [] : vStrArr(a.pacts, ABYSS_PACTS.length, 'pacts');
+    assert(new Set(pacts).size === pacts.length && pacts.every((id) => ABYSS_PACT_MAP[id]), 'badParam', { name: 'pacts' });
+    const defs = pacts.map((id) => ABYSS_PACT_MAP[id]);
+    const heat = defs.reduce((acc, p) => acc + p.heat, 0);
     const level = s.modes.abyss + 1;
     const n = abyssStage(level);
     const act = ACTS[(level - 1) % 10];
@@ -361,16 +400,27 @@ export const modeActions = {
       { id: rng.pick(act.enemies), tier: 'normal' as const },
       { id: rng.pick(act.enemies), tier: 'normal' as const },
     ];
-    const b = runBattle(ctx, customEnemies(cfg, n, list), heroUnits(cfg, s, currentParty(ctx)), cfg.battle.bossTimeLimit);
+    const omen = abyssOmen(level);
+    let enemies = modEnemies(customEnemies(cfg, n, list), omen?.enemy);
+    for (const p of defs) enemies = modEnemies(enemies, p.enemy);
+    const extra: Stats = {};
+    for (const st of [omen?.hero, ...defs.map((p) => p.hero)]) for (const [k, v] of Object.entries(st ?? {})) extra[k as keyof Stats] = (extra[k as keyof Stats] ?? 0) + (v ?? 0);
+    const time = Math.round(cfg.battle.bossTimeLimit * defs.reduce((acc, p) => acc * (p.time ?? 1), 1));
+    const b = runBattle(ctx, enemies, heroUnits(cfg, s, currentParty(ctx), { extra }), time);
     let reward = null;
+    let milestones: ReturnType<typeof abyssReward>['milestones'] = [];
     if (b.win) {
       s.modes.abyss = level;
-      const cur = { divineMats: 1 + Math.floor(level / 5), crystals: level % 10 === 0 ? 100 : 10 };
-      give(ctx, cur);
+      const r = abyssReward(level, heat, s.modes.abyssHeatClaimed ?? []);
+      milestones = r.milestones;
+      s.modes.abyssHeat = Math.max(s.modes.abyssHeat ?? 0, heat);
+      s.modes.abyssHeatClaimed = [...(s.modes.abyssHeatClaimed ?? []), ...milestones.map((m) => m.heat)];
+      give(ctx, r.cur);
       trackMax(ctx, 'abyssBest', level);
-      reward = cur;
+      trackMax(ctx, 'abyssHeat', heat);
+      reward = r.cur;
     }
-    return { battle: stripRaw(b), win: b.win, level, reward };
+    return { battle: stripRaw(b), win: b.win, level, reward, heat, omen: omen?.id ?? null, milestones };
   },
 
   'expedition.start': (ctx: Ctx, a: Action) => {
@@ -400,38 +450,56 @@ export const modeActions = {
   },
 
   'expedition.claim': (ctx: Ctx, a: Action) => {
-    const { s, cfg, now } = ctx;
+    const { s, now } = ctx;
     const id = vStr(a.id, 'id');
     const e = s.modes.expeditions.find((x) => x.id === id);
     assert(e, 'badParam', { name: 'id' });
     assert(now >= e.end, 'notDone');
-    const q = EXPEDITION_MAP[e.quest];
-    const r = q.reward;
-    const cur = scaleReward(cfg, s, { gold: r.gold, forgeMats: r.forgeMats, dust: r.dust, starDust: r.starDust, crystals: r.crystals, scrolls: r.scrolls });
-    give(ctx, cur);
-    let shards: Record<string, number> | undefined;
-    if (r.shards) {
-      const hero = e.heroes[ctx.rng.int(e.heroes.length)];
-      s.shards[hero] = (s.shards[hero] ?? 0) + r.shards;
-      shards = { [hero]: r.shards };
+    // по возвращении может случиться история — награда после выбора игрока
+    if (e.event) return { event: e.event, id };
+    if (ctx.rng.chance(EXPEDITION_EVENT_CHANCE)) {
+      e.event = ctx.rng.pick(EXPEDITION_EVENTS).id;
+      return { event: e.event, id };
     }
-    s.modes.expeditions = s.modes.expeditions.filter((x) => x.id !== id);
-    track(ctx, 'expedition', 1);
-    return { cur, shards };
+    return grantExpedition(ctx, e, 1);
   },
 
-  /** Забрать все завершённые экспедиции разом. */
+  /** Выбор в событии экспедиции: исход (иногда случайный) меняет добычу. */
+  'expedition.event': (ctx: Ctx, a: Action) => {
+    const { s } = ctx;
+    const id = vStr(a.id, 'id');
+    const e = s.modes.expeditions.find((x) => x.id === id);
+    assert(e && e.event, 'badParam', { name: 'id' });
+    const ev = EXPEDITION_EVENT_MAP[e.event];
+    const choice = vOneOf<ExpeditionChoice>(a.choice, ['a', 'b'], 'choice');
+    const out = ev.choices[choice].outcome;
+    const lucky = out.chance === undefined || ctx.rng.chance(out.chance);
+    const res = lucky || !out.fail ? out.win : out.fail;
+    const r = grantExpedition(ctx, e, res.mult ?? 1, res.add);
+    track(ctx, 'expeditionEvent', 1);
+    return { ...r, event: ev.id, choice, lucky, text: res.text };
+  },
+
+
+  /** Забрать все завершённые экспедиции разом; те, где случилось событие, ждут выбора (список events). */
   'expedition.claimAll': (ctx: Ctx) => {
     const done = ctx.s.modes.expeditions.filter((x) => ctx.now >= x.end).map((x) => x.id);
     assert(done.length > 0, 'notDone');
     const cur: Record<string, number> = {};
     const shards: Record<string, number> = {};
+    const events: { id: string; event: string }[] = [];
+    let n = 0;
     for (const id of done) {
-      const r = modeActions['expedition.claim'](ctx, { type: 'expedition.claim', id });
-      for (const [k, v] of Object.entries(r.cur)) cur[k] = (cur[k] ?? 0) + (v ?? 0);
+      const r = modeActions['expedition.claim'](ctx, { type: 'expedition.claim', id }) as { event?: string; cur?: Record<string, number>; shards?: Record<string, number> };
+      if (r.event) {
+        events.push({ id, event: r.event });
+        continue;
+      }
+      n++;
+      for (const [k, v] of Object.entries(r.cur ?? {})) cur[k] = (cur[k] ?? 0) + (v ?? 0);
       for (const [k, v] of Object.entries(r.shards ?? {})) shards[k] = (shards[k] ?? 0) + v;
     }
-    return { cur, shards, n: done.length };
+    return { cur, shards, n, events };
   },
 
   'expedition.cancel': (ctx: Ctx, a: Action) => {

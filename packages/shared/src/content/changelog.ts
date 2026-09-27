@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-27d',
+    date: '27.09.2026',
+    icon: '🎣',
+    title: { ru: 'Рыбалка, Договоры и истории в пути', en: 'Fishing, Pacts and Road Stories' },
+    lead: { ru: 'Новый режим «Рыбалка» и переработанные Бездна и Экспедиции', en: 'A new Fishing mode, plus reworked Abyss and Expeditions' },
+    color: '#4ab0e0',
+    art: { hero: 'lorelei', skin: 'lorelei_beach' },
+    items: [
+      { ru: '🎣 Рыбалка: три места, 15 видов рыб, мини-игра с удержанием рыбы в зоне, книга рыбака с наградами. Водные героини приманивают редкую рыбу', en: '🎣 Fishing: three spots, 15 fish, a hold-the-fish-in-the-zone minigame and an angler\'s book with rewards. Water heroines lure rare fish' },
+      { ru: '🔥 Бездна: знамения уровней и Договоры — усложняй бой сам, получай до ×3 награды и призы за рубежи жара', en: '🔥 Abyss: level omens and Pacts — make the fight harder yourself for up to ×3 rewards and heat milestone prizes' },
+      { ru: '🧭 Экспедиции: по возвращении случаются истории — сундуки, торговки, алтари, карты у костра. Выбор решает добычу', en: '🧭 Expeditions: stories happen on the way back — chests, merchants, altars, cards by the fire. Your choice decides the loot' },
+    ],
+  },
+  {
     id: '2026-09-27c',
     date: '27.09.2026',
     icon: '📸',
