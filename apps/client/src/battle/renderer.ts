@@ -1,11 +1,11 @@
 import { ARTIFACT_MAP, ARTIFACT_RARITY_COLORS, ENEMY_MAP, HEROINE_MAP, SKILL_MAP, type BattleEvent, type UnitSnap } from '@idle/shared';
 import {
   Application,
+  BitmapFont,
+  BitmapText,
   Container,
   Graphics,
   Sprite,
-  Text,
-  TextStyle,
   Texture,
   TextureSource,
   TilingSprite,
@@ -74,8 +74,12 @@ class UnitView {
   hurtUntil = 0;
   /** Вестница или Колосс: крупнее, парит, окружена аурой своей стихии */
   special: boolean;
-  aura = new Graphics();
-  auraParts: { x: number; y: number; vy: number; life: number; size: number }[] = [];
+  aura = new Container();
+  auraParts: { x: number; y: number; vy: number; life: number; size: number; sp: Sprite }[] = [];
+  private auraFree: Sprite[] = [];
+  /** ключ нарисованных значков статусов — перерисовываем только при изменении */
+  private statusKey = '';
+  private stunStars: Sprite[] = [];
   auraAcc = 0;
   /** «Сокрушительный удар»: полоса каста над здоровьем (часы боя) */
   castG = new Graphics();
@@ -157,27 +161,41 @@ class UnitView {
   /** Искры ауры поднимаются вокруг Вестниц и Колоссов. */
   updateAura(dt: number) {
     if (!this.special) return;
-    const g = this.aura;
-    g.clear();
     if (!this.alive) {
+      for (const p of this.auraParts) this.freeAura(p.sp);
       this.auraParts.length = 0;
       return;
     }
     const h = (this.spriteH - 4) * this.pix * this.scale;
     const w = 11 * this.scale;
+    const color = AURA_COLOR[this.snap.el] ?? 0xffffff;
     this.auraAcc += dt;
     while (this.auraAcc > 70) {
       this.auraAcc -= 70;
-      if (this.auraParts.length < 22)
-        this.auraParts.push({ x: (Math.random() * 2 - 1) * w, y: -Math.random() * h * 0.9, vy: -(18 + Math.random() * 26) * Math.max(1, this.scale * 0.5), life: 1, size: Math.random() < 0.3 ? 3 : 2 });
+      if (this.auraParts.length < 22) {
+        // искры ауры — спрайты из запаса, а не перерисовка графики каждый кадр
+        const size = Math.random() < 0.3 ? 3 : 2;
+        const sp = this.auraFree.pop() ?? this.aura.addChild(new Sprite(Texture.WHITE));
+        sp.tint = color;
+        sp.width = size;
+        sp.height = size;
+        sp.visible = true;
+        this.auraParts.push({ x: (Math.random() * 2 - 1) * w, y: -Math.random() * h * 0.9, vy: -(18 + Math.random() * 26) * Math.max(1, this.scale * 0.5), life: 1, size, sp });
+      }
     }
-    const color = AURA_COLOR[this.snap.el] ?? 0xffffff;
     for (const p of this.auraParts) {
       p.y += (p.vy * dt) / 1000;
       p.life -= dt / 900;
-      if (p.life > 0) g.rect(Math.round(p.x), Math.round(p.y + this.sprite.y), p.size, p.size).fill({ color, alpha: Math.min(1, p.life * 1.4) * 0.85 });
+      p.sp.position.set(Math.round(p.x), Math.round(p.y + this.sprite.y));
+      p.sp.alpha = Math.max(0, Math.min(1, p.life * 1.4) * 0.85);
+      if (p.life <= 0) this.freeAura(p.sp);
     }
     this.auraParts = this.auraParts.filter((p) => p.life > 0);
+  }
+
+  private freeAura(sp: Sprite) {
+    sp.visible = false;
+    this.auraFree.push(sp);
   }
 
   /** Живая анимация: дыхание рук, моргание, поза удара, зажмуривание от боли. */
@@ -228,6 +246,13 @@ class UnitView {
   }
 
   drawStatuses(time: number) {
+    const stun = this.alive && this.statuses.has('stun');
+    this.updateStunStars(stun, time);
+    const tint = this.statuses.has('freeze') ? 0x9fd8ff : 0xffffff;
+    if (this.sprite.tint !== tint) this.sprite.tint = tint;
+    const key = this.alive ? `${[...this.statuses].join(',')}|${this.headY}|${this.barW}` : '-';
+    if (key === this.statusKey) return;
+    this.statusKey = key;
     const g = this.statusG;
     g.clear();
     if (!this.alive) return;
@@ -247,13 +272,26 @@ class UnitView {
       i++;
       if (i > 6) break;
     }
-    if (this.statuses.has('stun')) {
+  }
+
+  /** Звёздочки оглушения кружат над головой — три спрайта, которые просто двигаются. */
+  private updateStunStars(on: boolean, time: number) {
+    if (!on && !this.stunStars.length) return;
+    if (on && !this.stunStars.length)
       for (let k = 0; k < 3; k++) {
-        const a = time / 300 + (k * Math.PI * 2) / 3;
-        g.rect(Math.cos(a) * 10 - 1, this.headY + 4 + Math.sin(a) * 3, 3, 3).fill(0xffe040);
+        const sp = this.root.addChild(new Sprite(Texture.WHITE));
+        sp.tint = 0xffe040;
+        sp.width = 3;
+        sp.height = 3;
+        this.stunStars.push(sp);
       }
+    for (let k = 0; k < this.stunStars.length; k++) {
+      const sp = this.stunStars[k];
+      sp.visible = on;
+      if (!on) continue;
+      const a = time / 300 + (k * Math.PI * 2) / 3;
+      sp.position.set(Math.cos(a) * 10 - 1, this.headY + 4 + Math.sin(a) * 3);
     }
-    this.sprite.tint = this.statuses.has('freeze') ? 0x9fd8ff : 0xffffff;
   }
 }
 
@@ -279,15 +317,33 @@ function liveTexture(canvas: HTMLCanvasElement): Texture {
   return Texture.from(canvas);
 }
 
-const numStyle = (size: number, fill: string) =>
-  new TextStyle({
-    fontFamily: `${PIXEL_FONT}, Manrope, sans-serif`,
-    fontSize: Math.round(size * 1.25),
-    fontWeight: '600',
-    fill,
-    stroke: { color: '#1a1016', width: 4 },
-    align: 'center',
+/**
+ * Числа урона и подписи — растровым шрифтом: глифы рисуются один раз в атлас, дальше текст «собирается»
+ * из готовых кусочков. Обычный Text на каждое число создавал холст и текстуру — это и давало просадки FPS.
+ * Шрифт белый с тёмной обводкой, цвет — тонировкой, размер — масштабом.
+ */
+const NUM_FONT = 'battle-num';
+let numFontReady = false;
+function ensureNumFont() {
+  if (numFontReady) return;
+  BitmapFont.install({
+    name: NUM_FONT,
+    style: { fontFamily: `${PIXEL_FONT}, Manrope, sans-serif`, fontSize: 40, fontWeight: '600', fill: '#ffffff', stroke: { color: '#1a1016', width: 9 } },
+    chars: [['a', 'z'], ['A', 'Z'], ['0', '9'], ['а', 'я'], ['А', 'Я'], 'ёЁ .,:;!?%+-−×·—–«»()/\'"…★♥'],
+    padding: 6,
   });
+  numFontReady = true;
+}
+
+function battleText(text: string, color: number | string, size: number): BitmapText {
+  ensureNumFont();
+  const tx = new BitmapText({ text, style: { fontFamily: NUM_FONT, fontSize: Math.round(size * 1.25), align: 'center' } });
+  tx.tint = typeof color === 'number' ? color : parseInt(color.replace('#', ''), 16);
+  return tx;
+}
+
+/** Сколько всплывающих надписей держим одновременно: на ускорении лишние только сливаются в кашу. */
+const MAX_FLOATERS = 36;
 
 function fmt(n: number): string {
   if (n < 1000) return String(Math.floor(n));
@@ -311,7 +367,8 @@ export class BattleRenderer {
   private sky: Sprite | null = null;
   private layers: TilingSprite[] = [];
   private particles: Particle[] = [];
-  private particleG = new Graphics();
+  private weather = new Container();
+  private weatherSprites: Sprite[] = [];
   private fxG = new Graphics();
   private tweens: Tween[] = [];
   /** часы текущего проигрывания (мс боя) — для полос каста */
@@ -353,6 +410,8 @@ export class BattleRenderer {
     this.app.canvas.style.width = '100%';
     this.app.canvas.style.height = '100%';
     this.app.canvas.style.display = 'block';
+    // при пониженном разрешении холст растягивается браузером — пиксели должны оставаться чёткими
+    this.app.canvas.style.imageRendering = 'pixelated';
     this.app.canvas.addEventListener('webglcontextlost', () => {
       this.lost = true;
       this.onContextLost?.();
@@ -363,7 +422,7 @@ export class BattleRenderer {
     if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__battle = this;
     this.world.sortableChildren = true;
     this.fx.addChild(this.fxG);
-    this.bg.addChild(this.particleG);
+    this.bg.addChild(this.weather);
     this.resize(w, h);
     this.app.ticker.add((tk) => {
       try {
@@ -405,7 +464,7 @@ export class BattleRenderer {
     if (!this.app.renderer) return;
     this.W = w;
     this.H = h;
-    this.app.renderer.resize(w, h);
+    this.app.renderer.resize(w, h, this.lowRes ? 1 : undefined);
     if (this.act) this.buildBackground(this.act, true);
     for (const u of this.units.values()) this.placeUnit(u);
   }
@@ -446,6 +505,19 @@ export class BattleRenderer {
     const wp = weatherParams(ACTS[act - 1]?.bg.weather ?? 'leaves');
     this.particles = [];
     for (let i = 0; i < wp.count; i++) this.particles.push(this.spawnParticle(true));
+    for (const sp of this.weatherSprites) sp.destroy();
+    this.weatherSprites = this.particles.map((p) => {
+      const sp = this.weather.addChild(new Sprite(Texture.WHITE));
+      this.styleParticle(sp, p);
+      return sp;
+    });
+  }
+
+  private styleParticle(sp: Sprite, p: Particle) {
+    sp.tint = p.color;
+    sp.width = p.size;
+    sp.height = p.size;
+    sp.alpha = 0.8;
   }
 
   private spawnParticle(anywhere = false): Particle {
@@ -502,6 +574,7 @@ export class BattleRenderer {
   clearUnits() {
     // анимации прошлого боя ссылаются на удаляемые объекты — сбрасываем их вместе с эффектами
     this.tweens = [];
+    this.pxPool = [];
     for (const c of [...this.fx.children]) if (c !== this.fxG) c.destroy({ children: true });
     this.fxG.clear();
     for (const u of this.units.values()) u.root.destroy({ children: true });
@@ -841,40 +914,72 @@ export class BattleRenderer {
     this.tween(140, (k) => (u.flash.alpha = a * (1 - k)));
   }
 
+  /**
+   * Запас однотонных квадратиков для искр, следов и росчерков. Раньше каждая искра была новым Graphics
+   * (построение геометрии + сборка мусора) — на ускорении их сотни в секунду.
+   */
+  private pxPool: Sprite[] = [];
+  private px(color: number, w: number, h = w): Sprite {
+    let sp = this.pxPool.pop();
+    while (sp && sp.destroyed) sp = this.pxPool.pop();
+    if (!sp) sp = new Sprite(Texture.WHITE);
+    sp.anchor.set(0.5);
+    sp.tint = color;
+    sp.width = w;
+    sp.height = h;
+    sp.alpha = 1;
+    sp.visible = true;
+    if (sp.parent !== this.fx) this.fx.addChild(sp);
+    return sp;
+  }
+  private freePx(sp: Sprite) {
+    if (sp.destroyed) return;
+    sp.visible = false;
+    if (this.pxPool.length < 400) this.pxPool.push(sp);
+    else sp.destroy();
+  }
+
   private slash(tg: UnitView) {
-    const g = new Graphics();
     const s = tg.scale;
-    for (let i = 0; i < 6; i++) g.rect(-8 * s + i * 3 * s, -24 * s + i * 3 * s, 2 * s, 2 * s).fill(0xffffff);
-    g.position.set(tg.baseX, tg.baseY);
-    this.fx.addChild(g);
-    this.tween(160, (k) => (g.alpha = 1 - k), () => g.destroy());
+    const parts: Sprite[] = [];
+    for (let i = 0; i < 6; i++) {
+      const p = this.px(0xffffff, 2 * s);
+      p.position.set(tg.baseX - 8 * s + i * 3 * s + s, tg.baseY - 24 * s + i * 3 * s + s);
+      parts.push(p);
+    }
+    this.tween(
+      160,
+      (k) => {
+        for (const p of parts) p.alpha = 1 - k;
+      },
+      () => parts.forEach((p) => this.freePx(p)),
+    );
   }
 
   private projectile(from: UnitView, to: UnitView, color: number, vfx: string) {
-    const g = new Graphics();
     const sz = Math.max(3, from.scale * 1.5);
-    if (vfx === 'arrow') g.rect(-sz * 2, -1, sz * 4, 2).fill(color);
-    else g.rect(-sz / 2, -sz / 2, sz, sz).fill(color);
+    const g = vfx === 'arrow' ? this.px(color, sz * 4, 2) : this.px(color, sz);
     const sx = from.baseX + (from.snap.side === 0 ? 10 : -10);
     const sy = from.baseY - 18 * from.scale;
     const ex = to.baseX;
     const ey = to.baseY - 16 * to.scale;
     g.position.set(sx, sy);
-    this.fx.addChild(g);
+    let trailAt = 0;
     this.tween(
       170,
       (k) => {
         g.x = sx + (ex - sx) * k;
         g.y = sy + (ey - sy) * k - Math.sin(k * Math.PI) * 12;
-        if (vfx !== 'arrow' && Math.random() < 0.6) {
-          const p = new Graphics().rect(-1, -1, 2, 2).fill(color);
+        // след — не чаще раза в ~25 мс полёта, а не на каждом кадре
+        if (vfx !== 'arrow' && k - trailAt > 0.15) {
+          trailAt = k;
+          const p = this.px(color, 2);
           p.position.set(g.x, g.y);
-          this.fx.addChild(p);
-          this.tween(200, (kk) => (p.alpha = 1 - kk), () => p.destroy());
+          this.tween(200, (kk) => (p.alpha = 1 - kk), () => this.freePx(p));
         }
       },
       () => {
-        g.destroy();
+        this.freePx(g);
         this.burst(ex, ey, color, 7);
       },
     );
@@ -882,11 +987,9 @@ export class BattleRenderer {
 
   private burst(x: number, y: number, color: number, n: number) {
     for (let i = 0; i < n; i++) {
-      const g = new Graphics();
       const s = 2 + Math.floor(Math.random() * 3);
-      g.rect(-s / 2, -s / 2, s, s).fill(color);
+      const g = this.px(color, s);
       g.position.set(x, y);
-      this.fx.addChild(g);
       const a = Math.random() * Math.PI * 2;
       const v = 20 + Math.random() * 35;
       const vx = Math.cos(a) * v;
@@ -898,13 +1001,14 @@ export class BattleRenderer {
           g.y = y + vy * k + 30 * k * k;
           g.alpha = 1 - k;
         },
-        () => g.destroy(),
+        () => this.freePx(g),
       );
     }
   }
 
   private floater(u: UnitView, text: string, color: string, size: number) {
-    const tx = new Text({ text, style: numStyle(size, color) });
+    if (this.ui.children.length > MAX_FLOATERS) return;
+    const tx = battleText(text, color, size);
     tx.anchor.set(0.5, 1);
     const x0 = u.baseX + (Math.random() - 0.5) * 18;
     // не выше верхнего края сцены (над Колоссом цифры иначе обрезаются)
@@ -925,7 +1029,7 @@ export class BattleRenderer {
 
   private label(u: UnitView, text: string, color: number, size: number) {
     if (!text) return;
-    const tx = new Text({ text, style: numStyle(size, '#' + color.toString(16).padStart(6, '0')) });
+    const tx = battleText(text, color, size);
     tx.anchor.set(0.5, 1);
     tx.position.set(Math.max(50, Math.min(this.W - 50, u.baseX)), u.baseY + u.headY - 22);
     this.ui.addChild(tx);
@@ -933,7 +1037,7 @@ export class BattleRenderer {
   }
 
   private banner(text: string) {
-    const tx = new Text({ text, style: numStyle(16, '#e040ff') });
+    const tx = battleText(text, '#e040ff', 16);
     tx.anchor.set(0.5, 0.5);
     tx.position.set(this.W / 2, this.H * 0.18);
     this.ui.addChild(tx);
@@ -945,7 +1049,7 @@ export class BattleRenderer {
 
   private bigText(text: string, color: string, size = 30) {
     if (!text) return;
-    const tx = new Text({ text, style: numStyle(size, color) });
+    const tx = battleText(text, color, size);
     tx.anchor.set(0.5, 0.5);
     tx.position.set(this.W / 2, this.H * 0.4);
     this.ui.addChild(tx);
@@ -963,20 +1067,37 @@ export class BattleRenderer {
     }
   }
 
+  /** Слабое устройство: бой долго идёт медленнее ~35 FPS — рисуем в разрешении 1× (пиксель-арту почти не вредит). */
+  private slowFrames = 0;
+  private lowRes = false;
+  private watchFps(dt: number) {
+    if (this.lowRes || this.app.renderer.resolution <= 1) return;
+    // очень длинные кадры — пауза вкладки или сворачивание, а не нагрузка
+    if (dt > 28 && dt < 250) this.slowFrames++;
+    else this.slowFrames = Math.max(0, this.slowFrames - 2);
+    if (this.slowFrames > 120) {
+      this.lowRes = true;
+      this.app.renderer.resize(this.W, this.H, 1);
+    }
+  }
+
   private update(dt: number) {
     this.time += dt;
+    this.watchFps(dt);
     // параллакс
     const speeds = [2, 5, 9];
     this.layers.forEach((l, i) => (l.tilePosition.x -= (speeds[i] * dt) / 1000));
     // частицы погоды
-    const g = this.particleG;
-    g.clear();
     for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i];
+      let p = this.particles[i];
       p.x += (p.vx * dt) / 1000;
       p.y += (p.vy * dt) / 1000 + Math.sin((this.time + i * 300) / 700) * 0.1;
-      if (p.x < -8 || p.x > this.W + 8 || p.y < -8 || p.y > this.H + 8) this.particles[i] = this.spawnParticle();
-      g.rect(Math.round(p.x), Math.round(p.y), p.size, p.size).fill({ color: p.color, alpha: 0.8 });
+      const sp = this.weatherSprites[i];
+      if (p.x < -8 || p.x > this.W + 8 || p.y < -8 || p.y > this.H + 8) {
+        p = this.particles[i] = this.spawnParticle();
+        if (sp) this.styleParticle(sp, p);
+      }
+      sp?.position.set(Math.round(p.x), Math.round(p.y));
     }
     // дыхание юнитов
     for (const u of this.units.values()) {
