@@ -1,7 +1,7 @@
 import { ELEMENT_COLORS, ENEMY_MAP, HEROINE_MAP } from '@idle/shared';
 import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from 'react';
 import { frameKey, lifeFrame, newLife, type LifeFrame } from '../art/anim';
-import { enemyUrl, heroUrl } from '../art/runtime';
+import { enemyUrl, heroUrl, spriteSrc } from '../art/runtime';
 
 // один общий таймер на все «живые» портреты
 const subs = new Set<(now: number) => void>();
@@ -59,7 +59,7 @@ export function HeroImg({ id, skin, still, unarmed, alt = '', style, ...rest }: 
         animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', '),
       }
     : style;
-  return <img {...rest} style={st} alt={alt} src={heroUrl(id, skin, frame ?? {}, unarmed)} draggable={false} />;
+  return <img {...rest} style={st} alt={alt} {...spriteSrc(heroUrl(id, skin, frame ?? {}, unarmed))} draggable={false} />;
 }
 
 /** Враг с «живой» анимацией; Колоссы машут крыльями/хвостом и светятся своей стихией. */
@@ -83,5 +83,5 @@ export function EnemyImg({ id, alt = '', style, ...rest }: Omit<ImgHTMLAttribute
   const st: CSSProperties | undefined = special
     ? { ...style, ['--aura' as string]: ELEMENT_COLORS[def.element], animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', ') }
     : style;
-  return <img {...rest} style={st} alt={alt} src={enemyUrl(id, frame ?? {})} draggable={false} />;
+  return <img {...rest} style={st} alt={alt} {...spriteSrc(enemyUrl(id, frame ?? {}))} draggable={false} />;
 }

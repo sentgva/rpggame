@@ -8,6 +8,8 @@ import type { FestivalSchedule } from '../content/festival';
 export type Config = typeof balance & {
   /** Расписание праздников Легиона (сервер берёт его из настроек, правится из бота); нет — автоматическая ротация. */
   festival?: FestivalSchedule;
+  /** Стиль графики фигур: 'hd' (мягкий HD, по умолчанию) или 'classic' (прежний). Переключается в разделе разработчика. */
+  art?: 'hd' | 'classic';
 };
 
 export const DEFAULT_CONFIG: Config = balance;

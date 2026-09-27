@@ -1,7 +1,7 @@
 /** Пиксельная картинка приветствия бота (/start): npx tsx --tsconfig scripts/tsconfig.json scripts/welcome-banner.ts public/welcome.png */
 import { writeFileSync } from 'node:fs';
 import { HEROINE_MAP } from '@idle/shared';
-import { CLASS_OUTFIT, renderFigure } from '../src/art/figure';
+import { CLASS_OUTFIT, renderFigureHD } from '../src/art/figure';
 import { CLASS_WEAPON } from '../src/art/sprite';
 import { encodePng } from './png';
 
@@ -47,7 +47,7 @@ for (let y = H - 64; y < H; y++)
 const cast = ['seyra', 'astrid', 'lira', 'velvet', 'mirabel', 'keira'];
 cast.forEach((id, i) => {
   const h = HEROINE_MAP[id];
-  const bmp = renderFigure(
+  const bmp = renderFigureHD(
     { look: h.look, weapon: CLASS_WEAPON[h.cls], body: 'robe', element: h.element, outfit: CLASS_OUTFIT[h.cls] },
     { eyes: i === 2 ? 'wink' : 'open', arms: i % 2 ? 'idle2' : 'idle' },
   );
@@ -61,14 +61,16 @@ cast.forEach((id, i) => {
       const px = ox + 96 + xx;
       const py = oy + 48 * S - 8 + yy;
       if (px < 0 || px >= W || py < 0 || py >= H) continue;
-      const k = (py * W + px) * 4;
-      img[k] *= 0.55;
-      img[k + 1] *= 0.55;
-      img[k + 2] *= 0.55;
+      const q = (py * W + px) * 4;
+      img[q] *= 0.55;
+      img[q + 1] *= 0.55;
+      img[q + 2] *= 0.55;
     }
-  for (let y = 0; y < bmp.h * S; y++)
-    for (let x = 0; x < bmp.w * S; x++) {
-      const si = (Math.floor(y / S) * bmp.w + Math.floor(x / S)) * 4;
+  // HD-кадр 96×96 рисуем в том же размере, что прежний 48×48 ×S
+  const k = (48 * S) / bmp.w;
+  for (let y = 0; y < bmp.h * k; y++)
+    for (let x = 0; x < bmp.w * k; x++) {
+      const si = (Math.floor(y / k) * bmp.w + Math.floor(x / k)) * 4;
       if (bmp.data[si + 3] === 0) continue;
       const px = ox + x;
       const py = oy + y;

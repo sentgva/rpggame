@@ -11,6 +11,10 @@ import {
 import { create } from 'zustand';
 import { errorText, loadLang, setLang } from '../i18n';
 import { createBackend, type Backend, type Flags } from '../net/backend';
+import { setArtStyle } from '../art/runtime';
+
+/** Стиль, выбранный в разделе разработчика перед перезапуском (одноразово). */
+export const ART_ONCE_KEY = 'idle-rpg:art-once';
 import { haptic, setHaptics } from '../tg/telegram';
 import { useUi } from './ui';
 
@@ -79,6 +83,16 @@ export const useGame = create<GameStore>((set, get) => ({
     backend = createBackend();
     try {
       const r = await backend.init();
+      // стиль фигур — до первой отрисовки, чтобы не рисовать всё дважды; сразу после переключения
+      // в разделе разработчика берём выбранный стиль (другие копии сервера узнают о нём за ~15 с)
+      try {
+        const once = sessionStorage.getItem(ART_ONCE_KEY);
+        if (once === 'hd' || once === 'classic') r.cfg = { ...r.cfg, art: once };
+        sessionStorage.removeItem(ART_ONCE_KEY);
+      } catch {
+        /* нет sessionStorage — стиль из конфига */
+      }
+      setArtStyle(r.cfg.art);
       await loadLang(r.state.settings.lang);
       setLang(r.state.settings.lang);
       setHaptics(r.state.settings.haptics);

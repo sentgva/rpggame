@@ -12,9 +12,9 @@ import {
   type Currency,
 } from '@idle/shared';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Button, Panel, Tabs, Toggle, confirmDialog, css, formatNum } from '../../components/ui';
+import { Button, Panel, Tabs, Toggle, confirmDialog, css, cx, formatNum } from '../../components/ui';
 import { t, tl } from '../../i18n';
-import { useCfg, useGame, useGameState } from '../../store/game';
+import { ART_ONCE_KEY, useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { BackHeader } from '../common';
 
@@ -45,9 +45,7 @@ export function DevPanel() {
       <div className={css.tiny} style={{ color: '#ff8070' }}>
         {t('dev.warning')}
       </div>
-      <Button kind="secondary" onClick={() => useUi.getState().push({ id: 'creator' })}>
-        🎨 {t('hub.creator')}
-      </Button>
+      <ArtStylePanel />
       <Tabs<DevTab> value={tab} onChange={setTab} items={tabs.map((x) => ({ id: x, label: t(`dev.${x}`) }))} />
       {tab === 'resources' && <Resources />}
       {tab === 'heroes' && <Heroes />}
@@ -59,6 +57,39 @@ export function DevPanel() {
       {tab === 'account' && <Account />}
       {tab === 'log' && <Log />}
     </div>
+  );
+}
+
+/** Стиль графики для всех игроков: мягкий HD (по умолчанию) или прежний. */
+function ArtStylePanel() {
+  const cur = useCfg().art === 'classic' ? 'classic' : 'hd';
+  const pick = (style: 'hd' | 'classic') => {
+    if (style === cur) return;
+    confirmDialog(t('dev.artConfirm'), async () => {
+      const r = (await useGame.getState().backend().dev('art.style', { style })) as { ok?: boolean } | null;
+      if (!r?.ok) return useUi.getState().toast(t('dev.artFail'), 'bad');
+      // перерисовать всё в новом стиле проще всего перезапуском
+      try {
+        sessionStorage.setItem(ART_ONCE_KEY, style);
+      } catch {
+        /* после перезапуска стиль всё равно придёт с сервера */
+      }
+      location.reload();
+    });
+  };
+  return (
+    <Panel title={t('dev.art')}>
+      <div className={css.row} style={{ gap: 6 }}>
+        {(['hd', 'classic'] as const).map((x) => (
+          <button key={x} className={cx(css.chip, cur === x && css.chipOn)} onClick={() => pick(x)}>
+            {t(x === 'hd' ? 'dev.artHd' : 'dev.artClassic')}
+          </button>
+        ))}
+      </div>
+      <div className={css.tiny} style={{ marginTop: 6 }}>
+        {t('dev.artHint')}
+      </div>
+    </Panel>
   );
 }
 

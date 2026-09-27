@@ -54,6 +54,8 @@ export interface BugReportResult {
 // ——— локальный режим (без сервера): прогресс в localStorage ———
 
 const SAVE_KEY = 'idle-rpg:save:v1';
+/** Стиль графики в локальном режиме (на сервере он общий для всех — server_settings). */
+const ART_KEY = 'idle-rpg:art';
 const SNAP_KEY = 'idle-rpg:snap:';
 
 class LocalBackend implements Backend {
@@ -67,6 +69,11 @@ class LocalBackend implements Backend {
 
   async init(): Promise<InitResult> {
     const now = Date.now();
+    try {
+      if (localStorage.getItem(ART_KEY) === 'classic') this.cfg = { ...this.cfg, art: 'classic' };
+    } catch {
+      /* хранилище недоступно — стиль по умолчанию */
+    }
     const raw = localStorage.getItem(SAVE_KEY);
     const user = tgUser();
     if (raw) {
@@ -138,6 +145,16 @@ class LocalBackend implements Backend {
       return { cfg: this.cfg };
     }
     if (op === 'log') return this.log.slice(-100).reverse();
+    if (op === 'art.style') {
+      const style = body?.style === 'classic' ? 'classic' : 'hd';
+      this.cfg = { ...this.cfg, art: style };
+      try {
+        localStorage.setItem(ART_KEY, style);
+      } catch {
+        /* не запомнили — вернётся стиль по умолчанию */
+      }
+      return { ok: true, style };
+    }
     return null;
   }
 

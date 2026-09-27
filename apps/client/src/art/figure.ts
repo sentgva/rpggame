@@ -2345,22 +2345,25 @@ function thinOutline(c: Canvas) {
 
 /** Лицо в двойном разрешении: большие глаза с бликами и зрачком, улыбка, румянец штрихами. */
 function faceHD(c: Canvas, eyes: Eyes) {
-  const FACE = new Set(['E', 'l', 'R', 'P', 'M']);
-  // стираем увеличенные «старые» черты лица до кожи (челку не трогаем)
+  // лицо в малом разрешении не рисовалось (см. composeFigure), тут — чистая кожа; тени на ней
+  // сглаживаем до ровного тона, чтобы черты не спорили с «ступеньками» автотени
   for (let y = 14; y <= 28; y++)
     for (let x = 36; x <= 59; x++) {
       const v = c.get(x, y);
-      if (v && FACE.has(v[0])) c.set(x, y, 'S', '0');
-      else if (v === 'S-' || v === 'S=') c.set(x, y, 'S', '0');
+      if (v === 'S-' || v === 'S=') c.set(x, y, 'S', '0');
     }
-  // рисуем только по лицу (кожа и уже нарисованные черты), чёлку и волосы не трогаем
-  const faceAt = (x: number, y: number) => {
-    const m = c.get(x, y).charAt(0);
-    return m === 'S' || FACE.has(m);
-  };
+  // рисуем только по коже и по своим же пикселям: чёлку, маски и вуали не трогаем
+  const mine = new Set<number>();
   const put = (x: number, y: number, v: string) => {
-    if (faceAt(x, y)) c.g[y * c.w + x] = v;
+    if (!c.in(x, y)) return;
+    const i = y * c.w + x;
+    if (c.g[i].charAt(0) !== 'S' && !mine.has(i)) return;
+    c.g[i] = v;
+    mine.add(i);
   };
+  // тонкие брови (обычно под чёлкой)
+  for (let x = 39; x <= 43; x++) put(x, 13, 'H-');
+  for (let x = 52; x <= 56; x++) put(x, 13, 'H-');
   const left = eyes === 'wink' ? 'open' : eyes;
   const right = eyes === 'wink' ? 'closed' : eyes;
   eyeHD(put, 38, false, left);
@@ -2377,7 +2380,7 @@ function faceHD(c: Canvas, eyes: Eyes) {
   for (let x = 40; x <= 42; x++) put(x, 26, 'P+');
   for (let x = 53; x <= 57; x++) put(x, 25, 'P+');
   for (let x = 53; x <= 55; x++) put(x, 26, 'P+');
-  // мягкая тень под подбородком и по краю лица
+  // мягкая тень под подбородком
   for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
 }
 
@@ -2492,19 +2495,19 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
 }
 
 /**
- * HD-фигура 96×96: та же фигура, увеличенная со сглаживанием краёв (Scale2x по материалам),
- * с тонким контуром и заново нарисованным в двойном разрешении лицом.
+ * HD-фигура 96×96 в мягком стиле: та же фигура, увеличенная со сглаживанием краёв (Scale2x по
+ * материалам), с тонким цветным контуром, прядями и лицом, нарисованным в двойном разрешении.
  */
 export function renderFigureHD(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose = {}): Bitmap {
-  const h = scale2x(composeFigure(spec, pose));
+  const h = scale2x(composeFigure({ ...spec, soft: true }, pose, true));
   thinOutline(h);
   faceHD(h, pose.eyes ?? 'open');
   hairStrands(h);
-  return paint(h, spec, 0.9);
+  return paint(h, { ...spec, soft: true }, 0.9);
 }
 
-/** Сетка материалов фигуры 48×48 (до раскраски). */
-function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose): Canvas {
+/** Сетка материалов фигуры 48×48 (до раскраски). hd — лицо не рисуем: его целиком рисует faceHD в 96×96. */
+function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, hd = false): Canvas {
   const c = new Canvas(FIG, FIG);
   const L = spec.look;
   const kind = spec.outfit ?? 'witch';
@@ -2528,7 +2531,9 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose): 
   if (L.wear) wearOutfit(c, L.wear, !replaced);
   else outfit(c, kind, !replaced);
   if (under) shapeBody(c, under, bust, hips, !replaced);
-  if (spec.soft) drawFaceSoft(c, pose.eyes ?? 'open');
+  if (hd) {
+    /* лицо — в faceHD */
+  } else if (spec.soft) drawFaceSoft(c, pose.eyes ?? 'open');
   else drawFace(c, pose.eyes ?? 'open');
   hairTop(c);
   if (spec.soft) hairShine(c);

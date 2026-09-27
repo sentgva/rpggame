@@ -1,13 +1,44 @@
-import { BASE_ITEM_MAP, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Element, type Item, type Look } from '@idle/shared';
+import { BASE_ITEM_MAP, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Item, type Look } from '@idle/shared';
 import { renderIcon } from './icons';
 import { renderItemIcon } from './itemArt';
-import { CLASS_OUTFIT, renderFigure, type OutfitKind, type Pose } from './figure';
+import { CLASS_OUTFIT, renderFigure, renderFigureHD, type OutfitKind, type Pose } from './figure';
 import { CLASS_BODY, CLASS_WEAPON, ROLE_CLASS, type Bitmap, type SpriteSpec } from './sprite';
 
 type FigureSpec = SpriteSpec & { outfit?: OutfitKind };
 
 const canvasCache = new Map<string, HTMLCanvasElement>();
 const urlCache = new Map<string, string>();
+
+/**
+ * Стиль фигур: 'hd' — мягкий HD 96×96 (основной), 'classic' — прежний 48×48.
+ * Задаётся из конфига сервера при входе (переключатель — в разделе разработчика).
+ */
+export type ArtStyle = 'hd' | 'classic';
+let style: ArtStyle = 'hd';
+
+export function setArtStyle(next: ArtStyle | undefined) {
+  const v: ArtStyle = next === 'classic' ? 'classic' : 'hd';
+  if (v === style) return;
+  style = v;
+  canvasCache.clear();
+  urlCache.clear();
+}
+
+export function artStyle(): ArtStyle {
+  return style;
+}
+
+/**
+ * Атрибуты <img> для кадра фигуры: HD-кадр объявляем с плотностью 2x — его «естественный» размер
+ * остаётся прежним (48 px), и картинки без явного размера не раздуваются.
+ */
+export function spriteSrc(url: string): { src?: string; srcSet?: string } {
+  return style === 'hd' ? { srcSet: `${url} 2x` } : { src: url };
+}
+
+function drawFigure(spec: FigureSpec, pose: Pose): Bitmap {
+  return style === 'hd' ? renderFigureHD(spec, pose) : renderFigure(spec, pose);
+}
 
 function bitmapToCanvas(b: Bitmap): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -56,7 +87,7 @@ function heroCanvas(heroId: string, skin?: string, opts: Partial<SpriteSpec> = {
   const key = specKey('h', heroId, { ...opts, skin }, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(renderFigure(heroSpec(heroId, skin, opts), pose));
+    c = bitmapToCanvas(drawFigure(heroSpec(heroId, skin, opts), pose));
     canvasCache.set(key, c);
   }
   return c;
@@ -66,7 +97,7 @@ function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}, pose: Pose
   const key = specKey('e', enemyId, opts, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(renderFigure(enemySpec(enemyId, opts), pose));
+    c = bitmapToCanvas(drawFigure(enemySpec(enemyId, opts), pose));
     canvasCache.set(key, c);
   }
   return c;
@@ -115,34 +146,16 @@ export function portraitUrl(heroId: string, skin?: string): string {
   let u = urlCache.get(key);
   if (!u) {
     const src = heroCanvas(heroId, skin);
-    // голова и плечи фигуры 48×48 (голова x18–29, y5–15)
+    // голова и плечи (в координатах 48×48: x13–34, y1–22), для HD — вдвое крупнее
+    const f = src.width / 48;
     const c = document.createElement('canvas');
-    c.width = 22;
-    c.height = 22;
+    c.width = 22 * f;
+    c.height = 22 * f;
     const ctx = c.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(src, 13, 1, 22, 22, 0, 0, 22, 22);
+    ctx.drawImage(src, 13 * f, 1 * f, 22 * f, 22 * f, 0, 0, 22 * f, 22 * f);
     u = c.toDataURL();
     urlCache.set(key, u);
-  }
-  return u;
-}
-
-/** Произвольная фигура (конструктор героинь): рисуется по параметрам, без привязки к героине из игры. */
-export function customCanvas(look: Look, cls: string, element: Element, pose: Pose = {}, armed = true): HTMLCanvasElement {
-  return bitmapToCanvas(
-    renderFigure({ look, weapon: armed ? CLASS_WEAPON[cls] : 'none', body: CLASS_BODY[cls], outfit: CLASS_OUTFIT[cls], element }, pose),
-  );
-}
-
-const customCache = new Map<string, string>();
-export function customUrl(look: Look, cls: string, element: Element, pose: Pose = {}, armed = true): string {
-  const key = JSON.stringify([look, cls, element, pose.arms, pose.eyes, !!pose.flap, armed]);
-  let u = customCache.get(key);
-  if (!u) {
-    if (customCache.size > 400) customCache.clear();
-    u = customCanvas(look, cls, element, pose, armed).toDataURL();
-    customCache.set(key, u);
   }
   return u;
 }

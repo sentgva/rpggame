@@ -5,6 +5,9 @@ import { DbService } from '../db/db.service';
 import { env } from '../env';
 
 const FESTIVAL_KEY = 'festival_schedule';
+/** Стиль графики для всех игроков (переключатель в разделе разработчика). */
+const ART_KEY = 'art_style';
+type ArtStyle = 'hd' | 'classic';
 /** Как часто экземпляр сервера перечитывает расписание праздников из БД (правки из бота). */
 const FESTIVAL_TTL_MS = 15_000;
 
@@ -22,6 +25,8 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
   /** Расписание праздников из server_settings (null — автоматическая ротация). */
   private festival: FestivalSchedule | null = null;
   private festivalLoaded = 0;
+  /** Стиль графики; null — по умолчанию (мягкий HD). */
+  private art: ArtStyle | null = null;
   private merged: Config | null = null;
 
   constructor(@Optional() @Inject(DbService) private readonly db?: DbService) {}
@@ -41,9 +46,14 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
     this.watcher?.close();
   }
 
-  /** Конфиг баланса вместе с расписанием праздников. */
+  /** Конфиг баланса вместе с расписанием праздников и стилем графики. */
   get(): Config {
-    if (!this.merged) this.merged = this.festival ? { ...this.cfg, festival: this.festival } : this.cfg;
+    if (!this.merged) {
+      const extra: Partial<Config> = {};
+      if (this.festival) extra.festival = this.festival;
+      if (this.art) extra.art = this.art;
+      this.merged = Object.keys(extra).length ? { ...this.cfg, ...extra } : this.cfg;
+    }
     return this.merged;
   }
 
@@ -52,12 +62,14 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
     return this.festival?.updated ?? 0;
   }
 
-  /** Перечитать расписание праздников из БД (не чаще раза в 15 с, force — сразу). */
+  /** Перечитать расписание праздников и стиль графики из БД (не чаще раза в 15 с, force — сразу). */
   async refresh(force = false): Promise<void> {
     if (!this.db || (!force && Date.now() - this.festivalLoaded < FESTIVAL_TTL_MS)) return;
     try {
-      const row = await this.db.one<{ value: FestivalSchedule }>('SELECT value FROM server_settings WHERE key = $1', [FESTIVAL_KEY]);
-      this.setFestival(row?.value ?? null);
+      const rows = await this.db.query<{ key: string; value: unknown }>('SELECT key, value FROM server_settings WHERE key = ANY($1)', [[FESTIVAL_KEY, ART_KEY]]);
+      const val = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
+      this.art = val(ART_KEY) === 'classic' ? 'classic' : null;
+      this.setFestival(val(FESTIVAL_KEY) as FestivalSchedule | null);
     } catch (e) {
       // БД недоступна — работаем с последним известным расписанием
       this.log.warn(`festival schedule load failed: ${String(e)}`);
@@ -77,6 +89,17 @@ export class BalanceService implements OnModuleInit, OnModuleDestroy {
       [FESTIVAL_KEY, JSON.stringify(sched)],
     );
     this.setFestival(sched);
+  }
+
+  /** Сохранить стиль графики (из раздела разработчика). */
+  async saveArt(style: ArtStyle): Promise<void> {
+    if (!this.db) throw new Error('no database');
+    await this.db.query(
+      'INSERT INTO server_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      [ART_KEY, JSON.stringify(style)],
+    );
+    this.art = style === 'classic' ? 'classic' : null;
+    this.merged = null;
   }
 
   private setFestival(sched: FestivalSchedule | null) {

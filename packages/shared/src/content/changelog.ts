@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-27',
+    date: '27.09.2026',
+    icon: '✨',
+    title: { ru: 'Новая графика', en: 'New Art' },
+    lead: { ru: 'Все героини, облики и монстры перерисованы в мягком HD — вдвое детальнее', en: 'Every heroine, skin and monster is redrawn in soft HD — twice the detail' },
+    color: '#ff9ac8',
+    art: { hero: 'melody', skin: 'melody_beach' },
+    items: [
+      { ru: '👀 Выразительные глаза с бликами, улыбка и румянец', en: '👀 Expressive eyes with highlights, a smile and a blush' },
+      { ru: '🎨 Мягкие цвета, плавные края и цветной контур вместо чёрного', en: '🎨 Soft colors, smooth edges and a colored outline instead of black' },
+      { ru: '👙 Купальник с оборками теперь сидит по фигуре', en: '👙 The ruffled bikini now fits the figure' },
+    ],
+  },
+  {
     id: '2026-09-26h',
     date: '26.09.2026',
     icon: '🏆',

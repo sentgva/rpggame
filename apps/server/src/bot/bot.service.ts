@@ -271,7 +271,8 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
   /** Публичный адрес картинки приветствия (лежит рядом с клиентом). */
   private welcomeImageUrl(): string | null {
     try {
-      return env.webAppUrl ? new URL('/welcome.png', env.webAppUrl).toString() : null;
+      // версия в адресе — чтобы Telegram не показывал закэшированную старую картинку после перерисовки
+      return env.webAppUrl ? new URL('/welcome.png?v=hd', env.webAppUrl).toString() : null;
     } catch {
       return null;
     }
@@ -591,18 +592,6 @@ export class BotService implements OnApplicationBootstrap, OnModuleDestroy {
       return true;
     } catch (e) {
       this.log.warn(`sendHtml to ${chatId} failed: ${String(e)}`);
-      return false;
-    }
-  }
-
-  /** Картинка с подписью (HTML) — например, героиня из конструктора. */
-  async sendPhoto(chatId: string, png: Buffer, caption: string): Promise<boolean> {
-    if (!this.bot) return false;
-    try {
-      await this.bot.api.sendPhoto(chatId, new InputFile(png, 'heroine.png'), { caption, parse_mode: 'HTML' });
-      return true;
-    } catch (e) {
-      this.log.warn(`sendPhoto to ${chatId} failed: ${String(e)}`);
       return false;
     }
   }
