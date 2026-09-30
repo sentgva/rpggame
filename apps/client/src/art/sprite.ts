@@ -33,7 +33,6 @@ export const CLASS_WEAPON: Record<string, WeaponKind> = {
   ranger: 'bow',
   warlock: 'staff',
   hunter: 'crossbow',
-  brute: 'axe',
   guardian: 'sword',
   berserker: 'axe',
   archer: 'bow',
@@ -51,7 +50,6 @@ export const CLASS_BODY: Record<string, BodyKind> = {
   ranger: 'tunic',
   warlock: 'robe',
   hunter: 'tunic',
-  brute: 'plate',
   guardian: 'plate',
   berserker: 'plate',
   archer: 'tunic',
@@ -62,12 +60,12 @@ export const CLASS_BODY: Record<string, BodyKind> = {
   bard: 'tunic',
 };
 
-/** Враги одеваются по роли — в те же закрытые боевые наряды, что и классы Легиона. */
+/** Враги одеваются по роли — в свои откровенные наряды (как до Легиона шестерых). */
 export const ROLE_CLASS: Record<string, string> = {
-  tank: 'knight',
-  brute: 'brute',
-  ranged: 'ranger',
-  caster: 'warlock',
-  healer: 'priestess',
-  rogue: 'assassin',
+  tank: 'guardian',
+  brute: 'berserker',
+  ranged: 'archer',
+  caster: 'sorceress',
+  healer: 'cleric',
+  rogue: 'rogue',
 };

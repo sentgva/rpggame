@@ -5,7 +5,8 @@ import { HEROINES, HEROINE_MAP, SKINS, SKIN_MAP, isSwimwear, type Look, type Ski
  * «Уход» за UR-героинями: близость 0–10. Разговоры, угощения, горячие источники и свидания.
  * Каждая ступень близости усиливает героиню; на пиках — награды, на 10-й — особый наряд (за Сердца Эфира).
  */
-export type Personality = 'proud' | 'playful' | 'gentle' | 'mysterious' | 'fierce' | 'shy';
+/** Характеры героинь; gallant и aloof — у героев (рыцарь и следопыт), их реплики — в мужском роде. */
+export type Personality = 'proud' | 'playful' | 'gentle' | 'mysterious' | 'fierce' | 'shy' | 'gallant' | 'aloof';
 export type Treat = 'cake' | 'fruit' | 'wine' | 'roast' | 'sweets';
 export type Place = 'fair' | 'tower' | 'lake' | 'tavern' | 'garden';
 
@@ -18,6 +19,8 @@ export const PERSONALITY_NAMES: Record<Personality, L10n> = {
   mysterious: L('Загадочная', 'Mysterious'),
   fierce: L('Пылкая', 'Fiery'),
   shy: L('Застенчивая', 'Shy'),
+  gallant: L('Галантный', 'Gallant'),
+  aloof: L('Невозмутимый', 'Cool-headed'),
 };
 
 export const TREATS: { id: Treat; icon: string; name: L10n }[] = [
@@ -48,14 +51,16 @@ const TASTE: Record<Personality, Taste> = {
   mysterious: { treat: 'wine', dislike: 'fruit', place: 'lake' },
   fierce: { treat: 'roast', dislike: 'cake', place: 'tavern' },
   shy: { treat: 'fruit', dislike: 'wine', place: 'lake' },
+  gallant: { treat: 'roast', dislike: 'sweets', place: 'tower' },
+  aloof: { treat: 'fruit', dislike: 'wine', place: 'lake' },
 };
 
-/** Характер и вкусы UR-героинь (у каждой — свои). */
+/** Характер и вкусы героев Легиона (у каждого — свои). */
 const TRAITS: Record<string, { p: Personality; treat?: Treat; place?: Place }> = {
-  astrid: { p: 'proud', treat: 'roast', place: 'tower' },
+  cassian: { p: 'gallant', treat: 'roast', place: 'tower' },
   lira: { p: 'playful', treat: 'sweets', place: 'fair' },
   mirabel: { p: 'gentle', treat: 'cake', place: 'garden' },
-  seyra: { p: 'shy', treat: 'fruit', place: 'lake' },
+  elian: { p: 'aloof', treat: 'fruit', place: 'lake' },
   keira: { p: 'mysterious', treat: 'wine', place: 'tower' },
   ulfa: { p: 'fierce', treat: 'roast', place: 'tavern' },
 };
@@ -127,6 +132,18 @@ export const TOPICS: Record<Personality, Topic[]> = {
     { line: L('Не люблю ждать. Особенно тебя.', 'I hate waiting. Especially for you.'), answers: [L('Больше не заставлю.', 'I won\'t make you wait again.'), L('Прости, дела.', 'Sorry, things came up.'), L('Подождёшь.', 'You\'ll wait.')] },
     { line: L('Шрам? Ерунда. Хочешь потрогать?', 'This scar? Nothing. Want to touch it?'), answers: [L('Ты красива даже со шрамами.', 'You\'re beautiful, scars and all.'), L('Больно было?', 'Did it hurt?'), L('Фу.', 'Ew.')] },
   ],
+  gallant: [
+    { line: L('Командор, ты видел, как я принял удар на щит? Даже причёска не сбилась.', 'Commander, did you see me take that blow on my shield? Not a hair out of place.'), answers: [L('Самый красивый щит Легиона.', 'The handsomest shield in the Legion.'), L('Неплохо сработано.', 'Nicely done.'), L('Причёска меня волнует меньше всего.', 'Your hair is the last thing I care about.')] },
+    { line: L('Я поклялся защищать тебя. Но кто защитит меня от твоих приказов?', 'I swore to protect you. But who will protect me from your orders?'), answers: [L('Я. Больше никаких безумных приказов.', 'I will. No more reckless orders.'), L('Приказы есть приказы.', 'Orders are orders.'), L('Никто. Терпи.', 'No one. Deal with it.')] },
+    { line: L('Сними перчатку, Командор. Рыцарь пожимает руку тому, за кого сражается.', 'Take off your glove, Commander. A knight shakes the hand of the one he fights for.'), answers: [L('С честью.', 'With honour.'), L('Ну держи.', 'Here you go.'), L('Обойдёмся без церемоний.', "Let's skip the ceremony.")] },
+    { line: L('Говорят, я слишком красив для войны. Это комплимент?', 'They say I am too pretty for war. Is that a compliment?'), answers: [L('Для войны — нет. Для Легиона — да.', 'For war — no. For the Legion — yes.'), L('Смотря кто говорит.', 'Depends who says it.'), L('Это диагноз.', "It's a diagnosis.")] },
+  ],
+  aloof: [
+    { line: L('Ты шумишь, как стадо кабанов. Но идёшь в правильную сторону.', 'You make as much noise as a herd of boars. But you walk the right way.'), answers: [L('Научишь ходить тихо?', 'Will you teach me to walk quietly?'), L('Стараюсь.', 'I try.'), L('Тогда иди первым.', 'Then you lead.')] },
+    { line: L('Сегодня видел следы дракона. Старые. Не бойся.', "Saw dragon tracks today. Old ones. Don't be afraid."), answers: [L('С тобой не боюсь.', "Not with you around."), L('Хорошо, что старые.', "Good thing they're old."), L('Я и не боялся.', "I wasn't.")] },
+    { line: L('Эльфы живут долго. Поэтому я не спешу привязываться к людям.', "Elves live long. That's why I'm in no hurry to get attached to humans."), answers: [L('Тогда я постараюсь быть того достоин.', "Then I'll try to be worth it."), L('Понимаю.', 'I understand.'), L('Ну и не надо.', "Don't, then.")] },
+    { line: L('Хочешь, научу читать ветер? …Не смотри так, я просто скучаю.', "Want me to teach you to read the wind? …Don't look at me like that, I'm just bored."), answers: [L('Научи. Мне интересно всё, что знаешь ты.', 'Teach me. I want to know everything you know.'), L('Давай.', 'Sure.'), L('Ветер как ветер.', 'Wind is wind.')] },
+  ],
   shy: [
     { line: L('Я… написала тебе письмо. Только не читай при мне!', 'I… wrote you a letter. Just don\'t read it in front of me!'), answers: [L('Сохраню его как сокровище.', 'I\'ll keep it like a treasure.'), L('Хорошо, прочту потом.', 'Okay, I\'ll read it later.'), L('Прочту вслух!', 'I\'ll read it out loud!')] },
     { line: L('Ты… не против, если я пойду рядом?', 'Would you… mind if I walked beside you?'), answers: [L('Я был бы счастлив.', 'I\'d be happy to.'), L('Пойдём.', 'Let\'s go.'), L('Как хочешь.', 'Whatever.')] },
@@ -143,6 +160,8 @@ export const REACTIONS: Record<Personality, [L10n, L10n, L10n]> = {
   mysterious: [L('Интересно… продолжай.', 'Interesting… go on.'), L('Может быть.', 'Perhaps.'), L('Как скучно.', 'How dull.')],
   fierce: [L('Ха! Вот это разговор!', 'Ha! Now that\'s talking!'), L('Ладно, принято.', 'Fine, accepted.'), L('Тьфу ты.', 'Ugh.')],
   shy: [L('Я… я так рада…', 'I… I\'m so glad…'), L('Угу…', 'Mhm…'), L('…', '…')],
+  gallant: [L('Слова настоящего Командора. Благодарю.', 'Spoken like a true Commander. Thank you.'), L('Принято.', 'Understood.'), L('Хм. Рыцари тоже обижаются.', 'Hm. Knights take offence too.')],
+  aloof: [L('…Неплохой ответ. Для человека.', '…Not a bad answer. For a human.'), L('Хм.', 'Hm.'), L('Как предсказуемо.', 'How predictable.')],
 };
 
 /** Приветствие по близости: незнакомка (0–3), подруга (4–7), близкая (8–10). */
@@ -153,6 +172,8 @@ export const GREETINGS: Record<Personality, [L10n, L10n, L10n]> = {
   mysterious: [L('Ты пришёл не случайно.', 'You didn\'t come by chance.'), L('Тени сказали, что ты придёшь.', 'The shadows said you\'d come.'), L('Без тебя даже тьма скучна.', 'Without you even darkness is dull.')],
   fierce: [L('Чего надо? Хочешь драки?', 'What? Looking for a fight?'), L('О, Командор! Размяться не хочешь?', 'Oh, Commander! Up for a workout?'), L('Иди сюда, обниму — больно не будет!', 'Come here, a hug — won\'t hurt!')],
   shy: [L('Ой… з-здравствуйте…', 'Oh… h-hello…'), L('Я рада, что ты здесь.', 'I\'m glad you\'re here.'), L('Можно… я возьму тебя за руку?', 'May I… hold your hand?')],
+  gallant: [L('Командор. Рыцарь Легиона к вашим услугам.', 'Commander. Knight of the Legion, at your service.'), L('А, это ты. Я как раз начистил латы.', "Ah, it's you. I just polished my armour."), L('Ты пришёл. Мой щит — твой, и не только в бою.', 'You came. My shield is yours, and not only in battle.')],
+  aloof: [L('Ты. Зачем пришёл?', 'You. What do you want?'), L('Садись. Только не распугай птиц.', "Sit. Just don't scare the birds."), L('Я слышал твои шаги ещё за рощей. И ждал.', 'I heard your steps beyond the grove. And I waited.')],
 };
 
 export const SPA_LINES: Record<Personality, L10n> = {
@@ -162,6 +183,8 @@ export const SPA_LINES: Record<Personality, L10n> = {
   mysterious: L('Пар скрывает многое. Но не всё.', 'The steam hides much. But not everything.'),
   fierce: L('Кто дольше просидит в самой горячей купели? Я!', 'Who can last longest in the hottest pool? Me!'),
   shy: L('Я в купальнике… ты только не смотри, ладно?', 'I\'m in a swimsuit… just don\'t look, okay?'),
+  gallant: L('Источники? Латы снимаю только ради тебя, Командор. И не завидуй.', "Hot springs? I take off my armour only for you, Commander. And don't be jealous."),
+  aloof: L('В лесу такие источники зовут «слезами земли». Не брызгайся.', 'In the forest we call springs like this "tears of the earth". No splashing.'),
 };
 
 export const DATE_LINES: Record<Personality, [L10n, L10n]> = {
@@ -171,6 +194,8 @@ export const DATE_LINES: Record<Personality, [L10n, L10n]> = {
   mysterious: [L('Ты знал, куда меня вести. Опасный человек.', 'You knew where to take me. Dangerous.'), L('Интересный выбор.', 'An interesting choice.')],
   fierce: [L('Вот это я понимаю — свидание!', 'Now THAT\'s a date!'), L('Сойдёт, но где же драка?', 'It\'ll do, but where\'s the brawl?')],
   shy: [L('Т-ты запомнил… спасибо.', 'Y-you remembered… thank you.'), L('Мне… мне понравилось.', 'I… I liked it.')],
+  gallant: [L('Отличный выбор. Отсюда виден весь Аэрис — всё, что мы защищаем.', 'Great choice. From here you can see all of Aeris — everything we protect.'), L('Неплохо. Хотя я бы выбрал место для тренировки.', "Not bad. Though I'd have picked a place to train.")],
+  aloof: [L('Тихо, вода, никого. Ты угадал моё место.', 'Quiet, water, no one around. You guessed my place.'), L('Сойдёт. Хотя в лесу лучше.', "It'll do. Though the forest is better.")],
 };
 
 export const TREAT_LINES: Record<Personality, [L10n, L10n, L10n]> = {
@@ -180,6 +205,8 @@ export const TREAT_LINES: Record<Personality, [L10n, L10n, L10n]> = {
   mysterious: [L('Ты угадал мой вкус. Опять.', 'You guessed my taste. Again.'), L('Неплохо.', 'Not bad.'), L('Нет.', 'No.')],
   fierce: [L('Вот это еда! Ещё тарелку!', 'Now that\'s food! Another plate!'), L('Сойдёт.', 'It\'ll do.'), L('Это для детей.', 'That\'s for kids.')],
   shy: [L('Моё любимое… с-спасибо…', 'My favourite… th-thank you…'), L('Вкусно.', 'Tasty.'), L('Я не очень…', 'I\'m not really…')],
+  gallant: [L('Достойное угощение. Ты знаешь, как порадовать рыцаря.', 'A worthy treat. You know how to please a knight.'), L('Благодарю.', 'Thank you.'), L('Это… не рыцарская еда.', 'That… is not knightly food.')],
+  aloof: [L('…Как ты узнал? Не отвечай.', "…How did you know? Don't answer."), L('Вкусно. Спасибо, человек.', 'Tasty. Thanks, human.'), L('Эльфы такое не едят.', "Elves don't eat that.")],
 };
 
 /** Тема разговора: детерминирована днём, героиней и номером разговора — клиент и сервер видят одно и то же. */
@@ -210,6 +237,8 @@ const BOND_WEAR: Record<Personality, { wear: Wear; name: L10n }> = {
   mysterious: { wear: 'gown', name: L('Вечернее платье', 'Evening gown') },
   playful: { wear: 'silk', name: L('Шёлковая пижама', 'Silk sleepwear') },
   fierce: { wear: 'silk', name: L('Шёлковая пижама', 'Silk sleepwear') },
+  gallant: { wear: 'mformal', name: L('Вечерний камзол', 'Evening doublet') },
+  aloof: { wear: 'myukata', name: L('Лесная юката', 'Forest yukata') },
 };
 
 for (const id of BOND_HEROES) {
@@ -221,14 +250,10 @@ for (const id of BOND_HEROES) {
   SKIN_MAP[skin.id] = skin;
 }
 
-/** Купальник для горячих источников: летний облик, если он есть, иначе — скрытый (его нельзя надеть в бою). */
-const SPA_WEAR: Record<Personality, Wear> = { proud: 'swim3', playful: 'swim2', gentle: 'swim', mysterious: 'swim4', fierce: 'swim2', shy: 'swim' };
+/** Купальник для горячих источников — скрытый облик (его нельзя надеть в бою). */
+const SPA_WEAR: Record<Personality, Wear> = { proud: 'swim3', playful: 'swim2', gentle: 'swim', mysterious: 'swim4', fierce: 'swim2', shy: 'swim', gallant: 'trunks', aloof: 'trunks' };
 export const BOND_SPA_SKIN: Record<string, string> = {};
 for (const id of BOND_HEROES) {
-  if (SKIN_MAP[`${id}_beach`]) {
-    BOND_SPA_SKIN[id] = `${id}_beach`;
-    continue;
-  }
   const h = HEROINE_MAP[id];
   // родной наряд — уже купальник (Солара): в нём и в источник
   const wear = isSwimwear(h.look.wear) ? h.look.wear! : SPA_WEAR[bondTraits(id).p];
@@ -273,6 +298,8 @@ export const BATH_LINES: Record<Personality, L10n> = {
   mysterious: L('В тишине ванной слышно, как шепчут свечи.', 'In the quiet of the bath you can hear the candles whisper.'),
   fierce: L('Горячее! Ещё горячее! Вот теперь мышцы отдыхают.', 'Hot! Hotter! Now my muscles can rest.'),
   shy: L('Я… я под пеной, ничего не видно. Но ты всё равно постучи в следующий раз!', 'I… I\'m under the foam, you can\'t see anything. But knock next time anyway!'),
+  gallant: L('Горячая вода и тишина. Подай полотенце — и, будь добр, не смейся над моими мокрыми волосами.', "Hot water and silence. Hand me the towel — and kindly don't laugh at my wet hair."),
+  aloof: L('Ванна вместо реки? Непривычно. Но пена пахнет лесом — это ты выбирал?', 'A bath instead of a river? Strange. But the foam smells like the forest — did you pick it?'),
 };
 
 /** Ночёвка: [перед сном, утро]. Только сон — уютно и мило. */
@@ -283,13 +310,15 @@ export const SLEEP_LINES: Record<Personality, [L10n, L10n]> = {
   mysterious: [L('Мне снятся звёзды. Может, этой ночью приснишься и ты.', 'I dream of stars. Perhaps tonight I\'ll dream of you.'), L('Ты был в моём сне. Не спрашивай, что там было.', 'You were in my dream. Don\'t ask what happened.')],
   fierce: [L('Храплю? Я?! Никогда. Всё, спи давай.', 'Me? Snore?! Never. Now go to sleep.'), L('Утро! Разминка — и в бой!', 'Morning! Warm-up — then battle!')],
   shy: [L('Т-только спать, да? …Хорошо. Спокойной ночи.', 'O-only sleep, right? …Okay. Good night.'), L('Д-доброе утро… Ты укрыл меня одеялом? Спасибо…', 'G-good morning… You tucked me in? Thank you…')],
+  gallant: [L('Первую смену беру я. Спи, Командор — разбужу, если что.', "I'll take first watch. Sleep, Commander — I'll wake you if anything happens."), L('Утро. Никто не прошёл мимо моего щита. Кофе будешь?', 'Morning. No one got past my shield. Coffee?')],
+  aloof: [L('Звёзды сегодня ясные. Ты смотришь на север, я — на юг.', 'The stars are clear tonight. You watch the north, I take the south.'), L('Рассвет. Ты уснул на своей смене. Я никому не скажу.', "Dawn. You fell asleep on your watch. I won't tell anyone.")],
 };
 
-/** Пижама для ночёвки — скрытый облик (в бою не надеть). */
+/** Пижама для ночёвки (у героев — халат для ночного дозора) — скрытый облик (в бою не надеть). */
 export const BOND_SLEEP_SKIN: Record<string, string> = {};
 for (const id of BOND_HEROES) {
   const h = HEROINE_MAP[id];
-  const skin: SkinDef = { id: `${id}_sleep`, hero: id, name: L('Пижама', 'Pajamas'), look: { wear: 'silk', outfit: h.look.trim, trim: h.look.outfit }, source: 'bond' };
+  const skin: SkinDef = { id: `${id}_sleep`, hero: id, name: L('Пижама', 'Pajamas'), look: { wear: h.look.male ? 'mrobe' : 'silk', outfit: h.look.trim, trim: h.look.outfit }, source: 'bond' };
   SKIN_MAP[skin.id] = skin;
   BOND_SLEEP_SKIN[id] = skin.id;
 }

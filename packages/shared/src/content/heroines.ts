@@ -1,6 +1,6 @@
 import type { ClassId, Element, L10n } from '../types';
 
-export type HairStyle = 'long' | 'short' | 'bob' | 'ponytail' | 'twintails' | 'braid' | 'bun' | 'wild';
+export type HairStyle = 'long' | 'short' | 'bob' | 'ponytail' | 'twintails' | 'braid' | 'bun' | 'wild' | 'swept';
 export type Accessory =
   | 'none'
   | 'witchHat'
@@ -22,14 +22,47 @@ export type Accessory =
   | 'maidBand';
 
 /**
- * Сменный наряд облика: купальники (swim*, micro — микро-бикини на тонких завязках), бельё (lace*),
- * маскарадные (bunny, maid) вместо классового костюма.
+ * Сменный наряд облика вместо классового костюма.
+ * Героини: купальники (swim*, micro — микро-бикини на завязках, string — ещё меньше, sling — слингшот,
+ * shell — ракушки на жемчужных нитях), бельё (lace*, corset, ribbon — ленты с бантом), маскарадные (bunny, maid) и др.
+ * Герои (мужские наряды): trunks — пляжные шорты, briefs — плавки, mrobe — распахнутый халат,
+ * myukata — мужская юката, mformal — вечерний костюм с расстёгнутым воротом.
  */
-export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'micro' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia' | 'bunny' | 'maid' | 'yukata' | 'gown' | 'silk';
+export type Wear =
+  | 'swim'
+  | 'swim2'
+  | 'swim3'
+  | 'swim4'
+  | 'micro'
+  | 'string'
+  | 'sling'
+  | 'shell'
+  | 'lace'
+  | 'lace2'
+  | 'lace3'
+  | 'lace4'
+  | 'corset'
+  | 'ribbon'
+  | 'dancer'
+  | 'regalia'
+  | 'bunny'
+  | 'maid'
+  | 'yukata'
+  | 'gown'
+  | 'silk'
+  | 'trunks'
+  | 'briefs'
+  | 'mrobe'
+  | 'myukata'
+  | 'mformal';
+
+const SWIM = new Set<Wear>(['swim', 'swim2', 'swim3', 'swim4', 'micro', 'string', 'sling', 'shell', 'trunks', 'briefs']);
+/** Мужские наряды (у героев); женские на мужской фигуре заменяются ближайшим мужским. */
+export const MALE_WEAR = new Set<Wear>(['trunks', 'briefs', 'mrobe', 'myukata', 'mformal']);
 
 /** Купальник ли это (для пляжа, источников и рыбалки). */
 export function isSwimwear(wear?: Wear): boolean {
-  return !!wear && (wear.startsWith('swim') || wear === 'micro');
+  return !!wear && SWIM.has(wear);
 }
 
 export interface Look {
@@ -50,6 +83,8 @@ export interface Look {
   bust?: number;
   /** Бёдра: 0 обычные, 1–2 шире (с полными бёдрами ног), 3 — самые широкие. */
   hips?: number;
+  /** Мужская фигура: плечи шире, грудь плоская, узкие бёдра, другое лицо (bust/hips не действуют). */
+  male?: boolean;
 }
 
 export interface HeroineDef {
@@ -71,23 +106,24 @@ const SK = { fair: '#F4D3B8', light: '#EBC09C', tan: '#C98E62', dark: '#8A5A3C',
 const L = (ru: string, en: string): L10n => ({ ru, en });
 
 /**
- * Легион — шесть героинь, по одной на класс. Гачи нет: героини присоединяются по ходу кампании,
+ * Легион — шестеро, по одному на класс: четыре героини и два героя (рыцарь и следопыт).
+ * Гачи нет: герои присоединяются по ходу кампании,
  * а сила растёт прокачкой — уровни, ранги за Эмблемы, древо умений, специализация, снаряжение и близость.
  */
 export const HEROINES: HeroineDef[] = [
   {
-    id: 'astrid',
-    name: L('Астрид', 'Astrid'),
+    id: 'cassian',
+    name: L('Кассиан', 'Cassian'),
     cls: 'knight',
     element: 'light',
-    title: L('Северная рыцарша', 'Knight of the North'),
+    title: L('Северный рыцарь', 'Knight of the North'),
     bio: L(
-      'Рыцарша в белых латах с гербом Легиона на табарде. Поклялась защищать последних людей Аэриса и держит слово: первой встречает удар и последней уходит с поля боя.',
-      'A knight in white plate with the Legion crest on her tabard. She swore to protect the last people of Aeris and keeps her word: first to meet the blow, last to leave the field.',
+      'Рыцарь в белых латах и синем плаще с гербом Легиона. «Слишком красив для войны», — говорят все, пока не увидят его в строю. Поклялся защищать последних людей Аэриса и держит слово: первым встречает удар и последним уходит с поля боя.',
+      'A knight in white plate and a blue cloak bearing the Legion crest. "Too pretty for war," everyone says, until they see him hold the line. He swore to protect the last people of Aeris and keeps his word: first to meet the blow, last to leave the field.',
     ),
     quote: L('За моей спиной вы в безопасности.', 'Behind me, you are safe.'),
-    hello: L('Командор? Моё копьё сломано, но щит цел. Я встану впереди — остальное за вами.', 'Commander? My spear is broken, but my shield holds. I will stand in front — the rest is yours.'),
-    look: { hair: '#F2E3A0', style: 'braid', skin: SK.fair, eyes: '#5AA0E0', outfit: '#3A5AA8', trim: '#D4A640', acc: 'none', bust: 1, hips: 1 },
+    hello: L('Командор? Копьё я сломал, но щит цел. Я встану впереди — остальное за вами.', 'Commander? I broke my spear, but my shield holds. I will stand in front — the rest is yours.'),
+    look: { hair: '#F2E3A0', style: 'swept', skin: SK.fair, eyes: '#5AA0E0', outfit: '#3A5AA8', trim: '#D4A640', acc: 'none', male: true },
     join: 0,
   },
   {
@@ -121,18 +157,18 @@ export const HEROINES: HeroineDef[] = [
     join: 3,
   },
   {
-    id: 'seyra',
-    name: L('Сейра', 'Seyra'),
+    id: 'elian',
+    name: L('Элиан', 'Elian'),
     cls: 'ranger',
     element: 'nature',
     title: L('Следопыт опушки', 'Pathfinder of the Glade'),
     bio: L(
-      'Эльфийка-следопыт в зелёном плаще с капюшоном. Знает каждую тропу Изумрудной опушки, ставит силки быстрее, чем враг успевает моргнуть, и никогда не промахивается дважды.',
-      'An elven ranger in a green hooded cloak. She knows every trail of the Emerald Glade, sets snares faster than a foe can blink, and never misses twice.',
+      'Эльф-следопыт в зелёном плаще, с длинным серебристым хвостом волос и насмешливым взглядом. Знает каждую тропу Изумрудной опушки, ставит силки быстрее, чем враг успевает моргнуть, и никогда не промахивается дважды.',
+      'An elven ranger in a green cloak, with a long silver ponytail and a mocking gaze. He knows every trail of the Emerald Glade, sets snares faster than a foe can blink, and never misses twice.',
     ),
     quote: L('Ветер на моей стороне.', 'The wind is on my side.'),
-    hello: L('Я шла по вашим следам три дня. Неплохо для людей. Возьмёте в отряд?', 'I followed your tracks for three days. Not bad, for humans. Will you take me in?'),
-    look: { hair: '#C9B26A', style: 'ponytail', skin: SK.light, eyes: '#4E9A3C', outfit: '#3F6B34', trim: '#8C6A3A', acc: 'elfEars', accColor: '#EBC09C', bust: 1, hips: 1 },
+    hello: L('Я шёл по вашим следам три дня. Неплохо для людей. Возьмёте в отряд?', 'I followed your tracks for three days. Not bad, for humans. Will you take me in?'),
+    look: { hair: '#E4E0D0', style: 'ponytail', skin: SK.light, eyes: '#4E9A3C', outfit: '#3F6B34', trim: '#8C6A3A', acc: 'elfEars', accColor: '#EBC09C', male: true },
     join: 6,
   },
   {
@@ -191,18 +227,73 @@ export interface SkinDef {
 }
 
 /**
- * Летняя коллекция «Солнечного курорта»: бикини на тонких завязках для всей шестёрки.
- * Облики — только на празднике: финал шкалы наград (покровительница) и лавка курорта.
+ * Летняя коллекция «Солнечного курорта» — самые открытые купальники игры: слингшоты и «нитки»
+ * у героинь, плавки у героев. Облики — только на празднике: финал шкалы наград и лавка курорта.
  */
 export const SUMMER_SKINS: SkinDef[] = [
-  { id: 'mirabel_summer', hero: 'mirabel', name: L('Жемчужина лагуны', 'Lagoon Pearl'), look: { wear: 'micro', outfit: '#FFFFFF', trim: '#E0B040', acc: 'flower', accColor: '#F2E6D8' }, source: 'event', set: 'summer' },
-  { id: 'astrid_summer', hero: 'astrid', name: L('Морской страж', 'Sea Guardian'), look: { wear: 'micro', outfit: '#2E4E9A', trim: '#F2F0E6', acc: 'sunHat', accColor: '#E8C87A' }, source: 'event', set: 'summer' },
-  { id: 'lira_summer', hero: 'lira', name: L('Закатное пламя', 'Sunset Flame'), look: { wear: 'micro', outfit: '#E0532A', trim: '#F2C040', acc: 'flower', accColor: '#F2C040' }, source: 'event', set: 'summer' },
-  { id: 'seyra_summer', hero: 'seyra', name: L('Лесная лагуна', 'Forest Lagoon'), look: { wear: 'micro', outfit: '#4FBF5A', trim: '#F2E6D8', acc: 'elfEars', accColor: '#EBC09C' }, source: 'event', set: 'summer' },
-  { id: 'keira_summer', hero: 'keira', name: L('Полночный бриз', 'Midnight Breeze'), look: { wear: 'micro', outfit: '#1E1A2A', trim: '#B06AE0', acc: 'bandana', accColor: '#B06AE0' }, source: 'event', set: 'summer' },
-  { id: 'ulfa_summer', hero: 'ulfa', name: L('Северное сияние', 'Northern Lights'), look: { wear: 'micro', outfit: '#6FD0E0', trim: '#E6E6F0', acc: 'none' }, source: 'event', set: 'summer' },
+  { id: 'mirabel_summer', hero: 'mirabel', name: L('Жемчужина лагуны', 'Lagoon Pearl'), look: { wear: 'sling', outfit: '#FFFFFF', trim: '#E0B040', acc: 'flower', accColor: '#F2E6D8' }, source: 'event', set: 'summer' },
+  { id: 'cassian_summer', hero: 'cassian', name: L('Морской страж', 'Sea Guardian'), look: { wear: 'briefs', outfit: '#2E4E9A', trim: '#F2F0E6', acc: 'sunHat', accColor: '#E8C87A' }, source: 'event', set: 'summer' },
+  { id: 'lira_summer', hero: 'lira', name: L('Закатное пламя', 'Sunset Flame'), look: { wear: 'string', outfit: '#E0532A', trim: '#F2C040', acc: 'flower', accColor: '#F2C040' }, source: 'event', set: 'summer' },
+  { id: 'elian_summer', hero: 'elian', name: L('Лесная лагуна', 'Forest Lagoon'), look: { wear: 'briefs', outfit: '#2F8A3A', trim: '#F2E6D8' }, source: 'event', set: 'summer' },
+  { id: 'keira_summer', hero: 'keira', name: L('Полночный бриз', 'Midnight Breeze'), look: { wear: 'sling', outfit: '#1E1A2A', trim: '#B06AE0', acc: 'bandana', accColor: '#B06AE0' }, source: 'event', set: 'summer' },
+  { id: 'ulfa_summer', hero: 'ulfa', name: L('Северное сияние', 'Northern Lights'), look: { wear: 'string', outfit: '#3AA0D0', trim: '#E6E6F0', acc: 'none' }, source: 'event', set: 'summer' },
 ];
 
-/** Облики героинь (летняя коллекция; наряды близости добавляются в bond.ts). */
-export const SKINS: SkinDef[] = [...SUMMER_SKINS];
+type SetSkin = [id: string, hero: string, set: SkinSet, source: SkinDef['source'], look: Partial<Look>, ru: string, en: string, crystals?: number];
+
+/**
+ * Коллекции Легиона: «Лето» (бикини у героинь, шорты и плавки у героев), «Будуар» (бельё; у героев —
+ * шёлковый халат) и «Маскарад». Добываются в магазине обликов за кристаллы, в магазинах арены, лабиринта
+ * и ивента, в боевом пропуске.
+ */
+const COLLECTION: SetSkin[] = [
+  // ——— Мирабель ———
+  ['mirabel_lily', 'mirabel', 'summer', 'shop', { wear: 'swim2', outfit: '#FFFFFF', trim: '#E0B040' }, 'Белая лилия', 'White Lily', 2500],
+  ['mirabel_tide', 'mirabel', 'summer', 'arena', { wear: 'shell', outfit: '#F2E6D8', trim: '#6FD0E0', acc: 'flower', accColor: '#6FD0E0' }, 'Дочь прилива', 'Daughter of the Tide'],
+  ['mirabel_sun', 'mirabel', 'summer', 'pass', { wear: 'micro', outfit: '#E0B040', trim: '#FFFFFF', acc: 'sunHat', accColor: '#F2E6D8' }, 'Солнечный зайчик', 'Sunbeam'],
+  ['mirabel_lavender', 'mirabel', 'lingerie', 'shop', { wear: 'lace2', outfit: '#9B7AE0', trim: '#F2F0E6' }, 'Лавандовое кружево', 'Lavender Lace', 3000],
+  ['mirabel_bride', 'mirabel', 'lingerie', 'labyrinth', { wear: 'corset', outfit: '#FFFFFF', trim: '#E0B040', acc: 'veil', accColor: '#F2F0E6' }, 'Невеста рассвета', 'Bride of the Dawn'],
+  ['mirabel_gift', 'mirabel', 'lingerie', 'event', { wear: 'ribbon', outfit: '#E890B0', trim: '#E0B040', acc: 'bow', accColor: '#E890B0' }, 'Подарок небес', "Heaven's Gift"],
+  ['mirabel_bunny', 'mirabel', 'masquerade', 'pass', { wear: 'bunny', outfit: '#FFFFFF', trim: '#E0B040', acc: 'bunnyEars', accColor: '#FFFFFF' }, 'Белый кролик', 'White Bunny'],
+  // ——— Лира ———
+  ['lira_beach', 'lira', 'summer', 'shop', { wear: 'swim', outfit: '#1EA0A0', trim: '#F2E6D8', acc: 'sunHat', accColor: '#E8C87A' }, 'Пляжная ведьма', 'Beach Witch', 2500],
+  ['lira_rings', 'lira', 'summer', 'arena', { wear: 'swim3', outfit: '#1E1A1A', trim: '#F2C040' }, 'Огненные кольца', 'Rings of Fire'],
+  ['lira_spark', 'lira', 'summer', 'pass', { wear: 'string', outfit: '#FF4A9A', trim: '#F2E6D8', acc: 'flower', accColor: '#FF4A9A' }, 'Искра', 'Spark'],
+  ['lira_hell', 'lira', 'lingerie', 'shop', { wear: 'lace4', outfit: '#C0203A', trim: '#1E1A1A', acc: 'horns', accColor: '#2A1616' }, 'Адское искушение', 'Infernal Temptation', 3000],
+  ['lira_embers', 'lira', 'lingerie', 'labyrinth', { wear: 'lace', outfit: '#1E1A1A', trim: '#E0822A' }, 'Угольки', 'Embers'],
+  ['lira_gift', 'lira', 'lingerie', 'event', { wear: 'ribbon', outfit: '#C0203A', trim: '#F2C040', acc: 'bow', accColor: '#C0203A' }, 'Праздничная ведьма', 'Festive Witch'],
+  ['lira_maid', 'lira', 'masquerade', 'pass', { wear: 'maid', outfit: '#1E1A1A', trim: '#F2F0E6', acc: 'maidBand', accColor: '#F2F0E6' }, 'Горничная-ведьма', 'Witch Maid'],
+  // ——— Кейра ———
+  ['keira_night', 'keira', 'summer', 'shop', { wear: 'swim4', outfit: '#1E1A2A', trim: '#E03A3A' }, 'Ночной пляж', 'Night Beach', 2500],
+  ['keira_violet', 'keira', 'summer', 'arena', { wear: 'micro', outfit: '#9B4DE0', trim: '#1E1A2A' }, 'Фиалка', 'Violet'],
+  ['keira_surf', 'keira', 'summer', 'pass', { wear: 'sling', outfit: '#E03A6A', trim: '#1E1A2A' }, 'Тень прибоя', 'Surf Shadow'],
+  ['keira_silk', 'keira', 'lingerie', 'shop', { wear: 'lace3', outfit: '#1E1420', trim: '#9B4DE0' }, 'Чёрный шёлк', 'Black Silk', 3000],
+  ['keira_midnight', 'keira', 'lingerie', 'labyrinth', { wear: 'lace4', outfit: '#6A2AA0', trim: '#1E1A2A', acc: 'mask', accColor: '#1E1A2A' }, 'Полночь', 'Midnight'],
+  ['keira_fatale', 'keira', 'lingerie', 'event', { wear: 'corset', outfit: '#1E1A1A', trim: '#E03A3A' }, 'Роковая', 'Femme Fatale'],
+  ['keira_bunny', 'keira', 'masquerade', 'pass', { wear: 'bunny', outfit: '#1E1A2A', trim: '#9B4DE0', acc: 'bunnyEars', accColor: '#2A2036' }, 'Лунный кролик', 'Moon Bunny'],
+  // ——— Ульфа ———
+  ['ulfa_cat', 'ulfa', 'summer', 'shop', { wear: 'swim3', outfit: '#1E1A2A', trim: '#F2D46B' }, 'Кошка на пляже', 'Beach Cat', 2500],
+  ['ulfa_foam', 'ulfa', 'summer', 'arena', { wear: 'swim2', outfit: '#6FD0E0', trim: '#FFFFFF' }, 'Морская пена', 'Sea Foam'],
+  ['ulfa_ice', 'ulfa', 'summer', 'pass', { wear: 'shell', outfit: '#9FE0FF', trim: '#FFFFFF' }, 'Ледяная жемчужина', 'Ice Pearl'],
+  ['ulfa_aurora', 'ulfa', 'lingerie', 'shop', { wear: 'lace', outfit: '#1E2A4A', trim: '#6FD0E0' }, 'Полярная ночь', 'Polar Night', 3000],
+  ['ulfa_snow', 'ulfa', 'lingerie', 'labyrinth', { wear: 'lace2', outfit: '#E6F2FF', trim: '#3AA0D0' }, 'Снежинка', 'Snowflake'],
+  ['ulfa_wolf', 'ulfa', 'lingerie', 'event', { wear: 'corset', outfit: '#4A4A5A', trim: '#E6E6F0', acc: 'catEars', accColor: '#D8CCBA' }, 'Волчица', 'She-Wolf'],
+  ['ulfa_maid', 'ulfa', 'masquerade', 'pass', { wear: 'maid', outfit: '#1E2A4A', trim: '#F2F0E6', acc: 'catEars', accColor: '#D8CCBA' }, 'Горничная-волчица', 'Wolf Maid'],
+  // ——— Кассиан ———
+  ['cassian_lifeguard', 'cassian', 'summer', 'arena', { wear: 'trunks', outfit: '#E03A3A', trim: '#F2F0E6' }, 'Спасатель', 'Lifeguard'],
+  ['cassian_gold', 'cassian', 'summer', 'shop', { wear: 'briefs', outfit: '#F2F0E6', trim: '#D4A640' }, 'Золотой пляж', 'Golden Beach', 2000],
+  ['cassian_robe', 'cassian', 'lingerie', 'labyrinth', { wear: 'mrobe', outfit: '#2E3A6A', trim: '#D4A640' }, 'Ночной дозор', 'Night Watch'],
+  // ——— Элиан ———
+  ['elian_surf', 'elian', 'summer', 'arena', { wear: 'trunks', outfit: '#3F8A5A', trim: '#E8C87A' }, 'Лесной прибой', 'Forest Surf'],
+  ['elian_tropic', 'elian', 'summer', 'shop', { wear: 'briefs', outfit: '#1E8A8A', trim: '#F2E6D8' }, 'Тропик', 'Tropic', 2000],
+  ['elian_robe', 'elian', 'lingerie', 'labyrinth', { wear: 'mrobe', outfit: '#2F5A3A', trim: '#E4E0D0' }, 'Лунная роща', 'Moon Grove'],
+];
+
+/** Облики Легиона (коллекции; наряды близости добавляются в bond.ts, облики праздников — в festival.ts). */
+export const SKINS: SkinDef[] = [
+  ...SUMMER_SKINS,
+  ...COLLECTION.map(([id, hero, set, source, look, ru, en, crystals]): SkinDef => ({ id, hero, set, source, look, name: L(ru, en), crystals })),
+];
+/** Облики, которые есть только на праздниках (в обычные магазины не попадают). */
+export const FESTIVAL_ONLY_SKINS = new Set(SUMMER_SKINS.map((x) => x.id));
 export const SKIN_MAP: Record<string, SkinDef> = Object.fromEntries(SKINS.map((x) => [x.id, x]));

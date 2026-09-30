@@ -1,5 +1,5 @@
 import type { Currency, L10n } from '../types';
-import { SKINS } from './heroines';
+import { FESTIVAL_ONLY_SKINS, SKINS } from './heroines';
 
 /** Магазины за игровые валюты. */
 export interface ShopOffer {
@@ -15,8 +15,8 @@ export interface ShopOffer {
 
 /** Облики коллекций, которые продаются в магазине активности. */
 function skinOffers(shop: 'arena' | 'labyrinth' | 'event', prefix: string, cost: ShopOffer['cost']): ShopOffer[] {
-  // летняя коллекция продаётся только в лавке курорта (на празднике)
-  return SKINS.filter((x) => x.set && x.set !== 'summer' && x.source === shop).map((x) => ({
+  // облики праздников продаются только в их лавках
+  return SKINS.filter((x) => x.set && !FESTIVAL_ONLY_SKINS.has(x.id) && x.source === shop).map((x) => ({
     id: `${prefix}_${x.id}`,
     shop,
     name: { ru: `Облик «${x.name.ru}»`, en: `Skin "${x.name.en}"` },
@@ -51,7 +51,7 @@ export const SHOP_OFFERS: ShopOffer[] = [
   // ивент
   ...skinOffers('event', 'ev', { eventTokens: 1800 }),
   { id: 'ev_emblems', shop: 'event', name: E(5), cost: { eventTokens: 200 }, give: { cur: { emblems: 5 } }, limit: 10 },
-  // облики за кристаллы (появятся вместе с новыми коллекциями)
+  // облики за кристаллы
   ...SKINS.filter((x) => x.crystals).map(
     (x): ShopOffer => ({ id: `sk_${x.id}`, shop: 'skins', name: x.name, cost: { crystals: x.crystals! }, give: { skin: x.id }, limit: 1 }),
   ),
@@ -93,7 +93,7 @@ export function passReward(level: number, season = 's0'): PassReward {
   const si = PASS_SKIN_LEVELS.indexOf(level);
   if (si >= 0) {
     const skin = passSkins(season)[si];
-    // пока коллекций обликов нет — ключевые уровни дают больше Эмблем
+    // облик сезона; если пул пуст — ключевые уровни дают больше Эмблем
     return skin ? { skin, cur: { crystals: 100 + si * 50, emblems: 6 } } : { item: 'legendary', cur: { crystals: 150 + si * 50, emblems: 12 } };
   }
   if (level % 10 === 0) return { item: 'legendary', cur: { emblems: 8, crystals: 100 } };

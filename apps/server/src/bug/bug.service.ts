@@ -89,7 +89,7 @@ export class BugService {
       const diff = s.progress.diff;
       const cur = stageLabel(stageRef(diff, Math.max(1, s.progress.cleared[diff] + 1)));
       const heroes = Object.keys(s.heroines).length;
-      lines.push(`📍 Этап ${cur} · ${DIFFICULTY_KEYS[diff]} · героинь ${heroes}${who.power ? ` · сила ${Math.round(who.power).toLocaleString('ru-RU')}` : ''}`);
+      lines.push(`📍 Этап ${cur} · ${DIFFICULTY_KEYS[diff]} · героев ${heroes}${who.power ? ` · сила ${Math.round(who.power).toLocaleString('ru-RU')}` : ''}`);
     }
     const device = [d.platform, d.tgVersion && `TG ${d.tgVersion}`, d.screen, d.lang].filter(Boolean).join(' · ');
     if (device) lines.push(`📱 ${escapeHtml(device)}`);

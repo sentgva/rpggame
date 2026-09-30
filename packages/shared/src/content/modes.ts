@@ -235,8 +235,8 @@ export const TOWER_MODS: TowerMod[] = [
   { id: 'frenzy', name: { ru: 'Бешенство', en: 'Frenzy' }, desc: { ru: 'Враги: +20% атаки и +15% скорости', en: 'Enemies: +20% attack, +15% speed' }, enemy: { atk: 1.2, spd: 1.15 } },
   { id: 'ironclad', name: { ru: 'Железная шкура', en: 'Ironclad' }, desc: { ru: 'Враги: +60% защиты', en: 'Enemies: +60% defense' }, enemy: { def: 1.6 } },
   { id: 'glass', name: { ru: 'Стеклянные пушки', en: 'Glass Cannons' }, desc: { ru: 'Враги: −30% здоровья, но +35% атаки', en: 'Enemies: −30% HP, but +35% attack' }, enemy: { hp: 0.7, atk: 1.35 } },
-  { id: 'blessing', name: { ru: 'Благословение', en: 'Blessing' }, desc: { ru: 'Ваши героини: +25% лечения и +10% здоровья', en: 'Your heroines: +25% healing, +10% HP' }, hero: { healPower: 0.25, hpPct: 0.1 } },
-  { id: 'storm', name: { ru: 'Эфирная буря', en: 'Aether Storm' }, desc: { ru: 'Ваши героини: +40% урона ультимейтов и +25% энергии', en: 'Your heroines: +40% ultimate damage, +25% energy' }, hero: { dmgUlt: 0.4, energyRegen: 0.25 } },
+  { id: 'blessing', name: { ru: 'Благословение', en: 'Blessing' }, desc: { ru: 'Ваш отряд: +25% лечения и +10% здоровья', en: 'Your squad: +25% healing, +10% HP' }, hero: { healPower: 0.25, hpPct: 0.1 } },
+  { id: 'storm', name: { ru: 'Эфирная буря', en: 'Aether Storm' }, desc: { ru: 'Ваш отряд: +40% урона ультимейтов и +25% энергии', en: 'Your squad: +40% ultimate damage, +25% energy' }, hero: { dmgUlt: 0.4, energyRegen: 0.25 } },
   { id: 'calm', name: { ru: 'Затишье', en: 'Calm' }, desc: { ru: 'Без особых условий', en: 'No special conditions' } },
 ];
 export const TOWER_MOD_MAP: Record<string, TowerMod> = Object.fromEntries(TOWER_MODS.map((m) => [m.id, m]));
@@ -399,7 +399,7 @@ export const EXPEDITION_EVENTS: ExpeditionEvent[] = [
     id: 'spring',
     icon: '♨️',
     title: { ru: 'Горячий источник', en: 'A Hot Spring' },
-    text: { ru: 'По пути — горячий источник. Героини просят задержаться и отдохнуть.', en: 'On the way — a hot spring. The heroines ask to stop and rest.' },
+    text: { ru: 'По пути — горячий источник. Отряд просит задержаться и отдохнуть.', en: 'On the way — a hot spring. The squad asks to stop and rest.' },
     choices: {
       a: { label: { ru: 'Отдохнуть', en: 'Rest' }, outcome: { win: { mult: 0.9, add: { dust: 30 }, text: { ru: 'Отдохнувший отряд по пути собрал магическую пыль.', en: 'Well-rested, the squad gathers magic dust on the way.' } } } },
       b: { label: { ru: 'Спешить', en: 'Hurry on' }, outcome: { win: { mult: 1.1, text: { ru: 'Спешка окупилась: успели продать добычу подороже.', en: 'The hurry paid off: the loot sold for more.' } } } },

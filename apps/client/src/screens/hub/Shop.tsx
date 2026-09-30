@@ -70,7 +70,7 @@ function CurrencyShop({ shop }: { shop: ShopTab }) {
           <Panel key={o.id}>
             <div className={css.row}>
               {o.give.skin ? (
-                <HeroImg className="pixel" id={SKIN_MAP[o.give.skin].hero} skin={o.give.skin} width={56} height={56} />
+                <HeroImg className="pixel" id={SKIN_MAP[o.give.skin].hero} skin={o.give.skin} unarmed={!!SKIN_MAP[o.give.skin].look.wear} flirt={!!SKIN_MAP[o.give.skin].look.wear} width={56} height={56} />
               ) : (
                 <Icon name={o.give.item ? 'weapon' : Object.keys(o.give.cur ?? {})[0] ?? 'gift'} size={36} />
               )}

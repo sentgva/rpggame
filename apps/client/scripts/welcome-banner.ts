@@ -44,7 +44,7 @@ for (let y = H - 64; y < H; y++)
     img.set(edge ? [90, 60, 80, 255] : [40, 24, 38, 255], (y * W + x) * 4);
   }
 
-const cast = ['seyra', 'astrid', 'lira', 'velvet', 'mirabel', 'keira'];
+const cast = ['elian', 'cassian', 'lira', 'keira', 'mirabel', 'ulfa'];
 cast.forEach((id, i) => {
   const h = HEROINE_MAP[id];
   const bmp = renderFigure(

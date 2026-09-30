@@ -342,7 +342,7 @@ function HeroSkins({ heroId }: { heroId: string }) {
                 else useUi.getState().toast(sk.source === 'shop' ? t('heroes.skinLocked') : skinSourceText(sk.id, true), 'info');
               }}
             >
-              <HeroImg className={cx(css.heroSprite, !owned && css.dim)} id={heroId} skin={sk.id} still={!owned} />
+              <HeroImg className={cx(css.heroSprite, !owned && css.dim)} id={heroId} skin={sk.id} still={!owned} unarmed={!!sk.look.wear} flirt={owned && !!sk.look.wear} />
               <div className={css.heroName}>{tl(sk.name)}</div>
               {!owned && sk.source !== 'shop' && <div className={css.tiny}>{skinSourceText(sk.id)}</div>}
               <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : t('heroes.skinLocked')}</div>

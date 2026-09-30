@@ -68,7 +68,7 @@ function heroSpec(heroId: string, skin?: string, opts: Partial<SpriteSpec> = {})
 function enemySpec(enemyId: string, opts: Partial<SpriteSpec> = {}): FigureSpec {
   const def = ENEMY_MAP[enemyId];
   if (def?.hero) return heroSpec(def.hero, undefined, opts);
-  const cls = ROLE_CLASS[def?.role ?? 'brute'];
+  const cls = def?.cls ?? ROLE_CLASS[def?.role ?? 'brute'];
   return {
     look: def.look,
     weapon: CLASS_WEAPON[cls],

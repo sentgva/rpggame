@@ -1,13 +1,14 @@
 /**
- * Героини и враги-гуманоиды 48×48, версия 2: взрослые пропорции (≈3,5 головы, длинные ноги,
- * узкая талия), детальное лицо, откровенные фэнтезийные наряды без наготы, кадры анимации
+ * Герои, героини и враги-гуманоиды 48×48, версия 2: взрослые пропорции (≈3,5 головы, длинные ноги,
+ * узкая талия; у героев — `look.male`: плечи шире, плоская грудь, своё лицо), детальное лицо,
+ * откровенные фэнтезийные наряды без наготы, кадры анимации
  * (глаза: открыты/полуприкрыты/закрыты/подмигивание; руки: два кадра «дыхания» и выпад).
  *
  * Рисуем «материалами»: пиксель — материал + тон ('S0' кожа-база, 'S-' тень, 'S+' блик,
  * 'S=' глубокая тень). После рисования — автосветотень (свет сверху-слева) и контур.
  */
-import type { Element, Look } from '@idle/shared';
-import { ELEMENT_COLORS } from '@idle/shared';
+import type { Element, Look, Wear } from '@idle/shared';
+import { ELEMENT_COLORS, MALE_WEAR, isSwimwear } from '@idle/shared';
 import { darken, hex, lighten, mix, type RGBA } from './color';
 import type { Bitmap, SpriteSpec } from './sprite';
 
@@ -23,22 +24,21 @@ export type OutfitKind =
   | 'reaper'
   | 'rogue'
   | 'minstrel'
-  // классы Легиона: закрытые боевые наряды (облики — отдельно)
-  | 'paladin'
-  | 'shadow'
-  | 'vestal'
-  | 'scout'
-  | 'sorcerer'
-  | 'huntress';
+  // Легион: четыре героини и два героя
+  | 'nightblade'
+  | 'oracle'
+  | 'hexcaster'
+  | 'frostfang'
+  | 'cavalier'
+  | 'strider';
 
 export const CLASS_OUTFIT: Record<string, OutfitKind> = {
-  knight: 'paladin',
-  assassin: 'shadow',
-  priestess: 'vestal',
-  ranger: 'scout',
-  warlock: 'sorcerer',
-  hunter: 'huntress',
-  brute: 'huntress',
+  knight: 'cavalier',
+  assassin: 'nightblade',
+  priestess: 'oracle',
+  ranger: 'strider',
+  warlock: 'hexcaster',
+  hunter: 'frostfang',
   guardian: 'knight',
   berserker: 'barbarian',
   archer: 'ranger',
@@ -252,7 +252,7 @@ function bothArms(c: Canvas, part: 'upper' | 'fore' | 'hand', m: string, t: Tone
 
 // ——— тело ———
 
-const LEG_L: [number, number, number][] = [
+const F_LEG_L: [number, number, number][] = [
   [33, 18, 23],
   [34, 18, 23],
   [35, 18, 22],
@@ -268,7 +268,7 @@ const LEG_L: [number, number, number][] = [
   [45, 16, 20],
   [46, 15, 20],
 ];
-const LEG_R: [number, number, number][] = [
+const F_LEG_R: [number, number, number][] = [
   [33, 25, 30],
   [34, 25, 29],
   [35, 25, 29],
@@ -286,7 +286,7 @@ const LEG_R: [number, number, number][] = [
 ];
 
 /** Силуэт торса [y, x0, x1]: по нему же фигура меняет объём (см. shapeBody). */
-const TORSO: [number, number, number][] = [
+const F_TORSO: [number, number, number][] = [
   [17, 20, 27],
   [18, 17, 30],
   [19, 16, 31],
@@ -305,6 +305,67 @@ const TORSO: [number, number, number][] = [
   [32, 18, 30],
 ];
 
+/**
+ * Мужская фигура («стройный красавчик»): плечи шире, грудь плоская, талия почти прямая, бёдра узкие,
+ * ноги ровнее. Рисуется теми же функциями — они берут текущие TORSO/LEG_L/LEG_R.
+ */
+const M_TORSO: [number, number, number][] = [
+  [17, 20, 27],
+  [18, 16, 31],
+  [19, 16, 31],
+  [20, 16, 31],
+  [21, 17, 30],
+  [22, 17, 30],
+  [23, 18, 29],
+  [24, 18, 29],
+  [25, 19, 28],
+  [26, 19, 28],
+  [27, 19, 28],
+  [28, 19, 28],
+  [29, 18, 29],
+  [30, 18, 29],
+  [31, 18, 29],
+  [32, 18, 29],
+];
+const M_LEG_L: [number, number, number][] = [
+  [33, 18, 23],
+  [34, 18, 23],
+  [35, 18, 23],
+  [36, 18, 22],
+  [37, 18, 22],
+  [38, 18, 22],
+  [39, 18, 22],
+  [40, 18, 21],
+  [41, 18, 21],
+  [42, 18, 21],
+  [43, 17, 21],
+  [44, 17, 21],
+  [45, 16, 21],
+  [46, 15, 21],
+];
+const M_LEG_R: [number, number, number][] = [
+  [33, 25, 29],
+  [34, 25, 29],
+  [35, 25, 29],
+  [36, 25, 29],
+  [37, 25, 28],
+  [38, 25, 28],
+  [39, 26, 28],
+  [40, 26, 28],
+  [41, 26, 28],
+  [42, 26, 28],
+  [43, 26, 28],
+  [44, 26, 29],
+  [45, 26, 29],
+  [46, 26, 30],
+];
+
+/** Текущая фигура (переключается в composeFigure). */
+let TORSO = F_TORSO;
+let LEG_L = F_LEG_L;
+let LEG_R = F_LEG_R;
+let male = false;
+
 /** Нога с y0 по y1 материалом m (чулки, сапоги, поножи). */
 function legs(c: Canvas, y0: number, y1: number, m: string, t: Tone = '0', which: 'both' | 'L' | 'R' = 'both') {
   for (const [rows, side] of [
@@ -317,6 +378,7 @@ function legs(c: Canvas, y0: number, y1: number, m: string, t: Tone = '0', which
 }
 
 function drawBody(c: Canvas, withLegs: boolean) {
+  if (male) return drawBodyMale(c, withLegs);
   // лицо: взрослый овал с узким подбородком
   c.rows(
     [
@@ -367,6 +429,57 @@ function drawBody(c: Canvas, withLegs: boolean) {
   c.vl(25, 33, 35, 'S', '-');
   c.set(19, 38, 'S', '+');
   c.set(26, 38, 'S', '+');
+}
+
+/** Мужское тело: тот же овал лица, но твёрже подбородок, шея шире, плоская грудь с контуром мышц. */
+function drawBodyMale(c: Canvas, withLegs: boolean) {
+  c.rows(
+    [
+      [5, 20, 27],
+      [6, 19, 28],
+      [7, 18, 29],
+      [8, 18, 29],
+      [9, 18, 29],
+      [10, 18, 29],
+      [11, 18, 29],
+      [12, 18, 29],
+      [13, 19, 28],
+      [14, 20, 27],
+      [15, 22, 25],
+    ],
+    'S',
+  );
+  c.set(18, 12, 'S', '-');
+  c.set(29, 12, 'S', '-');
+  c.hl(21, 26, 15, 'S', '-');
+  // шея
+  c.rect(21, 15, 26, 17, 'S');
+  c.set(21, 16, 'S', '-');
+  c.set(26, 16, 'S', '-');
+  for (const side of ['L', 'R'] as const) {
+    const A = arms[side];
+    const ac = armCanvas(c, side);
+    limb(ac, A.shoulder, A.elbow, 'S', '0', 3);
+    limb(ac, A.elbow, A.hand, 'S');
+    ac.rect(A.hand[0] - 1, A.hand[1] - 1, A.hand[0], A.hand[1], 'S');
+  }
+  c.rows(TORSO, 'S');
+  // ключицы, контур груди, пресс, пупок
+  c.hl(20, 22, 18, 'S', '-');
+  c.hl(25, 27, 18, 'S', '-');
+  c.hl(18, 22, 21, 'S', '-');
+  c.hl(25, 29, 21, 'S', '-');
+  c.vl(24, 19, 21, 'S', '-');
+  c.set(22, 23, 'S', '-');
+  c.set(25, 23, 'S', '-');
+  c.set(22, 25, 'S', '-');
+  c.set(25, 25, 'S', '-');
+  c.set(24, 27, 'S', '-');
+  if (!withLegs) return;
+  c.rows(LEG_L, 'S');
+  c.rows(LEG_R, 'S');
+  c.vl(23, 33, 35, 'S', '-');
+  c.vl(25, 33, 35, 'S', '-');
 }
 
 // ——— объём фигуры ———
@@ -531,7 +644,45 @@ function hairShine(c: Canvas) {
     if (c.get(x, y) === 'H0') c.set(x, y, 'H', '+');
 }
 
+/** Мужское лицо: глаза без «крылышек» ресниц, прямые брови гуще, тонкая линия рта, без румянца. */
+function drawFaceMale(c: Canvas, eyes: Eyes) {
+  const left = eyes === 'wink' ? 'open' : eyes;
+  const right = eyes === 'wink' ? 'closed' : eyes;
+  for (const [x0, flip, st] of [
+    [19, false, left],
+    [26, true, right],
+  ] as const) {
+    const outer = flip ? x0 + 2 : x0;
+    const inner = flip ? x0 : x0 + 2;
+    if (st === 'closed') {
+      c.hl(x0, x0 + 2, 10, 'l');
+      continue;
+    }
+    const top = st === 'half' ? 10 : 9;
+    c.hl(x0, x0 + 2, top, 'l');
+    c.set(outer, top + 1, 'E', '=');
+    c.set(x0 + 1, top + 1, 'E', '-');
+    c.set(inner, top + 1, 'E', '+');
+    if (st === 'open') {
+      c.set(outer, 11, 'E', '0');
+      c.set(x0 + 1, 11, 'E', '0');
+      c.set(inner, 11, 'E', '-');
+    }
+  }
+  // брови: прямые, чуть сведены к переносице
+  c.hl(19, 21, 7, 'H', '=');
+  c.hl(26, 28, 7, 'H', '=');
+  c.set(22, 8, 'H', '=');
+  c.set(25, 8, 'H', '=');
+  // нос и рот; при подмигивании — ухмылка
+  c.set(24, 11, 'S', '-');
+  c.set(24, 12, 'S', '-');
+  c.hl(23, 24, 13, 'S', '=');
+  if (eyes === 'wink') c.set(25, 13, 'S', '=');
+}
+
 function drawFace(c: Canvas, eyes: Eyes) {
+  if (male) return drawFaceMale(c, eyes);
   const left = eyes === 'wink' ? 'open' : eyes;
   const right = eyes === 'wink' ? 'closed' : eyes;
   eye(c, 19, false, left);
@@ -580,7 +731,19 @@ function hairTop(c: Canvas) {
   // блик-кольцо
   for (let x = 20; x <= 27; x++) if (x % 2 === 0) c.set(x, 3, 'H', '+');
   c.hl(21, 23, 2, 'H', '+');
-  // пряди вдоль лица
+  // пряди вдоль лица (у героев — короткие виски)
+  if (male) {
+    c.vl(17, 7, 10, 'H');
+    c.vl(16, 5, 9, 'H');
+    c.vl(30, 7, 10, 'H');
+    c.vl(31, 5, 9, 'H');
+    c.set(17, 11, 'H', '-');
+    c.set(30, 11, 'H', '-');
+    // косая чёлка: прядь падает на лоб справа налево
+    c.hl(21, 24, 7, 'H');
+    c.hl(22, 23, 8, 'H', '-');
+    return;
+  }
   c.vl(17, 7, 13, 'H');
   c.vl(16, 5, 11, 'H');
   c.vl(30, 7, 13, 'H');
@@ -699,6 +862,24 @@ function drawHairBack(c: Canvas, style: Look['style']) {
       c.poly(cap, 'H');
       c.ellipse(24, 1, 4, 2.2, 'H');
       c.hl(22, 24, 0, 'H', '+');
+      break;
+    case 'swept':
+      // короткая стрижка с объёмом: затылок и виски, прядь отведена назад
+      c.poly(
+        [
+          [15, 2],
+          [32, 2],
+          [34, 7],
+          [33, 12],
+          [31, 14],
+          [16, 14],
+          [14, 11],
+          [14, 6],
+        ],
+        'H',
+      );
+      c.line(32, 4, 34, 9, 'H', '-');
+      c.set(14, 12, 'H', '-');
       break;
     case 'wild':
       c.poly(
@@ -968,6 +1149,135 @@ function microBikini(c: Canvas, m: string, bust: number, hips: number) {
   for (let x = 19 - h(27); x <= 28 + h(27); x += 2) c.set(x, 27, 'T', x % 4 === 1 ? '+' : '0');
 }
 
+/**
+ * «Нитка»: ещё меньше микро-бикини — чашечки 2×2 ровно по груди, низ шириной в два пикселя,
+ * всё держится на нитях: на шею, вокруг спины и высоко по бёдрам.
+ */
+function stringBikini(c: Canvas, m: string, bust: number, hips: number) {
+  const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
+  const h = (y: number) => HIP_ROWS[hips]?.torso[y] ?? 0;
+  for (const [y, x0, x1] of [
+    [21, 19, 20],
+    [22, 19, 20],
+  ] as const) {
+    c.hl(x0 - b(y), x1 - b(y), y, m);
+    c.hl(47 - x1 + b(y), 47 - x0 + b(y), y, m);
+  }
+  c.set(19 - b(21), 21, m, '+');
+  c.set(27 + b(21), 21, m, '+');
+  c.line(20 - b(21), 20, 22, 16, m, '=');
+  c.line(27 + b(21), 20, 25, 16, m, '=');
+  c.hl(16 - b(22), 18 - b(22), 22, m, '=');
+  c.hl(29 + b(22), 31 + b(22), 22, m, '=');
+  c.hl(21 - b(22), 26 + b(22), 22, m, '=');
+  c.rows(
+    [
+      [30, 23, 24],
+      [31, 23, 24],
+      [32, 23, 24],
+    ],
+    m,
+  );
+  c.set(23, 30, m, '+');
+  c.line(22, 30, 18 - h(28), 27, m, '=');
+  c.line(25, 30, 29 + h(28), 27, m, '=');
+  c.set(18 - h(28), 27, 'T', '+');
+  c.set(29 + h(28), 27, 'T', '+');
+}
+
+/**
+ * Слингшот: две узкие ленты от шеи через грудь сходятся книзу в крошечный треугольник —
+ * самый открытый купальник, всё нужное закрыто.
+ */
+function slingshot(c: Canvas, m: string, bust: number, hips: number) {
+  const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
+  void hips;
+  // ленты: от шеи вниз по груди (двойная ширина на чашке), затем сходятся к центру
+  const band: [number, number][] = [
+    [16, 22],
+    [17, 21],
+    [18, 20],
+    [19, 20],
+    [20, 19],
+    [21, 19],
+    [22, 19],
+    [23, 20],
+    [24, 21],
+    [25, 21],
+    [26, 22],
+    [27, 22],
+    [28, 23],
+    [29, 23],
+  ];
+  for (const [y, x] of band) {
+    const d = y >= 19 && y <= 22 ? b(y) : 0;
+    const wide = y >= 20 && y <= 22;
+    c.hl(x - d, x - d + (wide ? 1 : 0), y, m);
+    c.hl(47 - x + d - (wide ? 1 : 0), 47 - x + d, y, m);
+  }
+  c.set(19 - b(21), 21, m, '+');
+  c.set(28 + b(21), 21, m, '+');
+  c.rows(
+    [
+      [30, 23, 24],
+      [31, 23, 24],
+      [32, 23, 24],
+    ],
+    m,
+  );
+  c.set(23, 30, 'T', '+');
+  c.set(24, 30, 'T', '0');
+  c.hl(21, 22, 16, 'T');
+  c.hl(25, 26, 16, 'T');
+}
+
+/** Ракушки: чашки-раковины с рёбрами, жемчужные нити, низ-раковина на жемчужных завязках. */
+function shellBikini(c: Canvas, m: string, bust: number, hips: number) {
+  const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
+  const h = (y: number) => HIP_ROWS[hips]?.torso[y] ?? 0;
+  for (const [y, x0, x1] of [
+    [20, 19, 20],
+    [21, 18, 21],
+    [22, 18, 21],
+  ] as const) {
+    c.hl(x0 - b(y), x1 - b(y), y, m);
+    c.hl(47 - x1 + b(y), 47 - x0 + b(y), y, m);
+  }
+  // рёбра раковин
+  c.set(19 - b(21), 21, m, '-');
+  c.set(20 - b(22), 22, m, '-');
+  c.set(28 + b(21), 21, m, '-');
+  c.set(27 + b(22), 22, m, '-');
+  c.set(20 - b(20), 20, m, '+');
+  c.set(27 + b(20), 20, m, '+');
+  // жемчужные нити
+  for (const [x, y] of [
+    [21, 18],
+    [22, 17],
+    [26, 18],
+    [25, 17],
+    [23, 21],
+    [24, 21],
+    [17, 22],
+    [30, 22],
+  ] as P[])
+    c.set(x, y, 'R', '+');
+  c.rows(
+    [
+      [29, 22, 25],
+      [30, 22, 25],
+      [31, 23, 24],
+    ],
+    m,
+  );
+  c.set(23, 29, m, '+');
+  c.set(22, 30, m, '-');
+  for (let k = 0; k < 3; k++) {
+    c.set(21 - k - (k === 2 ? h(28) : 0), 29 - k, 'R', '+');
+    c.set(26 + k + (k === 2 ? h(28) : 0), 29 - k, 'R', '+');
+  }
+}
+
 /** Низ-стринги: высокие боковые завязки и узкий треугольник спереди. */
 function stringBottom(c: Canvas, m: string, t: Tone = '0', ties = m) {
   c.rows(
@@ -1016,199 +1326,347 @@ function chestFolds(c: Canvas, m: string) {
   c.set(28, 19, m, '+');
 }
 
+/** Что у наряда сзади фигуры (рисуется до тела): плащ рыцаря, капюшон следопыта. */
+function outfitBack(c: Canvas, kind: OutfitKind) {
+  if (kind === 'cavalier') {
+    // плащ за спиной: из-под наплечников до колен, край с золотой каймой
+    c.poly(
+      [
+        [16, 17],
+        [31, 17],
+        [34, 39],
+        [13, 39],
+      ],
+      'O',
+      '-',
+    );
+    c.hl(13, 34, 39, 'T');
+    c.line(16, 18, 13, 38, 'O', '=');
+  } else if (kind === 'strider') {
+    c.ellipse(24, 16, 6, 2.6, 'O', '-');
+  }
+}
+
 function outfit(c: Canvas, kind: OutfitKind, withLegs: boolean) {
   switch (kind) {
-    case 'paladin': {
-      // латы валькирии: кираса, наплечники, табард до колен и латные сапоги
-      torso(c, 17, 26, 'K');
-      chestFolds(c, 'K');
-      c.vl(24, 18, 25, 'K', '+');
-      c.hl(20, 27, 17, 'T');
-      c.ellipse(15, 18, 3, 2.2, 'K');
-      c.ellipse(32, 18, 3, 2.2, 'K');
+    case 'nightblade': {
+      // Тень: топ-халтер с глубоким вырезом, открытые плечи и живот, низкий пояс с кушаком,
+      // шортики, ботфорты с ремешками и ножны на бедре, длинные перчатки без пальцев
+      c.line(20, 18, 22, 16, 'O');
+      c.line(27, 18, 25, 16, 'O');
+      c.hl(22, 25, 16, 'T');
+      c.set(24, 16, 'T', '+');
+      c.rows(
+        [
+          [19, 17, 22],
+          [20, 16, 22],
+          [21, 16, 22],
+          [22, 17, 23],
+          [23, 18, 23],
+          [19, 25, 30],
+          [20, 25, 31],
+          [21, 25, 31],
+          [22, 24, 30],
+          [23, 24, 29],
+        ],
+        'O',
+      );
+      c.hl(18, 22, 22, 'O', '-');
+      c.hl(25, 29, 22, 'O', '-');
+      c.set(19, 19, 'O', '+');
+      c.set(28, 19, 'O', '+');
+      c.hl(18, 29, 23, 'T');
+      c.hl(18, 29, 28, 'W');
+      c.set(24, 28, 'K', '+');
+      torso(c, 29, 32, 'O');
+      c.vl(24, 30, 32, 'O', '-');
+      c.hl(17, 30, 29, 'O', '-');
+      // кушак: узел на левом бедре, концы свисают
+      c.set(18, 29, 'T', '+');
+      c.line(18, 29, 15, 36, 'T');
+      c.line(19, 30, 17, 37, 'T', '-');
+      bothArms(c, 'fore', 'O');
+      if (withLegs) {
+        c.hl(18, 23, 33, 'O');
+        c.hl(25, 30, 33, 'O');
+        c.hl(18, 23, 33, 'T', '-');
+        c.hl(25, 30, 33, 'T', '-');
+        // ремень с ножнами на правом бедре
+        c.hl(25, 30, 35, 'W');
+        c.rect(30, 33, 31, 38, 'W', '-');
+        c.set(30, 32, 'K', '+');
+        legs(c, 38, 46, 'O', '-');
+        legs(c, 38, 38, 'T');
+        c.hl(18, 22, 41, 'W');
+        c.hl(26, 28, 41, 'W');
+        legs(c, 46, 46, 'F');
+      }
+      break;
+    }
+    case 'oracle': {
+      // Оракул рассвета: золотой воротник-усех, лиф «сердечком» без бретелей, окошко на животе,
+      // пояс-цепь, юбка в пол с высокими разрезами по обеим ногам, браслеты и сандалии
+      c.hl(22, 25, 16, 'T');
+      c.hl(21, 26, 17, 'T', '-');
+      c.set(23, 17, 'G', '+');
+      c.set(24, 17, 'G');
+      c.rows(
+        [
+          [19, 17, 22],
+          [20, 16, 22],
+          [21, 16, 23],
+          [22, 17, 23],
+          [19, 25, 30],
+          [20, 25, 31],
+          [21, 24, 31],
+          [22, 24, 30],
+        ],
+        'O',
+      );
+      c.hl(18, 22, 22, 'O', '-');
+      c.hl(25, 29, 22, 'O', '-');
+      c.set(19, 20, 'O', '+');
+      c.set(28, 20, 'O', '+');
+      c.hl(18, 29, 23, 'T');
+      torso(c, 24, 28, 'O');
+      // окошко-ромб на животе
+      c.hl(23, 24, 24, 'S');
+      c.hl(22, 25, 25, 'S');
+      c.hl(22, 25, 26, 'S');
+      c.hl(23, 24, 27, 'S');
+      c.set(24, 27, 'S', '-');
+      c.hl(17, 30, 29, 'T');
+      c.set(24, 29, 'G', '+');
+      c.set(23, 29, 'G');
+      torso(c, 30, 32, 'O');
+      bothArms(c, 'hand', 'T', '-');
+      for (const side of ['L', 'R'] as const) {
+        const A = arms[side];
+        const ac = armCanvas(c, side);
+        ac.set(Math.round((A.shoulder[0] + A.elbow[0]) / 2), Math.round((A.shoulder[1] + A.elbow[1]) / 2), 'T', '+');
+      }
+      if (withLegs) {
+        c.hl(18, 23, 33, 'O');
+        c.hl(25, 30, 33, 'O');
+        // переднее полотнище с солнечным знаком
+        c.rect(21, 33, 26, 45, 'O');
+        c.vl(21, 34, 45, 'O', '-');
+        c.hl(21, 26, 45, 'T');
+        c.hl(23, 24, 35, 'T', '+');
+        c.hl(23, 24, 36, 'G');
+        // боковые полы до щиколоток
+        c.poly(
+          [
+            [17, 32],
+            [19, 32],
+            [15, 47],
+            [12, 47],
+          ],
+          'O',
+        );
+        c.poly(
+          [
+            [28, 32],
+            [31, 32],
+            [36, 47],
+            [33, 47],
+          ],
+          'O',
+        );
+        c.hl(12, 15, 46, 'T');
+        c.hl(33, 36, 46, 'T');
+        legs(c, 46, 46, 'T', '-');
+        c.set(19, 44, 'T');
+        c.set(27, 44, 'T');
+      }
+      break;
+    }
+    case 'hexcaster': {
+      // Ведьма пламени: чокер с камнем, кружевные чашки, корсет со шнуровкой, пышная мини-юбка,
+      // отдельные рукава, чулки выше колена
+      c.hl(22, 25, 16, 'T');
+      c.set(23, 17, 'G', '+');
+      c.set(24, 17, 'G');
+      bust(c, 'O', 'cups');
+      for (const x of [17, 19, 21, 26, 28, 30]) c.set(x, 19, 'T', '+');
+      c.rows(
+        [
+          [23, 18, 29],
+          [24, 19, 28],
+          [25, 20, 27],
+          [26, 20, 27],
+          [27, 19, 28],
+          [28, 18, 29],
+        ],
+        'O',
+      );
+      c.hl(18, 29, 23, 'T', '-');
+      for (let y = 24; y <= 28; y++) {
+        c.set(23, y, 'T', y % 2 ? '+' : '-');
+        c.set(24, y, 'T', y % 2 ? '-' : '+');
+      }
+      // мини-юбка
+      c.poly(
+        [
+          [17, 29],
+          [31, 29],
+          [34, 36],
+          [14, 36],
+        ],
+        'O',
+      );
+      c.hl(17, 30, 29, 'T');
+      c.hl(15, 33, 35, 'T');
+      for (let x = 15; x <= 33; x += 2) c.set(x, 36, 'O', '-');
+      c.vl(20, 31, 34, 'O', '-');
+      c.vl(28, 31, 34, 'O', '-');
+      bothArms(c, 'fore', 'O');
+      for (const side of ['L', 'R'] as const) {
+        const A = arms[side];
+        const ac = armCanvas(c, side);
+        ac.set(Math.round(A.elbow[0] + (A.hand[0] - A.elbow[0]) * 0.75), Math.round(A.elbow[1] + (A.hand[1] - A.elbow[1]) * 0.75), 'T', '+');
+      }
+      if (withLegs) {
+        stockings(c, 39, 'F', 'T');
+        legs(c, 45, 46, 'W', '-');
+      }
+      break;
+    }
+    case 'frostfang': {
+      // Северная охотница: меховая накидка на плечах, ожерелье из клыков, кожаное бандо с мехом,
+      // открытый живот, пояс с подсумками, шорты с меховой каймой, меховые сапоги и наручи
+      c.ellipse(15.5, 18, 3, 2.2, 'T');
+      c.ellipse(31.5, 18, 3, 2.2, 'T');
+      c.hl(20, 27, 16, 'T', '-');
+      c.hl(19, 20, 17, 'T');
+      c.hl(27, 28, 17, 'T');
+      for (const x of [13, 15, 17, 30, 32, 34]) c.set(x, 20, 'T', '-');
+      c.set(22, 18, 'R', '+');
+      c.set(24, 19, 'R', '+');
+      c.set(26, 18, 'R', '+');
+      c.rows(
+        [
+          [20, 16, 31],
+          [21, 16, 31],
+          [22, 17, 30],
+        ],
+        'O',
+      );
+      c.set(23, 21, 'O', '-');
+      c.set(24, 21, 'O', '-');
+      c.hl(18, 22, 22, 'O', '-');
+      c.hl(25, 29, 22, 'O', '-');
+      c.hl(16, 22, 19, 'O', '+');
+      c.hl(25, 31, 19, 'O', '+');
+      for (let x = 17; x <= 30; x += 2) c.set(x, 23, 'T', '-');
+      c.hl(18, 29, 28, 'W');
+      c.rect(18, 29, 19, 31, 'W', '-');
+      c.rect(28, 29, 29, 30, 'W', '-');
+      c.set(24, 28, 'K', '+');
+      torso(c, 29, 32, 'O');
+      c.vl(24, 30, 32, 'O', '-');
+      bothArms(c, 'fore', 'O');
+      for (const side of ['L', 'R'] as const) {
+        const A = arms[side];
+        const ac = armCanvas(c, side);
+        ac.set(A.elbow[0], A.elbow[1], 'T', '+');
+      }
+      if (withLegs) {
+        for (let x = 18; x <= 30; x++) if (x !== 24) c.set(x, 33, 'T', x % 2 ? '+' : '0');
+        legs(c, 40, 46, 'O');
+        legs(c, 39, 40, 'T');
+        for (const [y, x0, x1] of [...LEG_L, ...LEG_R]) if (y === 39) for (let x = x0; x <= x1; x += 2) c.set(x, 38, 'T', '+');
+      }
+      break;
+    }
+    case 'cavalier': {
+      // Рыцарь-красавчик: латный горжет, кираса с гербом, асимметричные наплечники, табард,
+      // облегающие штаны и латные сапоги; плащ — сзади (outfitBack)
+      c.hl(21, 26, 16, 'K');
+      c.hl(21, 26, 17, 'T');
+      torso(c, 18, 27, 'K');
+      c.vl(24, 19, 26, 'K', '+');
+      c.hl(18, 22, 22, 'K', '-');
+      c.hl(25, 29, 22, 'K', '-');
+      c.hl(20, 27, 18, 'T', '-');
+      c.set(23, 21, 'G', '+');
+      c.set(24, 21, 'G', '+');
+      c.set(23, 22, 'G');
+      c.set(24, 22, 'G');
+      c.ellipse(15, 18, 2.8, 2.2, 'K');
+      c.ellipse(32, 18, 3.4, 2.8, 'K');
       c.hl(13, 17, 20, 'T');
-      c.hl(30, 34, 20, 'T');
-      c.hl(13, 16, 16, 'K', '+');
-      c.hl(31, 34, 16, 'K', '+');
-      torso(c, 27, 32, 'O');
-      c.hl(19, 28, 26, 'T');
-      c.set(24, 26, 'G', '+');
+      c.hl(29, 35, 21, 'T');
+      c.hl(30, 34, 16, 'K', '+');
+      torso(c, 28, 28, 'W');
+      c.set(24, 28, 'T', '+');
+      torso(c, 29, 32, 'F');
+      c.rect(21, 29, 26, 39, 'O');
+      c.vl(21, 29, 39, 'T');
+      c.vl(26, 29, 39, 'T');
+      c.hl(21, 26, 39, 'T');
+      c.hl(23, 24, 32, 'G', '+');
+      c.hl(23, 24, 33, 'G');
       bothArms(c, 'upper', 'O');
       bothArms(c, 'fore', 'K');
       bothArms(c, 'hand', 'K', '-');
       if (withLegs) {
-        c.rows(
-          [
-            [33, 16, 31],
-            [34, 16, 31],
-            [35, 15, 31],
-            [36, 15, 32],
-            [37, 15, 32],
-          ],
-          'O',
-        );
-        c.hl(15, 32, 37, 'T');
-        c.vl(24, 27, 37, 'T');
-        c.vl(23, 28, 36, 'O', '-');
-        legs(c, 38, 46, 'K');
-        legs(c, 38, 38, 'T');
-        c.rect(19, 40, 20, 41, 'K', '+');
-        c.rect(26, 40, 27, 41, 'K', '+');
-      }
-      break;
-    }
-    case 'shadow': {
-      // тёмный кожаный костюм: шарф, ремни крест-накрест, штаны, мягкие сапоги, ножны на бедре
-      torso(c, 17, 32, 'O');
-      chestFolds(c, 'O');
-      c.hl(20, 27, 16, 'T');
-      c.hl(21, 26, 17, 'T', '-');
-      c.line(18, 21, 29, 30, 'W', '-');
-      c.line(29, 21, 18, 30, 'W', '-');
-      c.set(24, 26, 'K', '+');
-      c.hl(17, 30, 29, 'D');
-      c.set(24, 29, 'T', '+');
-      bothArms(c, 'upper', 'O');
-      bothArms(c, 'fore', 'O', '-');
-      bothArms(c, 'hand', 'D');
-      if (withLegs) {
-        legs(c, 33, 46, 'O', '-');
-        legs(c, 40, 46, 'D');
+        legs(c, 33, 46, 'F');
+        c.rect(21, 33, 26, 39, 'O');
+        c.vl(21, 33, 39, 'T');
+        c.vl(26, 33, 39, 'T');
+        c.hl(21, 26, 39, 'T');
+        legs(c, 40, 46, 'K');
         legs(c, 40, 40, 'T');
-        c.rect(15, 31, 16, 38, 'W', '-');
-        c.set(15, 30, 'K', '+');
+        c.rect(19, 42, 20, 43, 'K', '+');
+        c.rect(26, 42, 27, 43, 'K', '+');
       }
       break;
     }
-    case 'vestal': {
-      // одеяние жрицы: платье до пят, золотой ворот и кайма, пояс-лента цвета стихии, амулет
-      torso(c, 17, 32, 'O');
-      chestFolds(c, 'O');
-      c.hl(20, 27, 17, 'T');
-      c.set(21, 18, 'T');
-      c.set(26, 18, 'T');
-      c.set(24, 21, 'G', '+');
-      c.set(24, 20, 'T');
-      c.hl(19, 28, 26, 'G');
-      c.set(24, 26, 'T', '+');
-      bothArms(c, 'upper', 'O');
-      bothArms(c, 'fore', 'O');
-      if (withLegs) {
-        c.poly(
-          [
-            [17, 32],
-            [31, 32],
-            [34, 47],
-            [14, 47],
-          ],
-          'O',
-        );
-        c.hl(14, 34, 45, 'T');
-        c.hl(14, 34, 46, 'T', '-');
-        c.vl(24, 33, 44, 'O', '-');
-        c.vl(20, 35, 44, 'O', '-');
-        c.vl(28, 35, 44, 'O', '-');
+    case 'strider': {
+      // Следопыт-красавчик: короткий плащ с капюшоном на плечах, распахнутая на груди рубаха
+      // со шнуровкой под кожаным жилетом, ремень колчана, облегающие штаны и высокие сапоги
+      c.rows(
+        [
+          [17, 19, 21],
+          [17, 26, 28],
+          [18, 15, 21],
+          [18, 26, 32],
+          [19, 14, 20],
+          [19, 27, 33],
+          [20, 14, 19],
+          [20, 28, 33],
+          [21, 15, 18],
+          [21, 29, 32],
+        ],
+        'O',
+      );
+      c.set(21, 18, 'T', '+');
+      c.set(26, 18, 'T', '+');
+      torso(c, 19, 31, 'W');
+      // распахнутый ворот: V до солнечного сплетения, по краю — светлая рубаха
+      for (let y = 18; y <= 25; y++) {
+        const w = Math.max(0, 2 - Math.floor((y - 18) / 3));
+        c.hl(23 - w, 24 + w, y, 'S');
+        c.set(22 - w, y, 'R');
+        c.set(25 + w, y, 'R');
       }
-      break;
-    }
-    case 'scout': {
-      // туника следопыта с кожаным жилетом, ремень колчана, лосины и высокие сапоги
-      torso(c, 17, 32, 'O');
-      chestFolds(c, 'O');
-      for (const [y, x0, x1] of TORSO) {
-        if (y < 18 || y > 27) continue;
-        c.hl(x0, x0 + 2, y, 'W');
-        c.hl(x1 - 2, x1, y, 'W');
-      }
-      c.hl(20, 27, 17, 'T');
-      c.line(20, 17, 30, 29, 'W', '-');
-      c.hl(17, 30, 28, 'W', '-');
-      c.set(24, 28, 'T', '+');
-      bothArms(c, 'upper', 'O');
+      c.set(22, 22, 'W', '-');
+      c.set(25, 22, 'W', '-');
+      c.set(23, 24, 'W', '-');
+      c.set(24, 24, 'W', '-');
+      c.line(18, 20, 29, 31, 'T', '-');
+      c.hl(18, 29, 29, 'T');
+      c.set(24, 29, 'K', '+');
+      c.rect(26, 30, 27, 31, 'T', '-');
+      bothArms(c, 'upper', 'R');
       bothArms(c, 'fore', 'W');
       if (withLegs) {
-        legs(c, 33, 46, 'F');
-        c.rows(
-          [
-            [33, 16, 31],
-            [34, 17, 30],
-          ],
-          'O',
-        );
-        c.hl(17, 30, 34, 'T', '-');
+        legs(c, 32, 46, 'F');
+        torso(c, 32, 32, 'F');
         legs(c, 38, 46, 'W');
         legs(c, 38, 38, 'T');
-      }
-      break;
-    }
-    case 'sorcerer': {
-      // мантия колдуньи: закрытый корсаж со шнуровкой, высокий ворот, длинная юбка с разрезом
-      torso(c, 17, 32, 'O');
-      chestFolds(c, 'O');
-      c.hl(19, 28, 17, 'T');
-      c.set(18, 16, 'O', '-');
-      c.set(19, 16, 'O');
-      c.set(28, 16, 'O');
-      c.set(29, 16, 'O', '-');
-      for (let y = 20; y <= 27; y++) c.set(24, y, 'T', y % 2 ? '+' : '-');
-      c.hl(18, 29, 28, 'T');
-      c.set(24, 28, 'G', '+');
-      bothArms(c, 'upper', 'O');
-      bothArms(c, 'fore', 'O');
-      if (withLegs) {
-        c.poly(
-          [
-            [17, 32],
-            [31, 32],
-            [34, 47],
-            [14, 47],
-          ],
-          'O',
-        );
-        c.hl(14, 34, 46, 'T');
-        c.poly(
-          [
-            [23, 37],
-            [25, 37],
-            [27, 46],
-            [21, 46],
-          ],
-          'F',
-        );
-        c.vl(19, 35, 45, 'O', '-');
-        c.vl(29, 35, 45, 'O', '-');
-      }
-      break;
-    }
-    case 'huntress': {
-      // северная охотница: кожаная куртка с меховым воротом, пояс с подсумками, юбка из полос, меховые сапоги
-      torso(c, 17, 32, 'O');
-      chestFolds(c, 'O');
-      c.ellipse(15.5, 18, 2.6, 2, 'T');
-      c.ellipse(31.5, 18, 2.6, 2, 'T');
-      c.hl(19, 28, 17, 'T');
-      c.hl(20, 27, 16, 'T', '-');
-      c.vl(24, 19, 27, 'W', '-');
-      c.hl(17, 30, 28, 'W');
-      c.rect(18, 29, 19, 30, 'W', '-');
-      c.rect(28, 29, 29, 30, 'W', '-');
-      c.set(24, 28, 'K', '+');
-      bothArms(c, 'upper', 'O');
-      bothArms(c, 'fore', 'O');
-      bothArms(c, 'hand', 'W');
-      if (withLegs) {
-        legs(c, 33, 46, 'F');
-        c.rows(
-          [
-            [33, 16, 31],
-            [34, 16, 31],
-            [35, 16, 31],
-          ],
-          'O',
-        );
-        for (let x = 18; x <= 30; x += 3) c.vl(x, 33, 35, 'O', '-');
-        legs(c, 39, 46, 'O');
-        legs(c, 39, 40, 'T');
+        legs(c, 39, 39, 'W', '+');
       }
       break;
     }
@@ -1508,6 +1966,221 @@ function wearOutfit(c: Canvas, wear: NonNullable<Look['wear']>, withLegs: boolea
     case 'micro': {
       // сам купальник — после изменения объёма фигуры (см. composeFigure)
       sandals();
+      break;
+    }
+    case 'string':
+    case 'sling':
+    case 'shell': {
+      // рисуются после изменения объёма фигуры (см. composeFigure)
+      if (wear === 'shell' && withLegs) {
+        legs(c, 44, 44, 'R', '+');
+        c.set(16, 26, 'R', '+');
+      }
+      sandals();
+      break;
+    }
+    case 'corset': {
+      // кружевной корсет под грудь с балконетом, стринги, пояс с подвязками и чулки, перчатки
+      c.hl(22, 25, 16, 'B');
+      c.set(23, 17, 'T', '+');
+      bust(c, 'B', 'balconette');
+      c.rows(
+        [
+          [23, 18, 29],
+          [24, 19, 28],
+          [25, 20, 27],
+          [26, 20, 27],
+          [27, 19, 28],
+        ],
+        'B',
+      );
+      for (let y = 23; y <= 27; y++) {
+        c.set(21, y, 'B', '-');
+        c.set(26, y, 'B', '-');
+        c.set(24, y, 'T', y % 2 ? '+' : '0');
+      }
+      c.hl(18, 29, 23, 'T', '-');
+      stringBottom(c, 'B');
+      bothArms(c, 'fore', 'B', '-');
+      if (withLegs) {
+        stockings(c, 35, 'F', 'B', 28);
+        for (let x = 17; x <= 30; x++) if (x % 2 === 0) c.set(x, 36, 'B', '+');
+        legs(c, 45, 46, 'B', '-');
+      }
+      break;
+    }
+    case 'ribbon': {
+      // «подарок»: широкая лента поперёк груди, ленты крест-накрест по телу, лента-стринги
+      // и большой бант под грудью
+      c.rows(
+        [
+          [20, 17, 22],
+          [21, 16, 22],
+          [22, 17, 22],
+          [20, 25, 30],
+          [21, 25, 31],
+          [22, 25, 30],
+        ],
+        'B',
+      );
+      c.hl(17, 22, 20, 'B', '+');
+      c.hl(25, 30, 20, 'B', '+');
+      c.hl(23, 24, 21, 'B', '-');
+      c.line(19, 23, 28, 29, 'B', '-');
+      c.line(28, 23, 19, 29, 'B', '-');
+      stringBottom(c, 'B');
+      // бант
+      c.rows(
+        [
+          [22, 21, 22],
+          [23, 20, 22],
+          [24, 21, 22],
+          [22, 25, 26],
+          [23, 25, 27],
+          [24, 25, 26],
+        ],
+        'T',
+      );
+      c.set(23, 23, 'T', '+');
+      c.set(24, 23, 'T', '+');
+      c.set(22, 25, 'T', '-');
+      c.set(25, 26, 'T', '-');
+      if (withLegs) {
+        legs(c, 36, 36, 'B');
+        c.set(20, 37, 'T', '+');
+        legs(c, 46, 46, 'B');
+      }
+      break;
+    }
+    case 'trunks': {
+      // пляжные шорты с завязкой и полосой по боку, без майки
+      torso(c, 28, 32, 'B');
+      c.hl(19, 28, 28, 'T');
+      c.set(23, 29, 'T', '+');
+      c.set(24, 30, 'T');
+      c.vl(18, 29, 32, 'T', '-');
+      c.vl(29, 29, 32, 'T', '-');
+      c.vl(24, 31, 32, 'B', '-');
+      if (withLegs) {
+        legs(c, 33, 36, 'B');
+        c.vl(18, 33, 36, 'T', '-');
+        c.vl(29, 33, 36, 'T', '-');
+        legs(c, 36, 36, 'B', '-');
+      }
+      sandals();
+      break;
+    }
+    case 'briefs': {
+      // облегающие плавки с тонким поясом
+      c.rows(
+        [
+          [29, 18, 29],
+          [30, 19, 28],
+          [31, 20, 27],
+          [32, 22, 25],
+        ],
+        'B',
+      );
+      c.hl(18, 29, 29, 'T');
+      c.set(21, 31, 'B', '+');
+      sandals();
+      break;
+    }
+    case 'mrobe': {
+      // распахнутый шёлковый халат на голое тело, пояс завязан низко, свободные штаны
+      c.poly(
+        [
+          [16, 18],
+          [21, 17],
+          [23, 30],
+          [18, 38],
+          [15, 38],
+        ],
+        'O',
+      );
+      c.poly(
+        [
+          [26, 17],
+          [31, 18],
+          [32, 38],
+          [29, 38],
+          [24, 30],
+        ],
+        'O',
+      );
+      c.line(21, 17, 23, 29, 'T');
+      c.line(26, 17, 24, 29, 'T');
+      c.hl(18, 29, 29, 'T');
+      c.set(20, 30, 'T', '+');
+      c.line(20, 30, 19, 34, 'T', '-');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'O');
+      if (withLegs) {
+        legs(c, 33, 45, 'F');
+        legs(c, 46, 46, 'T');
+      }
+      break;
+    }
+    case 'myukata': {
+      // мужская юката: запах с открытой грудью, узкий оби низко на бёдрах, до колен, гэта
+      torso(c, 18, 32, 'O');
+      for (let y = 17; y <= 24; y++) {
+        const w = Math.max(0, 2 - Math.floor((y - 17) / 3));
+        c.hl(23 - w, 24 + w, y, 'S');
+      }
+      c.line(21, 17, 23, 25, 'T');
+      c.line(26, 17, 24, 25, 'T');
+      torso(c, 28, 29, 'T');
+      c.hl(18, 29, 29, 'T', '-');
+      c.set(20, 30, 'T', '+');
+      c.vl(21, 30, 32, 'O', '-');
+      c.vl(27, 30, 32, 'O', '-');
+      for (const [x, y] of [
+        [19, 21],
+        [28, 23],
+        [20, 31],
+      ] as P[])
+        c.set(x, y, 'T', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'O');
+      if (withLegs) {
+        legs(c, 33, 39, 'O');
+        c.vl(24, 33, 39, 'O', '-');
+        legs(c, 39, 39, 'T');
+        legs(c, 46, 46, 'W');
+        c.set(20, 45, 'T');
+        c.set(27, 45, 'T');
+      }
+      break;
+    }
+    case 'mformal': {
+      // вечерний: белая рубашка с расстёгнутым воротом, жилет по фигуре, пояс, брюки, туфли
+      torso(c, 18, 28, 'R');
+      for (let y = 17; y <= 22; y++) {
+        const w = Math.max(0, 1 - Math.floor((y - 17) / 3));
+        c.hl(23 - w, 24 + w, y, 'S');
+      }
+      c.set(22, 17, 'R', '+');
+      c.set(25, 17, 'R', '+');
+      for (const [y, x0, x1] of TORSO) {
+        if (y < 20 || y > 28) continue;
+        c.hl(x0, x0 + 3, y, 'O');
+        c.hl(x1 - 3, x1, y, 'O');
+      }
+      c.set(21, 24, 'T', '+');
+      c.set(21, 26, 'T', '+');
+      torso(c, 29, 29, 'F');
+      c.hl(18, 29, 29, 'T', '-');
+      c.set(24, 29, 'T', '+');
+      torso(c, 30, 32, 'F');
+      bothArms(c, 'upper', 'R');
+      bothArms(c, 'fore', 'R');
+      if (withLegs) {
+        legs(c, 33, 46, 'F');
+        c.vl(20, 34, 44, 'F', '-');
+        c.vl(27, 34, 44, 'F', '-');
+        legs(c, 46, 46, 'D');
+      }
       break;
     }
     case 'swim4': {
@@ -2756,6 +3429,57 @@ function faceHD(c: Canvas, eyes: Eyes) {
   for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
 }
 
+/** Мужское лицо HD: глаза уже, одна линия ресниц, прямые брови, тонкий рот, без румянца. */
+function faceHDMale(c: Canvas, eyes: Eyes) {
+  for (let y = 14; y <= 30; y++)
+    for (let x = 36; x <= 59; x++) {
+      const v = c.get(x, y);
+      if (v === 'S-' || v === 'S=') c.set(x, y, 'S', '0');
+    }
+  const mine = new Set<number>();
+  const put = (x: number, y: number, v: string) => {
+    if (!c.in(x, y)) return;
+    const i = y * c.w + x;
+    if (c.g[i].charAt(0) !== 'S' && !mine.has(i)) return;
+    c.g[i] = v;
+    mine.add(i);
+  };
+  // брови: прямые и плотные, внутренний край ниже
+  for (let x = 38; x <= 43; x++) put(x, 14, 'H=');
+  for (let x = 52; x <= 57; x++) put(x, 14, 'H=');
+  put(43, 15, 'H=');
+  put(52, 15, 'H=');
+  const left = eyes === 'wink' ? 'open' : eyes;
+  const right = eyes === 'wink' ? 'closed' : eyes;
+  for (const [x0, st] of [
+    [38, left],
+    [52, right],
+  ] as const) {
+    if (st === 'closed') {
+      for (let x = x0; x <= x0 + 5; x++) put(x, 21, 'l-');
+      continue;
+    }
+    const top = st === 'half' ? 19 : 18;
+    for (let x = x0; x <= x0 + 5; x++) put(x, top, 'l-');
+    const tones: Tone[] = st === 'half' ? ['=', '-', '0'] : ['=', '-', '0', '+'];
+    tones.forEach((tn, k) => {
+      for (let x = x0; x <= x0 + 5; x++) put(x, top + 1 + k, 'E' + tn);
+    });
+    if (st === 'open') {
+      put(x0 + 2, top + 2, 'E=');
+      put(x0 + 3, top + 2, 'E=');
+    }
+    put(x0, top + 1, 'R+');
+    put(x0 + 1, top + 1, 'R+');
+  }
+  // нос и рот
+  put(48, 22, 'S-');
+  put(48, 23, 'S-');
+  for (let x = 46; x <= 49; x++) put(x, 26, 'S=');
+  if (eyes === 'wink') put(50, 25, 'S=');
+  for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
+}
+
 /**
  * Глаз HD 6×8 в духе мягкого стиля: густая полоса ресниц с «крылышком» наружу, радужка на всю
  * ширину глаза (без белков) от тёмной сверху к светлой снизу, чуть темнее в центре, квадратный
@@ -2873,7 +3597,8 @@ export function renderFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: P
 export function renderFigureHD(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose = {}): Bitmap {
   const h = scale2x(composeFigure({ ...spec, soft: true }, pose, true));
   thinOutline(h);
-  faceHD(h, pose.eyes ?? 'open');
+  if (spec.look.male) faceHDMale(h, pose.eyes ?? 'open');
+  else faceHD(h, pose.eyes ?? 'open');
   hairStrands(h);
   return paint(h, { ...spec, soft: true }, 0.9);
 }
@@ -2890,21 +3615,31 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
   perpLimbs = EXTRA_POSES.includes(armsKind);
   const handR = arms.R.hand;
   const handL = arms.L.hand;
-  // без явного значения (враги) — та же чуть пышная фигура, что и у героинь
-  const bust = Math.max(-1, Math.min(3, Math.round(L.bust ?? 1)));
-  const hips = Math.max(0, Math.min(3, Math.round(L.hips ?? 1)));
+  male = !!L.male;
+  TORSO = male ? M_TORSO : F_TORSO;
+  LEG_L = male ? M_LEG_L : F_LEG_L;
+  LEG_R = male ? M_LEG_R : F_LEG_R;
+  // без явного значения (враги) — та же чуть пышная фигура, что и у героинь; у героев объём не меняется
+  const bust = male ? 0 : Math.max(-1, Math.min(3, Math.round(L.bust ?? 1)));
+  const hips = male ? 0 : Math.max(0, Math.min(3, Math.round(L.hips ?? 1)));
+  const wear = L.wear ? (male ? maleWear(L.wear) : femaleWear(L.wear)) : undefined;
 
   extraBack(c, L.extra, !!pose.flap);
+  if (!wear) outfitBack(c, kind);
   accessoryBack(c, L.acc);
   drawHairBack(c, L.style);
   const under = bust || hips ? c.g.slice() : null;
   const replaced = L.extra === 'snake' || L.extra === 'fishTail';
   drawBody(c, !replaced);
   if (replaced) lowerExtra(c, L.extra);
-  if (L.wear) wearOutfit(c, L.wear, !replaced);
+  if (wear) wearOutfit(c, wear, !replaced);
   else outfit(c, kind, !replaced);
   if (under) shapeBody(c, under, bust, hips, !replaced);
-  if (L.wear === 'micro') microBikini(c, 'B', bust, hips);
+  // крошечные купальники рисуются поверх уже изменённого объёма: ткань не растягивается
+  if (wear === 'micro') microBikini(c, 'B', bust, hips);
+  if (wear === 'string') stringBikini(c, 'B', bust, hips);
+  if (wear === 'sling') slingshot(c, 'B', bust, hips);
+  if (wear === 'shell') shellBikini(c, 'B', bust, hips);
   if (hd) {
     /* лицо — в faceHD */
   } else if (spec.soft) drawFaceSoft(c, pose.eyes ?? 'open');
@@ -2932,7 +3667,24 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
   arms = ARMS.idle;
   frontSides = [];
   perpLimbs = false;
+  male = false;
+  TORSO = F_TORSO;
+  LEG_L = F_LEG_L;
+  LEG_R = F_LEG_R;
   return c;
+}
+
+/** Женский наряд на мужской фигуре — ближайший мужской (и наоборот). */
+function maleWear(w: Wear): Wear {
+  if (MALE_WEAR.has(w)) return w;
+  if (isSwimwear(w)) return w === 'micro' || w === 'string' || w === 'sling' || w === 'shell' ? 'briefs' : 'trunks';
+  if (w === 'yukata') return 'myukata';
+  if (w === 'lace' || w === 'lace2' || w === 'lace3' || w === 'lace4' || w === 'corset' || w === 'ribbon' || w === 'silk') return 'mrobe';
+  return 'mformal';
+}
+function femaleWear(w: Wear): Wear {
+  if (!MALE_WEAR.has(w)) return w;
+  return w === 'trunks' || w === 'briefs' ? 'swim' : w === 'myukata' ? 'yukata' : w === 'mrobe' ? 'silk' : 'gown';
 }
 
 /** edge — насколько тёмен мягкий контур (в HD он тоньше, поэтому темнее). */

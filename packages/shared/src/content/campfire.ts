@@ -3,9 +3,9 @@ import { HEROINE_MAP } from './heroines';
 import { COMBOS, type ComboDef } from './classes';
 
 /**
- * «Вечер у костра»: раз в день две героини Легиона разговаривают у огня. Командор поддерживает одну
- * из них или мирит обеих — растёт близость, а связка их классов сыгрывается (+мастерство).
- * Сцена на каждую пару героинь; новые показываются первыми.
+ * «Вечер у костра»: раз в день двое из Легиона разговаривают у огня. Командор поддерживает одного
+ * из них или мирит обоих — растёт близость, а связка их классов сыгрывается (+мастерство).
+ * Сцена на каждую пару; новые показываются первыми.
  */
 export type CampChoice = 'a' | 'b' | 'both';
 
@@ -23,25 +23,25 @@ export interface CampScene {
 
 const L = (ru: string, en: string): L10n => ({ ru, en });
 
-/** Близость за вечер: поддержанной — больше, второй — меньше; «обе правы» — поровну. */
+/** Близость за вечер: поддержанному — больше, второму — меньше; «оба правы» — поровну. */
 export const CAMP_BOND = { favored: 25, other: 10, both: 18 } as const;
 /** Сыгранность: столько связок засчитывается их общей связке (мастерство). */
 export const CAMP_MASTERY = 30;
 
 export const CAMPFIRE: CampScene[] = [
   {
-    id: 'astrid_lira',
-    a: 'astrid',
+    id: 'cassian_lira',
+    a: 'cassian',
     b: 'lira',
     lines: [
-      ['b', L('Ой. Астрид, твой плащ… немного горит.', 'Oops. Astrid, your cloak is… a little on fire.')],
+      ['b', L('Ой. Кассиан, твой плащ… немного горит.', 'Oops. Cassian, your cloak is… a little on fire.')],
       ['a', L('Немного?! Лира, это третий плащ за неделю.', 'A little?! Lira, that is the third cloak this week.')],
       ['b', L('Зато костёр разгорелся с первой искры! Признай, красиво.', 'But the fire caught on the first spark! Admit it, it is pretty.')],
     ],
     choices: {
       a: L('Лира, осторожнее с огнём рядом с отрядом.', 'Lira, be careful with fire near the squad.'),
       b: L('Плащ зашьём, а костёр и правда отличный.', 'We will mend the cloak — the fire really is great.'),
-      both: L('Лира шьёт новый плащ, Астрид садится подальше от посоха.', 'Lira sews a new cloak, Astrid sits away from the staff.'),
+      both: L('Лира шьёт новый плащ, Кассиан садится подальше от посоха.', 'Lira sews a new cloak, Cassian sits away from the staff.'),
     },
     replies: {
       a: ['a', L('Спасибо, Командор. Хоть кто-то на моей стороне.', 'Thank you, Commander. Someone is on my side.')],
@@ -50,68 +50,68 @@ export const CAMPFIRE: CampScene[] = [
     },
   },
   {
-    id: 'astrid_mirabel',
-    a: 'astrid',
+    id: 'cassian_mirabel',
+    a: 'cassian',
     b: 'mirabel',
     lines: [
-      ['b', L('Покажи руку. Ты весь бой держала щит на ушибе.', 'Show me your arm. You held the shield on a bruise all battle.')],
+      ['b', L('Покажи руку. Ты весь бой держал щит на ушибе.', 'Show me your arm. You held the shield on a bruise all battle.')],
       ['a', L('Пустяки. Рыцарь не жалуется.', 'It is nothing. A knight does not complain.')],
       ['b', L('Рыцарь, который не лечится, завтра не поднимет щит.', 'A knight who will not heal cannot lift a shield tomorrow.')],
     ],
     choices: {
-      a: L('Астрид знает свои силы — не будем давить.', 'Astrid knows her limits — let us not push.'),
+      a: L('Кассиан знает свои силы — не будем давить.', 'Cassian knows his limits — let us not push.'),
       b: L('Мирабель права: щит нужен нам целым.', 'Mirabel is right: we need that shield arm whole.'),
-      both: L('Пусть Мирабель посмотрит, а Астрид расскажет, как держала строй.', 'Let Mirabel look while Astrid tells how she held the line.'),
+      both: L('Пусть Мирабель посмотрит, а Кассиан расскажет, как держал строй.', 'Let Mirabel look while Cassian tells how he held the line.'),
     },
     replies: {
-      a: ['a', L('Благодарю. Утром буду как новая — обещаю.', 'Thank you. I will be good as new by morning — I promise.')],
-      b: ['b', L('Вот и хорошо. Сиди смирно, храбрая.', 'Good. Now sit still, brave one.')],
+      a: ['a', L('Благодарю. Утром буду как новый — обещаю.', 'Thank you. I will be good as new by morning — I promise.')],
+      b: ['b', L('Вот и хорошо. Сиди смирно, храбрец.', 'Good. Now sit still, brave one.')],
       both: ['a', L('…Ладно. Только быстро. Ай. Спасибо.', '…Fine. Quickly. Ow. Thank you.')],
     },
   },
   {
-    id: 'astrid_seyra',
-    a: 'astrid',
-    b: 'seyra',
+    id: 'cassian_elian',
+    a: 'cassian',
+    b: 'elian',
     lines: [
       ['b', L('В твоих латах тебя слышно за полверсты. Звери разбегаются.', 'I can hear your armour half a mile away. The game runs off.')],
       ['a', L('Пусть слышат. Враг, который меня слышит, не смотрит на вас.', 'Let them hear. A foe that hears me does not look at you.')],
       ['b', L('Хм. А если я скую его сетью — ты наконец ударишь как следует?', 'Hm. And if I root him in my net — will you finally hit properly?')],
     ],
     choices: {
-      a: L('Грохот Астрид — наш щит. Пусть звенит.', 'Astrid’s clatter is our shield. Let it ring.'),
-      b: L('Сейра дело говорит: сеть и удар — вместе сильнее.', 'Seyra has a point: net and strike are stronger together.'),
-      both: L('Сейра ставит сеть, Астрид сокрушает — договорились?', 'Seyra nets, Astrid crushes — deal?'),
+      a: L('Грохот Кассиана — наш щит. Пусть звенит.', 'Cassian’s clatter is our shield. Let it ring.'),
+      b: L('Элиан дело говорит: сеть и удар — вместе сильнее.', 'Elian has a point: net and strike are stronger together.'),
+      both: L('Элиан ставит сеть, Кассиан сокрушает — договорились?', 'Elian nets, Cassian crushes — deal?'),
     },
     replies: {
-      a: ['a', L('Слышала, эльфийка? Звон — это забота.', 'Hear that, elf? The ringing is care.')],
+      a: ['a', L('Слышал, эльф? Звон — это забота.', 'Hear that, elf? The ringing is care.')],
       b: ['b', L('Наконец разумный человек в этом лагере.', 'Finally a sensible human in this camp.')],
       both: ['b', L('Договорились. Только не наступай на мои силки.', 'Deal. Just do not step on my snares.')],
     },
   },
   {
-    id: 'astrid_keira',
-    a: 'astrid',
+    id: 'cassian_keira',
+    a: 'cassian',
     b: 'keira',
     lines: [
-      ['b', L('Ты снова не заметила меня за спиной.', 'You failed to notice me behind you again.')],
+      ['b', L('Ты снова не заметил меня за спиной.', 'You failed to notice me behind you again.')],
       ['a', L('Я смотрю на врага, а не на своих. Это разные вещи.', 'I watch the enemy, not my own. That is different.')],
       ['b', L('Тогда оглушай их почаще. Ошеломлённый враг не видит меня вовсе.', 'Then daze them more often. A dazed foe does not see me at all.')],
     ],
     choices: {
-      a: L('Астрид права: пугать своих — не дело.', 'Astrid is right: scaring your own is bad form.'),
+      a: L('Кассиан прав: пугать своих — не дело.', 'Cassian is right: scaring your own is bad form.'),
       b: L('Кейра подсказывает дело: удар щитом — её шанс.', 'Keira’s tip is good: the shield bash is her opening.'),
-      both: L('Астрид оглушает, Кейра бьёт в спину. Идеально.', 'Astrid dazes, Keira backstabs. Perfect.'),
+      both: L('Кассиан оглушает, Кейра бьёт в спину. Идеально.', 'Cassian dazes, Keira backstabs. Perfect.'),
     },
     replies: {
       a: ['a', L('Вот. Командор понимает строй.', 'There. The Commander understands formation.')],
       b: ['b', L('Мм. Ты начинаешь мне нравиться, Командор.', 'Mm. I am starting to like you, Commander.')],
-      both: ['b', L('Идеально… Только скажи ей не вздрагивать.', 'Perfect… Just tell her not to flinch.')],
+      both: ['b', L('Идеально… Только скажи ему не вздрагивать.', 'Perfect… Just tell him not to flinch.')],
     },
   },
   {
-    id: 'astrid_ulfa',
-    a: 'astrid',
+    id: 'cassian_ulfa',
+    a: 'cassian',
     b: 'ulfa',
     lines: [
       ['a', L('Ульфа… твой волк спит на моём щите.', 'Ulfa… your wolf is sleeping on my shield.')],
@@ -136,7 +136,7 @@ export const CAMPFIRE: CampScene[] = [
     lines: [
       ['a', L('Мирабель, подержи зайца. Хочу проверить новое проклятие.', 'Mirabel, hold this rabbit. I want to test a new hex.')],
       ['b', L('Лира! Он же живой и тёплый!', 'Lira! He is alive and warm!')],
-      ['a', L('Ну не на Астрид же пробовать. Она и так злится из-за плаща.', 'Well, I cannot test it on Astrid. She is already mad about the cloak.')],
+      ['a', L('Ну не на Кассиане же пробовать. Он и так злится из-за плаща.', 'Well, I cannot test it on Cassian. He is already mad about the cloak.')],
     ],
     choices: {
       a: L('Проклятия важны — но пусть это будет чучело.', 'Hexes matter — but use a dummy.'),
@@ -150,9 +150,9 @@ export const CAMPFIRE: CampScene[] = [
     },
   },
   {
-    id: 'lira_seyra',
+    id: 'lira_elian',
     a: 'lira',
-    b: 'seyra',
+    b: 'elian',
     lines: [
       ['b', L('Твоё проклятие вспыхнуло от моей стрелы. Половина урона — моя.', 'Your hex burst from my arrow. Half the damage is mine.')],
       ['a', L('Половина? Без проклятия твоя стрела просто щекотка!', 'Half? Without the hex your arrow is a tickle!')],
@@ -161,10 +161,10 @@ export const CAMPFIRE: CampScene[] = [
     choices: {
       a: L('Проклятие — основа взрыва. Лира права.', 'The hex is the heart of the burst. Lira is right.'),
       b: L('Без меткого выстрела взрыва бы не было.', 'Without the precise shot there would be no burst.'),
-      both: L('Взрыв проклятия — это вы обе. Делите славу.', 'The Hex Burst is both of you. Share the glory.'),
+      both: L('Взрыв проклятия — это вы оба. Делите славу.', 'The Hex Burst is both of you. Share the glory.'),
     },
     replies: {
-      a: ['a', L('Слышишь, остроухая? Основа!', 'Hear that, pointy ears? The heart!')],
+      a: ['a', L('Слышишь, остроухий? Основа!', 'Hear that, pointy ears? The heart!')],
       b: ['b', L('Спасибо. Лира, можешь дальше колдовать на фоне.', 'Thank you. Lira, you may keep casting in the background.')],
       both: ['b', L('…Хорошо. Следующий взрыв — побольше, ладно?', '…Fine. Make the next burst bigger, will you?')],
     },
@@ -210,13 +210,13 @@ export const CAMPFIRE: CampScene[] = [
     },
   },
   {
-    id: 'mirabel_seyra',
+    id: 'mirabel_elian',
     a: 'mirabel',
-    b: 'seyra',
+    b: 'elian',
     lines: [
-      ['b', L('Я собрала травы у ручья. Эльфы заваривают их для сна.', 'I gathered herbs by the stream. Elves brew them for sleep.')],
+      ['b', L('Я собрал травы у ручья. Эльфы заваривают их для сна.', 'I gathered herbs by the stream. Elves brew them for sleep.')],
       ['a', L('Это же лунный шалфей! Из него выходит лучшая мазь для ран.', 'That is moon sage! It makes the best salve for wounds.')],
-      ['b', L('Мазь? Ты хочешь мазать мой чай на Астрид?', 'Salve? You want to smear my tea on Astrid?')],
+      ['b', L('Мазь? Ты хочешь мазать мой чай на Кассиана?', 'Salve? You want to smear my tea on Cassian?')],
     ],
     choices: {
       a: L('Раны важнее чая — пусть будет мазь.', 'Wounds before tea — make the salve.'),
@@ -224,9 +224,9 @@ export const CAMPFIRE: CampScene[] = [
       both: L('Половину — в чай, половину — в мазь.', 'Half for tea, half for the salve.'),
     },
     replies: {
-      a: ['a', L('Спасибо! Сейра, я научу тебя её варить.', 'Thank you! Seyra, I will teach you to brew it.')],
+      a: ['a', L('Спасибо! Элиан, я научу тебя её варить.', 'Thank you! Elian, I will teach you to brew it.')],
       b: ['b', L('Вот. Командор знает цену хорошему сну.', 'There. The Commander knows the value of good sleep.')],
-      both: ['b', L('Справедливо. Завтра соберу ещё — для вас обеих.', 'Fair. Tomorrow I will gather more — for you both.')],
+      both: ['b', L('Справедливо. Завтра соберу ещё — на всех.', 'Fair. Tomorrow I will gather more — for everyone.')],
     },
   },
   {
@@ -270,28 +270,28 @@ export const CAMPFIRE: CampScene[] = [
     },
   },
   {
-    id: 'seyra_keira',
-    a: 'seyra',
+    id: 'elian_keira',
+    a: 'elian',
     b: 'keira',
     lines: [
       ['a', L('Спорим, я подкрадусь к часовому тише тебя?', 'Bet I can sneak up on a sentry quieter than you?')],
-      ['b', L('Ты уже проиграла. Я стою за тобой с начала разговора.', 'You already lost. I have been behind you since we started talking.')],
-      ['a', L('…Я знала. Я просто давала тебе фору.', '…I knew. I was just giving you a head start.')],
+      ['b', L('Ты уже проиграл. Я стою за тобой с начала разговора.', 'You already lost. I have been behind you since we started talking.')],
+      ['a', L('…Я знал. Я просто давал тебе фору.', '…I knew. I was just giving you a head start.')],
     ],
     choices: {
-      a: L('Сейра — лучший следопыт, это не спор.', 'Seyra is the finest tracker, no contest.'),
+      a: L('Элиан — лучший следопыт, это не спор.', 'Elian is the finest tracker, no contest.'),
       b: L('Кейра выиграла честно.', 'Keira won fairly.'),
-      both: L('Завтра проверим: кто первой найдёт вражеский дозор.', 'Tomorrow we test it: who finds the enemy scouts first.'),
+      both: L('Завтра проверим: кто первым найдёт вражеский дозор.', 'Tomorrow we test it: who finds the enemy scouts first.'),
     },
     replies: {
       a: ['a', L('Вот! Следы не лгут, Кейра.', 'There! Tracks do not lie, Keira.')],
-      b: ['b', L('Спасибо, Командор. Сейра, фора — это мило.', 'Thank you, Commander. Seyra, the head start was cute.')],
-      both: ['b', L('Принимаю. Проигравшая чистит котёл.', 'Accepted. The loser scrubs the pot.')],
+      b: ['b', L('Спасибо, Командор. Элиан, фора — это мило.', 'Thank you, Commander. Elian, the head start was cute.')],
+      both: ['b', L('Принимаю. Проигравший чистит котёл.', 'Accepted. The loser scrubs the pot.')],
     },
   },
   {
-    id: 'seyra_ulfa',
-    a: 'seyra',
+    id: 'elian_ulfa',
+    a: 'elian',
     b: 'ulfa',
     lines: [
       ['a', L('Арбалет — оружие для тех, кто не умеет натягивать лук.', 'A crossbow is for those who cannot draw a bow.')],
@@ -299,9 +299,9 @@ export const CAMPFIRE: CampScene[] = [
       ['a', L('…Ладно. Твоя метка добычи помогает мне стрелять дважды.', '…Fine. Your prey mark lets me shoot twice.')],
     ],
     choices: {
-      a: L('Лук Сейры — искусство.', 'Seyra’s bow is an art.'),
+      a: L('Лук Элиана — искусство.', 'Elian’s bow is an art.'),
       b: L('Арбалет Ульфы бьёт наверняка.', 'Ulfa’s crossbow never misses.'),
-      both: L('Метка Ульфы и два выстрела Сейры — вот наша травля.', 'Ulfa’s mark and Seyra’s double shot — that is our Hunt.'),
+      both: L('Метка Ульфы и два выстрела Элиана — вот наша травля.', 'Ulfa’s mark and Elian’s double shot — that is our Hunt.'),
     },
     replies: {
       a: ['a', L('Искусство! Запомни это слово, северянка.', 'Art! Remember that word, northerner.')],

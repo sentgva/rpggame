@@ -5,7 +5,7 @@ import type { Currency, HeroineState, PlayerState } from '../types';
 import { CURRENCIES } from '../types';
 
 /** 2 — «Легион из шести»: фиксированный отряд вместо гачи, старые сохранения сбрасываются. */
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 const DAY = 86400000;
 
 export function dayKey(now: number): string {
@@ -110,8 +110,8 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
         id: 'welcome',
         title: { ru: 'Добро пожаловать, Командор!', en: 'Welcome, Commander!' },
         body: {
-          ru: 'Кристалл Эфира пробудился. Астрид и Лира уже в строю — остальные валькирии присоединятся по пути. Эмблемы — на первые ранги.',
-          en: 'The Aether Crystal has awakened. Astrid and Lira stand ready — the other valkyries will join along the way. Emblems are for the first ranks.',
+          ru: 'Кристалл Эфира пробудился. Кассиан и Лира уже в строю — остальные присоединятся по пути. Эмблемы — на первые ранги.',
+          en: 'The Aether Crystal has awakened. Cassian and Lira stand ready — the others will join along the way. Emblems are for the first ranks.',
         },
         at: now,
         rewards: { cur: { crystals: 300, emblems: 20 } },
@@ -145,10 +145,19 @@ export function migrate(cfg: Config, raw: PlayerState, now: number): PlayerState
   const fresh = createPlayer(cfg, raw.id, raw.name, raw.createdAt ?? now, raw.settings?.lang ?? 'ru');
   // сохранения эпохи гачи несовместимы с новым отрядом — начинаем заново (игроков тогда ещё не было)
   if (!(raw.v >= 2)) return createPlayer(cfg, raw.id, raw.name, now, raw.settings?.lang ?? 'ru');
+  // v3: рыцарь и следопыт стали героями — Астрид → Кассиан, Сейра → Элиан (id в ключах, списках и обликах)
+  if (raw.v < 3) raw = renameHeroIds(raw, { astrid: 'cassian', seyra: 'elian' });
   const s = fillDefaults(raw as any, fresh as any) as PlayerState;
   for (const c of CURRENCIES) if (typeof s.cur[c] !== 'number' || !isFinite(s.cur[c])) s.cur[c] = 0;
   s.v = STATE_VERSION;
   return s;
+}
+
+/** Переименовать id героев во всём сохранении: ключи, значения и составные id («astrid_summer», «lira_astrid»). */
+function renameHeroIds(raw: PlayerState, map: Record<string, string>): PlayerState {
+  let json = JSON.stringify(raw);
+  for (const [from, to] of Object.entries(map)) json = json.replace(new RegExp(`(?<![a-z])${from}(?![a-z])`, 'g'), to);
+  return JSON.parse(json) as PlayerState;
 }
 
 function fillDefaults(target: any, defaults: any): any {

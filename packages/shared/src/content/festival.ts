@@ -88,7 +88,7 @@ export const FESTIVALS: FestivalDef[] = [
     particle: 'sun',
     // летний праздник: бикини-коллекция — финал шкалы и лавка
     finalSkin: 'mirabel_summer',
-    shopSkins: ['astrid_summer', 'lira_summer', 'seyra_summer', 'keira_summer', 'ulfa_summer'],
+    shopSkins: ['cassian_summer', 'lira_summer', 'elian_summer', 'keira_summer', 'ulfa_summer'],
   },
   {
     id: 'tides',
@@ -133,11 +133,11 @@ export const FESTIVALS: FestivalDef[] = [
     name: L('Цветение Сакуры', 'Sakura Bloom'),
     tagline: L('Лепестки падают, клинки поют', 'Petals fall, blades sing'),
     lore: L(
-      'Весной у подножия гор зацветает сакура, и в Легион приходит странствующая мечница Цубаки — бросить вызов. Но лепестки будят и Акане, Они-химэ. Сейра знает эти рощи и ведёт отряд тропами, где их не ждут.',
-      'In spring the sakura blooms at the foot of the mountains, and the wandering swordswoman Tsubaki comes to challenge the Legion. The petals also wake Akane, the Oni Princess. Seyra knows these groves and leads the party by paths no one expects.',
+      'Весной у подножия гор зацветает сакура, и в Легион приходит странствующая мечница Цубаки — бросить вызов. Но лепестки будят и Акане, Они-химэ. Элиан знает эти рощи и ведёт отряд тропами, где их не ждут.',
+      'In spring the sakura blooms at the foot of the mountains, and the wandering swordswoman Tsubaki comes to challenge the Legion. The petals also wake Akane, the Oni Princess. Elian knows these groves and leads the party by paths no one expects.',
     ),
     element: 'nature',
-    hero: 'seyra',
+    hero: 'elian',
     trail: {
       boss: 'fest_akane',
       trialBoss: 'fest_tsubaki',
@@ -420,10 +420,10 @@ export const FEST_TASKS_COMMON: FestTaskDef[] = [
   { id: 'fc_kills', name: L('Одолеть 150 врагов', 'Defeat 150 enemies'), counter: 'kills', target: 150 },
   { id: 'fc_dungeon', name: L('Пройти подземелье 2 раза', 'Clear dungeons 2 times'), counter: 'dungeon', target: 2 },
   { id: 'fc_enhance', name: L('Заточить предметы 5 раз', 'Enhance items 5 times'), counter: 'enhance', target: 5 },
-  { id: 'fc_level', name: L('Повысить уровень героинь 5 раз', 'Level up heroines 5 times'), counter: 'heroLevel', target: 5 },
+  { id: 'fc_level', name: L('Повысить уровень героев 5 раз', 'Level up heroes 5 times'), counter: 'heroLevel', target: 5 },
   { id: 'fc_chest', name: L('Собрать сундук 3 раза', 'Collect the chest 3 times'), counter: 'chestCollect', target: 3 },
   { id: 'fc_smelt', name: L('Переплавить 10 предметов', 'Smelt 10 items'), counter: 'smelt', target: 10 },
-  { id: 'fc_care', name: L('Позаботиться о героинях 3 раза', 'Care for heroines 3 times'), counter: 'bondCare', target: 3 },
+  { id: 'fc_care', name: L('Позаботиться о героях 3 раза', 'Care for heroes 3 times'), counter: 'bondCare', target: 3 },
   { id: 'fc_combo', name: L('Провести 30 связок классов', 'Land 30 class combos'), counter: 'combo', target: 30 },
   { id: 'fc_exped', name: L('Завершить 2 экспедиции', 'Complete 2 expeditions'), counter: 'expedition', target: 2 },
 ];
@@ -663,9 +663,9 @@ export const FESTIVAL_ENEMIES: EnemyDef[] = [
     skills: ['enemy.brute', 'fest.petalStorm', 'boss.ultNature'],
     look: FL('#E03A5A', 'wild', '#F4D3B8', '#FFD24A', '#8A1E3A', '#F4B8CC', 'horns', '#F2E6D8', 'none', 'yukata'),
   },
-  { id: 'fest_selene', act: 9, name: L('Селена', 'Selene'), title: L('Охотница Кровавой Луны', 'Huntress of the Blood Moon'), role: 'ranged', element: 'dark', kind: 'boss', mechanic: 'skyborne', skills: ['fest.silverVolley', 'boss.soulRend', 'boss.ultDark'], look: FL('#E8E0F4', 'long', '#E8DCE8', '#E03A4A', '#5A0E1E', '#D8D0E8', 'tiara', '#E03A4A', 'darkWings', 'gown') },
-  { id: 'fest_amphitrite', act: 4, name: L('Амфитрита', 'Amphitrite'), title: L('Владычица Приливов', 'Sovereign of the Tides'), role: 'tank', element: 'water', kind: 'boss', mechanic: 'freeze', skills: ['fest.trident', 'boss.tidalWave', 'boss.ultWater'], look: FL('#2AB0C0', 'long', '#F4D3B8', '#6FF0E0', '#0E5A7A', '#F2D46B', 'crown', '#F2D46B', 'none', 'regalia') },
-  { id: 'fest_tsubaki', act: 1, name: L('Цубаки', 'Tsubaki'), title: L('Клинок Сакуры', 'Blade of the Sakura'), role: 'rogue', element: 'nature', kind: 'boss', mechanic: 'phases', skills: ['fest.iai', 'fest.petalStorm', 'boss.ultNature'], look: FL('#F4A8C8', 'ponytail', '#F4D3B8', '#C0306A', '#F2E6F0', '#C0306A', 'flower', '#F4B8CC', 'none', 'yukata') },
+  { id: 'fest_selene', cls: 'archer', act: 9, name: L('Селена', 'Selene'), title: L('Охотница Кровавой Луны', 'Huntress of the Blood Moon'), role: 'ranged', element: 'dark', kind: 'boss', mechanic: 'skyborne', skills: ['fest.silverVolley', 'boss.soulRend', 'boss.ultDark'], look: { ...FL('#E8E0F4', 'long', '#E8DCE8', '#E03A4A', '#5A0E1E', '#D8D0E8', 'tiara', '#E03A4A', 'darkWings', 'gown'), bust: 2 } },
+  { id: 'fest_amphitrite', cls: 'guardian', act: 4, name: L('Амфитрита', 'Amphitrite'), title: L('Владычица Приливов', 'Sovereign of the Tides'), role: 'tank', element: 'water', kind: 'boss', mechanic: 'freeze', skills: ['fest.trident', 'boss.tidalWave', 'boss.ultWater'], look: { ...FL('#2AB0C0', 'long', '#F4D3B8', '#6FF0E0', '#0E5A7A', '#F2D46B', 'crown', '#F2D46B', 'none', 'regalia'), bust: 2 } },
+  { id: 'fest_tsubaki', cls: 'rogue', act: 1, name: L('Цубаки', 'Tsubaki'), title: L('Клинок Сакуры', 'Blade of the Sakura'), role: 'rogue', element: 'nature', kind: 'boss', mechanic: 'phases', skills: ['fest.iai', 'fest.petalStorm', 'boss.ultNature'], look: { ...FL('#F4A8C8', 'ponytail', '#F4D3B8', '#C0306A', '#F2E6F0', '#C0306A', 'flower', '#F4B8CC', 'none', 'yukata'), bust: 2 } },
 ];
 for (const e of FESTIVAL_ENEMIES) {
   ENEMY_MAP[e.id] = e;

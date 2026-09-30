@@ -14,7 +14,7 @@ export const DAILY_QUESTS: QuestDef[] = [
   { id: 'd_login', name: { ru: 'Войти в игру', en: 'Log in' }, counter: 'login', target: 1, activity: 20, reward: { gold: 30 } },
   { id: 'd_chest', name: { ru: 'Собрать сундук 2 раза', en: 'Collect the chest 2 times' }, counter: 'chestCollect', target: 2, activity: 20, reward: { crystals: 5 } },
   { id: 'd_boss', name: { ru: 'Победить босса', en: 'Defeat a boss' }, counter: 'bossWin', target: 1, activity: 20, reward: { gold: 60 } },
-  { id: 'd_level', name: { ru: 'Повысить уровень героинь 3 раза', en: 'Level up heroines 3 times' }, counter: 'heroLevel', target: 3, activity: 20, reward: { xp: 60 } },
+  { id: 'd_level', name: { ru: 'Повысить уровень героев 3 раза', en: 'Level up heroes 3 times' }, counter: 'heroLevel', target: 3, activity: 20, reward: { xp: 60 } },
   { id: 'd_enhance', name: { ru: 'Заточить предметы 2 раза', en: 'Enhance items 2 times' }, counter: 'enhance', target: 2, activity: 20, reward: { dust: 30 } },
   { id: 'd_combo', name: { ru: 'Провести 25 связок классов в бою', en: 'Land 25 class combos in battle' }, counter: 'combo', target: 25, activity: 20, reward: { emblems: 1 } },
   { id: 'd_dungeon', name: { ru: 'Пройти подземелье 2 раза', en: 'Clear dungeons 2 times' }, counter: 'dungeon', target: 2, activity: 20, reward: { starDust: 10 } },

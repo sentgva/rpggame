@@ -118,7 +118,7 @@ function Game() {
 function TopBar() {
   const s = useGameState();
   const cfg = useCfg();
-  const leader = activeParty(s)[0] ?? 'astrid';
+  const leader = activeParty(s)[0] ?? 'cassian';
   const user = tgUser();
   const need = accountXpToNext(cfg, s.account.lvl);
   return (

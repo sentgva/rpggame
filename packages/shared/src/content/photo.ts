@@ -59,6 +59,8 @@ const POSE_BY_P: Record<Personality, [PhotoPose, PhotoPose]> = {
   mysterious: ['behindHead', 'crossed'],
   fierce: ['victory', 'hips'],
   shy: ['shy', 'relaxed'],
+  gallant: ['hips', 'victory'],
+  aloof: ['crossed', 'relaxed'],
 };
 const FACE_BY_P: Record<Personality, [PhotoFace, PhotoFace]> = {
   proud: ['sultry', 'smile'],
@@ -67,6 +69,8 @@ const FACE_BY_P: Record<Personality, [PhotoFace, PhotoFace]> = {
   mysterious: ['sultry', 'dreamy'],
   fierce: ['smile', 'wink'],
   shy: ['dreamy', 'smile'],
+  gallant: ['smile', 'wink'],
+  aloof: ['dreamy', 'sultry'],
 };
 const PERSONALITIES: Personality[] = ['proud', 'playful', 'gentle', 'mysterious', 'fierce', 'shy'];
 
@@ -123,6 +127,8 @@ export const PHOTO_LINES: Record<Personality, [L10n, L10n, L10n]> = {
   mysterious: [L('Ты поймал то, что я обычно прячу. Интересно…', 'You caught what I usually hide. Interesting…'), L('Неплохо. Но тайну ты ещё не разгадал.', 'Not bad. But you haven\'t solved the mystery.'), L('На этом кадре меня нет. Только тень.', 'I\'m not in this shot. Only a shadow.')],
   fierce: [L('Ха! Вот это кадр! Повешу в оружейной!', 'Ha! What a shot! I\'m hanging it in the armory!'), L('Нормально. Но я могу круче!', 'Fine. But I can do cooler!'), L('Эй! Я же двигалась, как ты снимал?!', 'Hey! I was moving, how did you shoot?!')],
   shy: [L('Я… правда так выгляжу? Н-не показывай никому…', 'I… really look like that? D-don\'t show anyone…'), L('Можно… можно ещё один? Я постараюсь.', 'Can… can we do one more? I\'ll try.'), L('Я опять зажмурилась… прости…', 'I closed my eyes again… sorry…')],
+  gallant: [L('Разумеется, я фотогеничен. Повесь в казарме — для боевого духа.', "Of course I'm photogenic. Hang it in the barracks — for morale."), L('Неплохо. Но свет падал не на ту сторону лица.', 'Not bad. But the light hit the wrong side of my face.'), L('Командор, ты снял мой щит, а не меня.', 'Commander, you photographed my shield, not me.')],
+  aloof: [L('…Хороший кадр. Не показывай другим эльфам.', "…A good shot. Don't show it to other elves."), L('Сойдёт. Ветер растрепал волосы.', "It'll do. The wind messed up my hair."), L('Я отвернулся. Специально.', 'I turned away. On purpose.')],
 };
 
 /** Реакции на касание в «Уходе»: по голове — довольна, остальное — смущается. */
@@ -133,4 +139,6 @@ export const TOUCH_LINES: Record<Personality, { head: L10n[]; body: L10n[] }> = 
   mysterious: { head: [L('Любопытный жест. Я запомню.', 'A curious gesture. I\'ll remember it.'), L('Твои руки теплее, чем я думала.', 'Your hands are warmer than I thought.')], body: [L('Осторожнее. Я кусаюсь.', 'Careful. I bite.'), L('Ты играешь с огнём, Командор.', 'You\'re playing with fire, Commander.')] },
   fierce: { head: [L('Эй! Я не ребёнок! …Ладно, ещё чуть-чуть.', 'Hey! I\'m not a kid! …Fine, a little more.'), L('Хорошо. Но это между нами!', 'Good. But this stays between us!')], body: [L('Ха! Хочешь спарринг? Держись!', 'Ha! Want to spar? Brace yourself!'), L('Руки! Ну держись у меня!', 'Hands off! Just you wait!')] },
   shy: { head: [L('У-ум… мне приятно…', 'U-um… that\'s nice…'), L('Можно… можно ещё?', 'Could… could you do it again?')], body: [L('Кья! К-Командор!..', 'Kya! C-Commander!..'), L('Я… я сейчас сгорю от стыда…', 'I… I\'m going to melt from embarrassment…')] },
+  gallant: { head: [L('Ты растрепал мне волосы… Ладно. Тебе можно.', "You messed up my hair… Fine. You're allowed."), L('Рыцаря по голове не гладят. …Но продолжай.', 'One does not pat a knight on the head. …But go on.')], body: [L('Эй, это что, проверка на щекотку?', 'Hey, is this a tickle test?'), L('Командор, без лат я беззащитен — пользуешься?', "Commander, I'm defenceless without my armour — taking advantage?")] },
+  aloof: { head: [L('…Уши не трогай. Остальное — можно.', "…Don't touch the ears. The rest — fine."), L('Эльфы так не делают. Но ты не эльф.', "Elves don't do that. But you're not an elf.")], body: [L('Ещё раз — и проснёшься привязанным к дереву.', "Once more and you'll wake up tied to a tree."), L('Щекотно. Прекрати, человек.', 'That tickles. Stop it, human.')] },
 };

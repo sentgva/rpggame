@@ -1,4 +1,5 @@
 import type { L10n, Lang } from '@idle/shared';
+import { HEROINE_MAP } from '@idle/shared';
 import { ru } from './ru';
 
 export type Dict = typeof ru;
@@ -25,6 +26,16 @@ export function t(key: keyof Dict | string, params?: Record<string, string | num
   let s = d[key] ?? (ru as Record<string, string>)[key] ?? String(key);
   if (params) for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v));
   return s;
+}
+
+/** Строка с учётом рода героя: для героев (мужская фигура) берётся вариант «ключ.m», если он есть. */
+export function tg(key: keyof Dict | string, hero: string | undefined, params?: Record<string, string | number>): string {
+  if (hero && HEROINE_MAP[hero]?.look.male) {
+    const d = (DICTS[current] ?? ru) as Record<string, string>;
+    const mk = `${String(key)}.m`;
+    if (d[mk] ?? (ru as Record<string, string>)[mk]) return t(mk, params);
+  }
+  return t(key, params);
 }
 
 /** Локализованное поле контента. */

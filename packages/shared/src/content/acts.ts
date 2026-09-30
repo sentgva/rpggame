@@ -16,6 +16,8 @@ export interface EnemyDef {
   mechanic?: BossMechanic;
   /** id героини, если босс становится играбельным. */
   hero?: string;
+  /** Класс внешности (наряд и оружие) вместо роли — у владычиц и боссов праздников. */
+  cls?: string;
   title?: L10n;
   /** Колосс Разлома: гигантский босс мирового режима, крупнее обычных боссов, со своей анимацией. */
   colossus?: boolean;
@@ -40,8 +42,8 @@ export const MECHANIC_TEXT: Record<BossMechanic, L10n> = {
   },
   sandstorm: { ru: 'Песчаная буря: −50% точности отряда каждые 15 с', en: 'Sandstorm: −50% party accuracy every 15s' },
   freeze: {
-    ru: 'Замораживает героиню; помогают огонь или очищение',
-    en: 'Freezes a heroine; fire or cleansing helps',
+    ru: 'Замораживает героя; помогают огонь или очищение',
+    en: 'Freezes a hero; fire or cleansing helps',
   },
   tideShield: {
     ru: 'Щит приливов пробивается только умениями и ультимейтами',
@@ -64,7 +66,7 @@ export const MECHANIC_TEXT: Record<BossMechanic, L10n> = {
     ru: 'Воскрешает врагов, если не добить её за 3 хода',
     en: 'Raises fallen enemies unless finished within 3 turns',
   },
-  mirror: { ru: 'Копирует сильнейшую героиню игрока', en: "Copies the player's strongest heroine" },
+  mirror: { ru: 'Копирует сильнейшего героя игрока', en: "Copies the player's strongest hero" },
 };
 
 export interface ActDef {
@@ -228,16 +230,16 @@ export const ENEMIES: EnemyDef[] = [
 
 /** Боссы актов — владычицы. Внешность берётся из играбельной версии. */
 export const ACT_BOSSES: EnemyDef[] = [
-  { id: 'boss_sylvana', act: 1, name: { ru: 'Сильвана', en: 'Sylvana' }, title: { ru: 'Дриада-матриарх', en: 'Dryad Matriarch' }, role: 'healer', element: 'nature', kind: 'boss', mechanic: 'vines', skills: ['boss.thornWhip', 'boss.entangle', 'boss.ultNature'], look: { hair: '#3F8A34', style: 'wild', skin: '#A9D19A', eyes: '#F2D46B', outfit: '#2F5A2A', trim: '#C0A060', acc: 'crown', accColor: '#8C6A3A', extra: 'vines' } },
-  { id: 'boss_nefertari', act: 2, name: { ru: 'Нефертари', en: 'Nefertari' }, title: { ru: 'Песчаная королева', en: 'Sand Queen' }, role: 'caster', element: 'fire', kind: 'boss', mechanic: 'sandstorm', skills: ['boss.sunBlast', 'boss.curseOfSands', 'boss.ultFire'], look: { hair: '#1E1A1A', style: 'bob', skin: '#C98E62', eyes: '#E0A13A', outfit: '#E6D0A0', trim: '#3D7BE0', acc: 'crown', accColor: '#E0A13A', extra: 'snake' } },
-  { id: 'boss_skadi', act: 3, name: { ru: 'Скади', en: 'Skadi' }, title: { ru: 'Зимняя императрица', en: 'Winter Empress' }, role: 'ranged', element: 'water', kind: 'boss', mechanic: 'freeze', skills: ['boss.frostArrow', 'boss.hailstorm', 'boss.ultWater'], look: { hair: '#E6F2FF', style: 'long', skin: '#E8DCE8', eyes: '#6FD0FF', outfit: '#E6F2FF', trim: '#3D7BE0', acc: 'crown', accColor: '#CFEFFF' } },
-  { id: 'boss_thalassia', act: 4, name: { ru: 'Талассия', en: 'Thalassia' }, title: { ru: 'Морская ведьма', en: 'Sea Witch' }, role: 'caster', element: 'water', kind: 'boss', mechanic: 'tideShield', skills: ['boss.tidalWave', 'boss.drown', 'boss.ultWater'], look: { hair: '#2E7A8A', style: 'wild', skin: '#9FC4E0', eyes: '#F2D46B', outfit: '#1E3A4A', trim: '#6FD0E0', acc: 'tiara', accColor: '#6FD0E0', extra: 'fishTail' } },
-  { id: 'boss_carmilla', act: 5, name: { ru: 'Кармилла', en: 'Carmilla' }, title: { ru: 'Графиня', en: 'The Countess' }, role: 'brute', element: 'dark', kind: 'boss', mechanic: 'bloodThirst', skills: ['boss.bloodKiss', 'boss.batSwarm', 'boss.ultDark'], look: { hair: '#1E1420', style: 'long', skin: '#E8DCE8', eyes: '#E03A3A', outfit: '#3A0E1A', trim: '#E03A3A', acc: 'tiara', accColor: '#B8322C', extra: 'darkWings' } },
-  { id: 'boss_ifrita', act: 6, name: { ru: 'Ифрита', en: 'Ifrita' }, title: { ru: 'Королева пламени', en: 'Flame Queen' }, role: 'brute', element: 'fire', kind: 'boss', mechanic: 'fireField', skills: ['boss.magmaFist', 'boss.eruption', 'boss.ultFire'], look: { hair: '#FF7A2A', style: 'wild', skin: '#C98E62', eyes: '#FFE040', outfit: '#3A1E1E', trim: '#FF7A2A', acc: 'horns', accColor: '#2A1E1E', extra: 'tail' } },
-  { id: 'boss_brunhilde', act: 7, name: { ru: 'Брунгильда', en: 'Brunhilde' }, title: { ru: 'Падшая валькирия', en: 'Fallen Valkyrie' }, role: 'tank', element: 'light', kind: 'boss', mechanic: 'skyborne', skills: ['boss.spearDive', 'boss.valkyrieCry', 'boss.ultLight'], look: { hair: '#F2E3A0', style: 'braid', skin: '#F4D3B8', eyes: '#5AA0E0', outfit: '#C0C8D8', trim: '#E0A13A', acc: 'helmet', accColor: '#E0E6F0', extra: 'wings' } },
-  { id: 'boss_aegis', act: 8, name: { ru: 'Эгида', en: 'Aegis' }, title: { ru: 'Механическая императрица', en: 'Mechanical Empress' }, role: 'ranged', element: 'light', kind: 'boss', mechanic: 'phases', skills: ['boss.laser', 'boss.overclock', 'boss.ultLight'], look: { hair: '#C0C8D0', style: 'bob', skin: '#F4D3B8', eyes: '#40E0FF', outfit: '#6A6A7A', trim: '#E0A13A', acc: 'tiara', accColor: '#E0A13A', extra: 'gears' } },
-  { id: 'boss_morrigan', act: 9, name: { ru: 'Морриган', en: 'Morrigan' }, title: { ru: 'Лич-королева', en: 'Lich Queen' }, role: 'caster', element: 'dark', kind: 'boss', mechanic: 'raiseDead', skills: ['boss.soulRend', 'boss.deathCoil', 'boss.ultDark'], look: { hair: '#C8C0E0', style: 'long', skin: '#B8B0C8', eyes: '#6FFFD0', outfit: '#1E1A2A', trim: '#6FFFD0', acc: 'crown', accColor: '#6A6A7A' } },
-  { id: 'boss_nyx', act: 10, name: { ru: 'Никта', en: 'Nyx' }, title: { ru: 'Богиня Хаоса', en: 'Goddess of Chaos' }, role: 'caster', element: 'dark', kind: 'boss', mechanic: 'mirror', skills: ['boss.voidRay', 'boss.chaosNova', 'boss.ultDark'], look: { hair: '#1A1024', style: 'long', skin: '#B8B0C8', eyes: '#E040FF', outfit: '#120A1A', trim: '#E040FF', acc: 'halo', accColor: '#6A1E8A', extra: 'darkWings' } },
+  { id: 'boss_sylvana', cls: 'cleric', act: 1, name: { ru: 'Сильвана', en: 'Sylvana' }, title: { ru: 'Дриада-матриарх', en: 'Dryad Matriarch' }, role: 'healer', element: 'nature', kind: 'boss', mechanic: 'vines', skills: ['boss.thornWhip', 'boss.entangle', 'boss.ultNature'], look: { bust: 2, hair: '#3F8A34', style: 'wild', skin: '#A9D19A', eyes: '#F2D46B', outfit: '#2F5A2A', trim: '#C0A060', acc: 'crown', accColor: '#8C6A3A', extra: 'vines' } },
+  { id: 'boss_nefertari', cls: 'sorceress', act: 2, name: { ru: 'Нефертари', en: 'Nefertari' }, title: { ru: 'Песчаная королева', en: 'Sand Queen' }, role: 'caster', element: 'fire', kind: 'boss', mechanic: 'sandstorm', skills: ['boss.sunBlast', 'boss.curseOfSands', 'boss.ultFire'], look: { bust: 2, hair: '#1E1A1A', style: 'bob', skin: '#C98E62', eyes: '#E0A13A', outfit: '#E6D0A0', trim: '#3D7BE0', acc: 'crown', accColor: '#E0A13A', extra: 'snake' } },
+  { id: 'boss_skadi', cls: 'archer', act: 3, name: { ru: 'Скади', en: 'Skadi' }, title: { ru: 'Зимняя императрица', en: 'Winter Empress' }, role: 'ranged', element: 'water', kind: 'boss', mechanic: 'freeze', skills: ['boss.frostArrow', 'boss.hailstorm', 'boss.ultWater'], look: { bust: 2, hair: '#E6F2FF', style: 'long', skin: '#E8DCE8', eyes: '#6FD0FF', outfit: '#E6F2FF', trim: '#3D7BE0', acc: 'crown', accColor: '#CFEFFF' } },
+  { id: 'boss_thalassia', cls: 'necromancer', act: 4, name: { ru: 'Талассия', en: 'Thalassia' }, title: { ru: 'Морская ведьма', en: 'Sea Witch' }, role: 'caster', element: 'water', kind: 'boss', mechanic: 'tideShield', skills: ['boss.tidalWave', 'boss.drown', 'boss.ultWater'], look: { bust: 2, hair: '#2E7A8A', style: 'wild', skin: '#9FC4E0', eyes: '#F2D46B', outfit: '#1E3A4A', trim: '#6FD0E0', acc: 'tiara', accColor: '#6FD0E0', extra: 'fishTail' } },
+  { id: 'boss_carmilla', cls: 'berserker', act: 5, name: { ru: 'Кармилла', en: 'Carmilla' }, title: { ru: 'Графиня', en: 'The Countess' }, role: 'brute', element: 'dark', kind: 'boss', mechanic: 'bloodThirst', skills: ['boss.bloodKiss', 'boss.batSwarm', 'boss.ultDark'], look: { bust: 2, hair: '#1E1420', style: 'long', skin: '#E8DCE8', eyes: '#E03A3A', outfit: '#3A0E1A', trim: '#E03A3A', acc: 'tiara', accColor: '#B8322C', extra: 'darkWings' } },
+  { id: 'boss_ifrita', cls: 'berserker', act: 6, name: { ru: 'Ифрита', en: 'Ifrita' }, title: { ru: 'Королева пламени', en: 'Flame Queen' }, role: 'brute', element: 'fire', kind: 'boss', mechanic: 'fireField', skills: ['boss.magmaFist', 'boss.eruption', 'boss.ultFire'], look: { bust: 2, hair: '#FF7A2A', style: 'wild', skin: '#C98E62', eyes: '#FFE040', outfit: '#3A1E1E', trim: '#FF7A2A', acc: 'horns', accColor: '#2A1E1E', extra: 'tail' } },
+  { id: 'boss_brunhilde', cls: 'guardian', act: 7, name: { ru: 'Брунгильда', en: 'Brunhilde' }, title: { ru: 'Падшая валькирия', en: 'Fallen Valkyrie' }, role: 'tank', element: 'light', kind: 'boss', mechanic: 'skyborne', skills: ['boss.spearDive', 'boss.valkyrieCry', 'boss.ultLight'], look: { bust: 2, hair: '#F2E3A0', style: 'braid', skin: '#F4D3B8', eyes: '#5AA0E0', outfit: '#C0C8D8', trim: '#E0A13A', acc: 'helmet', accColor: '#E0E6F0', extra: 'wings' } },
+  { id: 'boss_aegis', cls: 'archer', act: 8, name: { ru: 'Эгида', en: 'Aegis' }, title: { ru: 'Механическая императрица', en: 'Mechanical Empress' }, role: 'ranged', element: 'light', kind: 'boss', mechanic: 'phases', skills: ['boss.laser', 'boss.overclock', 'boss.ultLight'], look: { bust: 2, hair: '#C0C8D0', style: 'bob', skin: '#F4D3B8', eyes: '#40E0FF', outfit: '#6A6A7A', trim: '#E0A13A', acc: 'tiara', accColor: '#E0A13A', extra: 'gears' } },
+  { id: 'boss_morrigan', cls: 'necromancer', act: 9, name: { ru: 'Морриган', en: 'Morrigan' }, title: { ru: 'Лич-королева', en: 'Lich Queen' }, role: 'caster', element: 'dark', kind: 'boss', mechanic: 'raiseDead', skills: ['boss.soulRend', 'boss.deathCoil', 'boss.ultDark'], look: { bust: 2, hair: '#C8C0E0', style: 'long', skin: '#B8B0C8', eyes: '#6FFFD0', outfit: '#1E1A2A', trim: '#6FFFD0', acc: 'crown', accColor: '#6A6A7A' } },
+  { id: 'boss_nyx', cls: 'sorceress', act: 10, name: { ru: 'Никта', en: 'Nyx' }, title: { ru: 'Богиня Хаоса', en: 'Goddess of Chaos' }, role: 'caster', element: 'dark', kind: 'boss', mechanic: 'mirror', skills: ['boss.voidRay', 'boss.chaosNova', 'boss.ultDark'], look: { bust: 2, hair: '#1A1024', style: 'long', skin: '#B8B0C8', eyes: '#E040FF', outfit: '#120A1A', trim: '#E040FF', acc: 'halo', accColor: '#6A1E8A', extra: 'darkWings' } },
 ];
 
 /** Призванные юниты (скелеты некромантки, лозы Сильваны…). */

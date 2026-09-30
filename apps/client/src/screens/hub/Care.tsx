@@ -49,7 +49,7 @@ import { heroUrl } from '../../art/runtime';
 import { sceneUrl, type SceneBg } from '../../art/scenes';
 import { HeroImg } from '../../components/HeroImg';
 import { Bar, Button, Cost, Icon, Panel, css, cx, openSheet } from '../../components/ui';
-import { t, tl } from '../../i18n';
+import { t, tg, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { haptic } from '../../tg/telegram';
@@ -188,7 +188,7 @@ function CareList() {
               onClick={() => {
                 haptic.tap();
                 if (!has) {
-                  useUi.getState().toast(t('care.notOwned', { name: tl(HEROINE_MAP[id].name) }));
+                  useUi.getState().toast(tg('care.notOwned', id, { name: tl(HEROINE_MAP[id].name) }));
                   return;
                 }
                 useUi.getState().push({ id: 'care', params: { hero: id } });
@@ -225,6 +225,8 @@ const TOUCH_BODY: Record<Personality, { arms: Arms; eyes: Eyes }> = {
   mysterious: { arms: 'hips', eyes: 'half' },
   fierce: { arms: 'victory', eyes: 'open' },
   shy: { arms: 'shy', eyes: 'closed' },
+  gallant: { arms: 'hips', eyes: 'wink' },
+  aloof: { arms: 'crossed', eyes: 'half' },
 };
 
 function sceneBg(sc: Scene): SceneBg {
@@ -314,7 +316,7 @@ function CareHero({ hero }: { hero: string }) {
         <div className={css.col} style={{ alignItems: 'center', marginBottom: 8 }}>
           <HeroImg id={hero} skin={s.heroines[hero]?.skin} width={120} height={120} className="pixel" unarmed />
           <div style={{ textAlign: 'center' }}>{t('care.levelUpText', { name: tl(def.name), pct: Math.round(BOND_STAT * 100 * top) })}</div>
-          {top >= BOND_DATE_LVL && r.levelUps.includes(BOND_DATE_LVL) && <div className={css.goodText}>{t('care.dateOpen')}</div>}
+          {top >= BOND_DATE_LVL && r.levelUps.includes(BOND_DATE_LVL) && <div className={css.goodText}>{tg('care.dateOpen', hero)}</div>}
           {top >= BOND_MAX && <div className={css.goodText}>{t('care.maxText', { n: BOND_COSTUME_HEARTS })}</div>}
         </div>
       );
@@ -353,7 +355,7 @@ function CareHero({ hero }: { hero: string }) {
   function treat() {
     openSheet(t('care.treat'), (close) => (
       <div className={css.col}>
-        <div className={css.tiny}>{b.lvl >= KNOW_TREAT ? t('care.treatKnown') : t('care.treatHint', { lvl: KNOW_TREAT })}</div>
+        <div className={css.tiny}>{b.lvl >= KNOW_TREAT ? tg('care.treatKnown', hero) : tg('care.treatHint', hero, { lvl: KNOW_TREAT })}</div>
         {TREATS.map((x) => (
           <div key={x.id} className={css.listItem}>
             <span style={{ fontSize: 26 }}>{x.icon}</span>
@@ -390,12 +392,12 @@ function CareHero({ hero }: { hero: string }) {
 
   function sleep() {
     const lvl = rooms.bedroom ?? 0;
-    openSheet(t('care.sleep'), (close) => (
+    openSheet(tg('care.sleep', hero), (close) => (
       <div className={css.col}>
         <div className={css.row} style={{ alignItems: 'center' }}>
           <HeroImg id={hero} skin={BOND_SLEEP_SKIN[hero]} width={72} height={72} className="pixel" unarmed />
           <div className={css.grow} style={{ lineHeight: 1.45 }}>
-            {t('care.sleepAsk', { name: tl(def.name) })}
+            {tg('care.sleepAsk', hero, { name: tl(def.name) })}
             <div className={css.tiny} style={{ marginTop: 4 }}>
               {t('care.sleepGives', { n: SLEEP_GAIN.base + SLEEP_GAIN.perLvl * lvl, min: SLEEP_GIFT_MIN.base + SLEEP_GIFT_MIN.perLvl * lvl })}
             </div>
@@ -412,16 +414,16 @@ function CareHero({ hero }: { hero: string }) {
             }
           }}
         >
-          🌙 {t('care.sleepYes')}
+          🌙 {tg('care.sleepYes', hero)}
         </Button>
       </div>
     ));
   }
 
   function date() {
-    openSheet(t('care.date'), (close) => (
+    openSheet(tg('care.date', hero), (close) => (
       <div className={css.col}>
-        <div className={css.tiny}>{b.lvl >= KNOW_PLACE ? t('care.placeKnown') : t('care.placeHint', { lvl: KNOW_PLACE })}</div>
+        <div className={css.tiny}>{b.lvl >= KNOW_PLACE ? tg('care.placeKnown', hero) : tg('care.placeHint', hero, { lvl: KNOW_PLACE })}</div>
         {PLACES.map((p) => (
           <div key={p.id} className={css.listItem} style={{ background: `linear-gradient(90deg, ${p.bg[0]}, transparent)` }}>
             <span style={{ fontSize: 26 }}>{p.icon}</span>
@@ -583,7 +585,7 @@ function CareHero({ hero }: { hero: string }) {
         />
         <Action
           icon="💐"
-          name={t('care.date')}
+          name={tg('care.date', hero)}
           sub={b.lvl < BOND_DATE_LVL ? t('care.fromLvl', { lvl: BOND_DATE_LVL }) : b.date ? t('care.doneToday') : t('care.left', { n: 1, max: 1 })}
           disabled={b.lvl < BOND_DATE_LVL || b.date}
           onClick={date}
@@ -597,7 +599,7 @@ function CareHero({ hero }: { hero: string }) {
         />
         <Action
           icon="🌙"
-          name={t('care.sleep')}
+          name={tg('care.sleep', hero)}
           sub={
             !rooms.bedroom
               ? t('care.needRoom', { name: tl(ROOM_MAP.bedroom.name) })
@@ -605,7 +607,7 @@ function CareHero({ hero }: { hero: string }) {
                 ? t('care.fromLvl', { lvl: BOND_SLEEP_LVL })
                 : sleptWith
                   ? sleptWith === hero
-                    ? t('care.sleptHere')
+                    ? tg('care.sleptHere', hero)
                     : t('care.sleptOther', { name: tl(HEROINE_MAP[sleptWith]?.name) })
                   : t('care.oneNight')
           }

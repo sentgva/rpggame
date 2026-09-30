@@ -100,7 +100,7 @@ function HubRoot() {
   const MAIN = ['campfire', 'care', 'workshop', 'quests'];
   const main = MAIN.map((id) => all.find((x) => x.id === id)!).filter(Boolean);
   const more = all.filter((x) => !MAIN.includes(x.id));
-  const leader = activeParty(s)[0] ?? 'astrid';
+  const leader = activeParty(s)[0] ?? 'cassian';
   const open = (id: string) => {
     haptic.tap();
     if (id === 'news') openNews(true);
