@@ -11,6 +11,12 @@ import {
   abyssOmen,
   abyssReward,
   EXPEDITION_EVENTS,
+  VOLLEY_DAILY,
+  VOLLEY_POINTS,
+  VOLLEY_RUNGS,
+  volleyTeam,
+  volleyRival,
+  isSwimwear,
   photoTaste,
   photoScore,
   photoOutfitFits,
@@ -535,7 +541,7 @@ describe('уход за героинями', () => {
     for (const id of BOND_HEROES) {
       const skin = BOND_SPA_SKIN[id];
       expect(SKIN_MAP[skin]?.hero).toBe(id);
-      expect(SKIN_MAP[skin].look.wear).toMatch(/^swim/);
+      expect(isSwimwear(SKIN_MAP[skin].look.wear)).toBe(true);
       if (skin.endsWith('_spa')) expect(SKINS.some((x) => x.id === skin)).toBe(false);
     }
     let s = withUr();
@@ -1093,8 +1099,8 @@ describe('праздники Легиона', () => {
   const act = (s: PlayerState, a: Record<string, unknown>, now = T1) => applyAction(s, a as never, { cfg, now, dev: true });
 
   it('праздники сменяются каждые 14 дней по кругу', () => {
-    const ids = [0, 1, 2, 3, 4, 5].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
-    expect(ids).toEqual(['bloodmoon', 'tourney', 'tides', 'mine', 'sakura', 'bloodmoon']);
+    const ids = [0, 1, 2, 3, 4, 5, 6].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
+    expect(ids).toEqual(['bloodmoon', 'tourney', 'tides', 'mine', 'sakura', 'resort', 'bloodmoon']);
     // виды чередуются: подряд не идут два одинаковых
     for (let k = 0; k < FESTIVALS.length; k++) expect(FESTIVALS[k].kind === 'trail' && FESTIVALS[(k + 1) % FESTIVALS.length].kind === 'trail' && k !== FESTIVALS.length - 1).toBe(false);
     const f = festivalAt(T1)!;
@@ -1688,5 +1694,81 @@ describe('Рыбалка, договоры Бездны, события эксп
     expect(out.state.modes.expeditions.find((e) => e.id === id)).toBeUndefined();
     expect(out.state.cur.gold).toBeGreaterThan(d0);
     expect(() => act(out.state, { type: 'expedition.event', id, choice: 'a' })).toThrow('badParam');
+  });
+});
+
+describe('Солнечный курорт: пляжный волейбол и Солара', () => {
+  const DAY = 86400000;
+  // шестой праздник ротации — курорт
+  const TR = FESTIVAL_EPOCH + 5 * FESTIVAL_DAYS * DAY + 3600000;
+  const act = (s: PlayerState, a: Record<string, unknown>, now = TR) => applyAction(s, a as never, { cfg, now, dev: true });
+  const ready = () => {
+    let s = act(fresh(), { type: 'dev.progress', unlockAll: true, accLvl: 20 }).state;
+    for (const id of ['coral', 'lira', 'mirabel']) s = act(s, { type: 'dev.hero', id, lvl: 10 }).state;
+    return s;
+  };
+  const pair = ['coral', 'lira'];
+
+  it('героиня праздника: пышная фигура и родное микро-бикини, в призыве её нет', () => {
+    const h = HEROINE_MAP.solara;
+    expect(h.festival).toBe('resort');
+    expect(h.look.bust).toBe(3);
+    expect(h.look.hips).toBe(3);
+    expect(h.look.wear).toBe('micro');
+    expect(isSwimwear(h.look.wear)).toBe(true);
+    expect(SKIN_MAP.solara_pearl.look.wear).toBe('micro');
+    expect(festivalAt(TR)!.def.id).toBe('resort');
+    expect(festivalAt(TR)!.def.kind).toBe('volley');
+  });
+
+  it('навыки пары: по классам, одна стихия — сыгранность; лестница — финал с Соларой', () => {
+    const t1 = volleyTeam(['astrid', 'keira']);
+    expect(t1.rec + t1.set + t1.spk).toBeGreaterThanOrEqual(10);
+    const same = volleyTeam(['coral', 'mirabel']);
+    expect(same.synergy).toBe(true);
+    expect(volleyRival(VOLLEY_RUNGS).pair).toContain('solara');
+    expect(volleyRival(VOLLEY_RUNGS).final).toBe(true);
+    expect(volleyRival(1).skill).toBeLessThan(volleyRival(VOLLEY_RUNGS).skill);
+  });
+
+  it('матч: тратит матч дня, победа двигает лестницу и даёт очки праздника; нельзя перепрыгнуть ступень', () => {
+    let s = ready();
+    expect(() => act(s, { type: 'volley.start', heroes: pair, rung: 2 })).toThrow('requirements');
+    expect(() => act(s, { type: 'volley.start', heroes: ['coral', 'coral'], rung: 1 })).toThrow('badParam');
+    expect(() => act(s, { type: 'volley.start', heroes: ['coral', 'solara'], rung: 1 })).toThrow('notOwned');
+    s = act(s, { type: 'volley.start', heroes: pair, rung: 1 }).state;
+    // мгновенная «победа» не засчитывается
+    expect(() => act(s, { type: 'volley.end', us: VOLLEY_POINTS, them: 0 })).toThrow('badParam');
+    expect(() => act(s, { type: 'volley.end', us: 3, them: 2 }, TR + 20000)).toThrow('badParam');
+    const p0 = festivalState({ s, cfg, now: TR }).points;
+    const r = act(s, { type: 'volley.end', us: VOLLEY_POINTS, them: 1, spikes: 3 }, TR + 20000);
+    const res = r.result as any;
+    expect(res.won).toBe(true);
+    expect(res.big).toBe(true);
+    expect(res.reward.first).toBe(true);
+    s = r.state;
+    const f = festivalState({ s, cfg, now: TR + 20000 });
+    expect(f.volley!.best).toBe(1);
+    expect(f.volley!.big).toBe(1);
+    expect(f.points).toBeGreaterThan(p0);
+    expect(s.quests.daily.volSpike).toBe(3);
+    expect(() => act(s, { type: 'volley.end', us: VOLLEY_POINTS, them: 0 }, TR + 30000)).toThrow('noRun');
+    // поражение — утешительные жетоны, лестница не двигается
+    s = act(s, { type: 'volley.start', heroes: pair, rung: 2 }, TR + 30000).state;
+    const lost = act(s, { type: 'volley.end', us: 2, them: VOLLEY_POINTS }, TR + 60000);
+    expect((lost.result as any).won).toBe(false);
+    expect(festivalState({ s: lost.state, cfg, now: TR + 60000 }).volley!.best).toBe(1);
+  });
+
+  it('матчи дня кончаются, завтра — снова; купленные матчи не сгорают', () => {
+    let s = ready();
+    for (let i = 0; i < VOLLEY_DAILY; i++) s = act(act(s, { type: 'volley.start', heroes: pair, rung: 1 }).state, { type: 'volley.end', forfeit: true }).state;
+    expect(() => act(s, { type: 'volley.start', heroes: pair, rung: 1 })).toThrow('noAttempts');
+    s = { ...s, cur: { ...s.cur, eventTokens: 10000 } };
+    s = act(s, { type: 'fest.buy', offer: 'fs_match' }).state;
+    s = act(s, { type: 'volley.start', heroes: pair, rung: 1 }).state;
+    expect(festivalState({ s, cfg, now: TR }).volley!.bonus).toBe(0);
+    expect(() => act(act(s, { type: 'volley.end', forfeit: true }).state, { type: 'volley.start', heroes: pair, rung: 1 })).toThrow('noAttempts');
+    expect(act(s, { type: 'volley.start', heroes: pair, rung: 1 }, TR + DAY).result).toMatchObject({ left: VOLLEY_DAILY - 1 });
   });
 });

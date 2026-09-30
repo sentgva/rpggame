@@ -6,17 +6,17 @@ import { TOWER_MODS, type TowerMod } from './modes';
 
 /**
  * Праздники Легиона — большой ивент, который идёт всегда, но каждые две недели сменяется:
- * Кровавая Луна → Праздник Приливов → Цветение Сакуры → снова Луна…
+ * Кровавая Луна → Турнир → Приливы → Копи → Сакура → Солнечный курорт → снова Луна…
  * У каждого праздника — своя героиня (только за награды праздника), свой босс-колосс,
  * путь из 18 этапов, ежедневные задания, цели, шкала наград и лавка.
  */
-export type FestivalId = 'bloodmoon' | 'tides' | 'sakura' | 'tourney' | 'mine';
+export type FestivalId = 'bloodmoon' | 'resort' | 'tides' | 'sakura' | 'tourney' | 'mine';
 /**
  * Вид праздника — у каждого своя главная механика:
  * trail — путь из 18 этапов и босс-колосс; tourney — драфт-турнир чужими героинями;
- * mine — исследование копей в тумане за кирки.
+ * mine — исследование копей в тумане за кирки; volley — пляжный волейбол парами на тайминг.
  */
-export type FestivalKind = 'trail' | 'tourney' | 'mine';
+export type FestivalKind = 'trail' | 'tourney' | 'mine' | 'volley';
 
 export interface FestivalDef {
   id: FestivalId;
@@ -42,7 +42,7 @@ export interface FestivalDef {
   /** цвета оформления: фон, акцент, свечение */
   colors: { bg: [string, string]; accent: string; glow: string };
   /** частицы на баннере */
-  particle: 'moon' | 'bubble' | 'petal' | 'spark' | 'dust';
+  particle: 'moon' | 'bubble' | 'petal' | 'spark' | 'dust' | 'sun';
   /** облик героини праздника — финальная награда шкалы */
   finalSkin: string;
   /** облики других героинь — в лавке праздника */
@@ -150,6 +150,22 @@ export const FESTIVALS: FestivalDef[] = [
     particle: 'petal',
     finalSkin: 'tsubaki_storm',
     shopSkins: ['sylvana_sakura', 'isolde_sakura'],
+  },
+  {
+    id: 'resort',
+    kind: 'volley',
+    name: L('Солнечный курорт', 'Sun Resort'),
+    tagline: L('Жаркое солнце, пляжный волейбол и королева пляжа', 'Hot sun, beach volleyball and the queen of the beach'),
+    lore: L(
+      'Легион пригласили на тропический остров. Хозяйка курорта Солара устраивает турнир по пляжному волейболу: восемь пар соперниц, песок, солнце и купальники, которые едва держатся на завязках. Дойди до финала — и сыграй против самой королевы пляжа.',
+      "The Legion is invited to a tropical island. The resort's hostess Solara holds a beach volleyball tournament: eight rival pairs, sand, sun and swimsuits barely held on by their strings. Reach the final — and play against the queen of the beach herself.",
+    ),
+    element: 'light',
+    hero: 'solara',
+    colors: { bg: ['#2a1206', '#c0501e'], accent: '#ffd24a', glow: '#ff9a3a' },
+    particle: 'sun',
+    finalSkin: 'solara_pearl',
+    shopSkins: ['lilith_resort', 'melusine_resort'],
   },
 ];
 export const FESTIVAL_MAP: Record<FestivalId, FestivalDef> = Object.fromEntries(FESTIVALS.map((f) => [f.id, f])) as Record<FestivalId, FestivalDef>;
@@ -414,6 +430,11 @@ export const FEST_TASKS_KIND: Record<FestivalKind, FestTaskDef[]> = {
     { id: 'ft_mchest', name: L('Открыть сундук в копях', 'Open a chest in the mines'), counter: 'mineChest', target: 1 },
     { id: 'ft_mfight', name: L('Победить 2 чудовищ в копях', 'Defeat 2 mine monsters'), counter: 'mineWin', target: 2 },
   ],
+  volley: [
+    { id: 'ft_vplay', name: L('Сыграть 3 матча на пляже', 'Play 3 beach matches'), counter: 'volMatch', target: 3 },
+    { id: 'ft_vwin', name: L('Выиграть 2 матча', 'Win 2 matches'), counter: 'volWin', target: 2 },
+    { id: 'ft_vspike', name: L('Забить 8 очков ударом', 'Score 8 points with spikes'), counter: 'volSpike', target: 8 },
+  ],
 };
 /** Задания пути — для совместимости со старыми ссылками. */
 export const FEST_TASKS_FEST: FestTaskDef[] = FEST_TASKS_KIND.trail;
@@ -462,7 +483,10 @@ export type FestGoalMetric =
   | 'tourChamps'
   | 'mineFloor'
   | 'mineChests'
-  | 'mineSteps';
+  | 'mineSteps'
+  | 'volBest'
+  | 'volWins'
+  | 'volBig';
 export interface FestGoalDef {
   id: string;
   name: L10n;
@@ -492,6 +516,11 @@ export const FEST_GOALS: FestGoalDef[] = [
   { id: 'fg_mfloor15', kind: 'mine', name: L('Спуститься на 15-й этаж', 'Reach floor 15'), metric: 'mineFloor', target: 15, points: 300, cur: { crystals: 200, scrolls: 2 } },
   { id: 'fg_mchest', kind: 'mine', name: L('Открыть 15 сундуков', 'Open 15 chests'), metric: 'mineChests', target: 15, points: 150, cur: { starDust: 80 } },
   { id: 'fg_msteps', kind: 'mine', name: L('Сделать 250 шагов', 'Take 250 steps'), metric: 'mineSteps', target: 250, points: 200, cur: { crystals: 120 } },
+  { id: 'fg_vr4', kind: 'volley', name: L('Обыграть 4 пары лестницы', 'Beat 4 pairs of the ladder'), metric: 'volBest', target: 4, points: 150, cur: { crystals: 80 } },
+  { id: 'fg_vr8', kind: 'volley', name: L('Обыграть королеву пляжа', 'Beat the queen of the beach'), metric: 'volBest', target: 8, points: 300, cur: { crystals: 200, scrolls: 2 } },
+  { id: 'fg_vw15', kind: 'volley', name: L('Выиграть 15 матчей', 'Win 15 matches'), metric: 'volWins', target: 15, points: 150, cur: { crystals: 80 } },
+  { id: 'fg_vw40', kind: 'volley', name: L('Выиграть 40 матчей', 'Win 40 matches'), metric: 'volWins', target: 40, points: 250, cur: { crystals: 150 } },
+  { id: 'fg_vbig', kind: 'volley', name: L('Разгромить соперниц 8 раз (5:0 или 5:1)', 'Crush rivals 8 times (5:0 or 5:1)'), metric: 'volBig', target: 8, points: 200, cur: { crystals: 120, scrolls: 1 } },
   { id: 'fg_task10', name: L('Выполнить 10 заданий праздника', 'Complete 10 festival tasks'), metric: 'tasks', target: 10, points: 120, cur: { starDust: 60 } },
   { id: 'fg_task30', name: L('Выполнить 30 заданий праздника', 'Complete 30 festival tasks'), metric: 'tasks', target: 30, points: 200, cur: { scrolls: 2 } },
   { id: 'fg_task50', name: L('Выполнить 50 заданий праздника', 'Complete 50 festival tasks'), metric: 'tasks', target: 50, points: 300, cur: { crystals: 200 } },
@@ -568,6 +597,9 @@ const FEST_SKINS: FestSkin[] = [
   ['rubina_diamond', 'rubina', 'Алмазная королева', 'Diamond Queen', { wear: 'gown', hair: '#F2F0FF', outfit: '#DDEEFF', trim: '#6FD0E0', acc: 'crown', accColor: '#9FE0FF' }],
   ['hanna_gem', 'hanna', 'Самоцветный бал', 'Gemstone Ball', { wear: 'gown', outfit: '#6A1E9A', trim: '#40E0D0', acc: 'tiara', accColor: '#40E0D0' }],
   ['nox_gem', 'nox', 'Тень копей', 'Shadow of the Mines', { wear: 'silk', outfit: '#1E1A2A', trim: '#FF6A8A', acc: 'mask', accColor: '#1E1A2A' }],
+  ['solara_pearl', 'solara', 'Белый жемчуг', 'White Pearl', { wear: 'micro', hair: '#FFF0C8', outfit: '#FFFFFF', trim: '#F2D46B', acc: 'flower', accColor: '#FFFFFF' }],
+  ['lilith_resort', 'lilith', 'Курортный роман', 'Resort Romance', { wear: 'micro', outfit: '#1A0E1E', trim: '#E03A5A', acc: 'flower', accColor: '#E03A5A' }],
+  ['melusine_resort', 'melusine', 'Голубая лагуна', 'Blue Lagoon', { wear: 'micro', outfit: '#2AC0D0', trim: '#FFFFFF', acc: 'flower', accColor: '#FF8AB0' }],
 ];
 for (const [id, hero, ru, en, look] of FEST_SKINS) {
   const skin: SkinDef = { id, hero, name: { ru, en }, look, source: 'event' };
@@ -597,7 +629,7 @@ export interface FestOfferDef {
   name: L10n;
   cost: number;
   limit: number;
-  give: { cur?: Partial<Record<Currency, number>>; shards?: number; skin?: string; item?: 'legendary' | 'mythic'; heart?: boolean; entry?: number; picks?: number };
+  give: { cur?: Partial<Record<Currency, number>>; shards?: number; skin?: string; item?: 'legendary' | 'mythic'; heart?: boolean; entry?: number; picks?: number; matches?: number };
 }
 
 /** Лавка текущего праздника (жетоны ивента). Лимиты — на праздник. */
@@ -607,6 +639,7 @@ export function festShop(def: FestivalDef): FestOfferDef[] {
     { id: 'fs_shards', name: L(`10 осколков: ${hero.ru}`, `10 shards: ${hero.en}`), cost: 700, limit: 5, give: { shards: 10 } },
     ...(def.kind === 'tourney' ? [{ id: 'fs_entry', name: L('Вход на турнир', 'Tourney entry'), cost: 250, limit: 7, give: { entry: 1 } }] : []),
     ...(def.kind === 'mine' ? [{ id: 'fs_picks', name: L('Кирки ×10', 'Picks ×10'), cost: 200, limit: 10, give: { picks: 10 } }] : []),
+    ...(def.kind === 'volley' ? [{ id: 'fs_match', name: L('Матч на пляже', 'Beach match'), cost: 200, limit: 10, give: { matches: 1 } }] : []),
     ...def.shopSkins.map((sk) => ({ id: `fs_${sk}`, name: L(`Облик «${SKIN_MAP[sk].name.ru}»`, `Skin "${SKIN_MAP[sk].name.en}"`), cost: 2600, limit: 1, give: { skin: sk } })),
     { id: 'fs_heart', name: L('Сердце Эфира', 'Aether Heart'), cost: 900, limit: 2, give: { heart: true } },
     { id: 'fs_mythic', name: L('Мифический предмет', 'Mythic item'), cost: 2200, limit: 1, give: { item: 'mythic' } },

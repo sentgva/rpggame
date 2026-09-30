@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-30',
+    date: '30.09.2026',
+    icon: '🏝️',
+    title: { ru: 'Солнечный курорт', en: 'Sun Resort' },
+    lead: { ru: 'Новый праздник Легиона: пляжный волейбол и новая героиня — Солара, королева пляжа', en: 'A new Legion festival: beach volleyball and a new heroine — Solara, queen of the beach' },
+    color: '#ff9a3a',
+    art: { hero: 'solara' },
+    items: [
+      { ru: '🏐 Пляжный волейбол парами: приём, пас и удар на тайминг, лестница из 8 пар соперниц в купальниках', en: '🏐 Beach volleyball in pairs: timed receive, set and spike, a ladder of 8 rival pairs in swimsuits' },
+      { ru: '👙 Солара — самые пышные формы в игре и родное микро-бикини на тонких завязках; её осколки — только на курорте', en: '👙 Solara — the curviest figure in the game and a string micro bikini of her own; her shards come only from the resort' },
+      { ru: '✨ Облики-микро-бикини: «Белый жемчуг» для Солары, «Курортный роман» для Лилит и «Голубая лагуна» для Мелюзины', en: '✨ Micro-bikini skins: "White Pearl" for Solara, "Resort Romance" for Lilith and "Blue Lagoon" for Melusine' },
+    ],
+  },
+  {
     id: '2026-09-27d',
     date: '27.09.2026',
     icon: '🎣',

@@ -57,6 +57,8 @@ const SAVE_KEY = 'idle-rpg:save:v1';
 /** Стиль графики в локальном режиме (на сервере он общий для всех — server_settings). */
 const ART_KEY = 'idle-rpg:art';
 const SNAP_KEY = 'idle-rpg:snap:';
+/** Расписание праздников в локальном режиме (JSON FestivalSchedule). */
+const FEST_KEY = 'idle-rpg:fest';
 
 class LocalBackend implements Backend {
   mode = 'local' as const;
@@ -71,8 +73,11 @@ class LocalBackend implements Backend {
     const now = Date.now();
     try {
       if (localStorage.getItem(ART_KEY) === 'hd') this.cfg = { ...this.cfg, art: 'hd' };
+      // расписание праздников для локальной проверки (на сервере его правит бот)
+      const fest = localStorage.getItem(FEST_KEY);
+      if (fest) this.cfg = { ...this.cfg, festival: JSON.parse(fest) };
     } catch {
-      /* хранилище недоступно — стиль по умолчанию */
+      /* хранилище недоступно — стиль и ротация по умолчанию */
     }
     const raw = localStorage.getItem(SAVE_KEY);
     const user = tgUser();

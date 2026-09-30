@@ -349,16 +349,19 @@ function drawBody(c: Canvas, withLegs: boolean) {
 
 // ——— объём фигуры ———
 
-/** Насколько раздвинуть строку торса в каждую сторону: грудь (−1…2). */
+/** Насколько раздвинуть строку торса в каждую сторону: грудь (−1…3). */
 const BUST_ROWS: Record<number, Record<number, number>> = {
   [-1]: { 19: -1, 20: -1, 21: -1 },
   1: { 19: 1, 20: 1, 21: 1, 22: 1 },
   2: { 19: 1, 20: 2, 21: 2, 22: 1 },
+  3: { 19: 2, 20: 3, 21: 3, 22: 2 },
 };
-/** Бёдра (0…2): торс и внешняя сторона ног. */
+/** Бёдра (0…3): торс и внешняя сторона ног. */
 const HIP_ROWS: Record<number, { torso: Record<number, number>; legs: Record<number, number> }> = {
   1: { torso: { 28: 1, 29: 1, 30: 1, 31: 1, 32: 1 }, legs: { 33: 1, 34: 1, 35: 1, 36: 1 } },
   2: { torso: { 27: 1, 28: 1, 29: 2, 30: 2, 31: 2, 32: 2 }, legs: { 33: 2, 34: 2, 35: 1, 36: 1, 37: 1 } },
+  // талия не расширяется — силуэт «песочные часы»
+  3: { torso: { 28: 1, 29: 2, 30: 2, 31: 3, 32: 3 }, legs: { 33: 3, 34: 2, 35: 2, 36: 1, 37: 1 } },
 };
 
 /**
@@ -889,6 +892,60 @@ function tieBottom(c: Canvas, m: string, ring = false) {
   }
 }
 
+/**
+ * Микро-бикини: крошечные треугольнички ровно по груди, нитки-завязки на шею, между чашками и по бокам,
+ * узкий треугольник снизу на высоких завязках до самых бёдер, золотые бусины-кольца и цепочка на талии.
+ * Рисуется ПОСЛЕ изменения объёма фигуры (bust, hips): чашки едут вместе с грудью, а ткань не
+ * растягивается — остаётся такой же крошечной у самой пышной фигуры.
+ */
+function microBikini(c: Canvas, m: string, bust: number, hips: number) {
+  const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
+  const h = (y: number) => HIP_ROWS[hips]?.torso[y] ?? 0;
+  // чашки: [y, x0, x1] левой; правая — зеркально (x ↔ 47 − x), со сдвигом груди наружу
+  for (const [y, x0, x1] of [
+    [20, 19, 20],
+    [21, 18, 21],
+    [22, 18, 21],
+  ] as const) {
+    c.hl(x0 - b(y), x1 - b(y), y, m);
+    c.hl(47 - x1 + b(y), 47 - x0 + b(y), y, m);
+  }
+  // блик на ткани и тень по нижнему краю
+  c.set(19 - b(21), 21, m, '+');
+  c.set(27 + b(21), 21, m, '+');
+  c.set(20 - b(20), 20, m, '+');
+  c.set(28 + b(20), 20, m, '+');
+  c.hl(18 - b(22), 21 - b(22), 22, m, '-');
+  c.hl(26 + b(22), 29 + b(22), 22, m, '-');
+  // нитки: на шею, по бокам и перемычка с бусиной
+  c.line(20 - b(20), 19, 22, 16, m, '=');
+  c.line(27 + b(20), 19, 25, 16, m, '=');
+  c.hl(16 - b(21), 17 - b(21), 21, m, '=');
+  c.hl(30 + b(21), 31 + b(21), 21, m, '=');
+  c.hl(22 - b(21), 25 + b(21), 21, m, '=');
+  c.set(23, 21, 'T', '+');
+  c.set(24, 21, 'T', '0');
+  // низ: узкий треугольник по центру, завязки уходят высоко на бёдра, на концах — кольца
+  c.rows(
+    [
+      [29, 22, 25],
+      [30, 22, 25],
+      [31, 23, 24],
+      [32, 23, 24],
+    ],
+    m,
+  );
+  c.set(22, 29, m, '+');
+  c.set(23, 30, m, '+');
+  // завязки идут по линии бёдер до самого края силуэта
+  c.line(21, 29, 18 - h(28), 28, m, '=');
+  c.line(26, 29, 29 + h(28), 28, m, '=');
+  c.set(21, 29, 'T', '+');
+  c.set(26, 29, 'T', '+');
+  // тонкая золотая цепочка по талии
+  for (let x = 19 - h(27); x <= 28 + h(27); x += 2) c.set(x, 27, 'T', x % 4 === 1 ? '+' : '0');
+}
+
 /** Низ-стринги: высокие боковые завязки и узкий треугольник спереди. */
 function stringBottom(c: Canvas, m: string, t: Tone = '0', ties = m) {
   c.rows(
@@ -1215,6 +1272,11 @@ function wearOutfit(c: Canvas, wear: NonNullable<Look['wear']>, withLegs: boolea
       // бикини на золотых кольцах: между чашками и на бёдрах
       triTop(c, 'B', 'ring');
       tieBottom(c, 'B', true);
+      sandals();
+      break;
+    }
+    case 'micro': {
+      // сам купальник — после изменения объёма фигуры (см. composeFigure)
       sandals();
       break;
     }
@@ -2582,8 +2644,8 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
   const handR = arms.R.hand;
   const handL = arms.L.hand;
   // без явного значения (враги) — та же чуть пышная фигура, что и у героинь
-  const bust = Math.max(-1, Math.min(2, Math.round(L.bust ?? 1)));
-  const hips = Math.max(0, Math.min(2, Math.round(L.hips ?? 1)));
+  const bust = Math.max(-1, Math.min(3, Math.round(L.bust ?? 1)));
+  const hips = Math.max(0, Math.min(3, Math.round(L.hips ?? 1)));
 
   extraBack(c, L.extra, !!pose.flap);
   accessoryBack(c, L.acc);
@@ -2595,6 +2657,7 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
   if (L.wear) wearOutfit(c, L.wear, !replaced);
   else outfit(c, kind, !replaced);
   if (under) shapeBody(c, under, bust, hips, !replaced);
+  if (L.wear === 'micro') microBikini(c, 'B', bust, hips);
   if (hd) {
     /* лицо — в faceHD */
   } else if (spec.soft) drawFaceSoft(c, pose.eyes ?? 'open');

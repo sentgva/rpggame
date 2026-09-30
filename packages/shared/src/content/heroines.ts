@@ -21,8 +21,16 @@ export type Accessory =
   | 'bunnyEars'
   | 'maidBand';
 
-/** Сменный наряд облика: купальники (swim*), бельё (lace*), маскарадные (bunny, maid) вместо классового костюма. */
-export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia' | 'bunny' | 'maid' | 'yukata' | 'gown' | 'silk';
+/**
+ * Сменный наряд облика: купальники (swim*, micro — микро-бикини на тонких завязках), бельё (lace*),
+ * маскарадные (bunny, maid) вместо классового костюма.
+ */
+export type Wear = 'swim' | 'swim2' | 'swim3' | 'swim4' | 'micro' | 'lace' | 'lace2' | 'lace3' | 'lace4' | 'dancer' | 'regalia' | 'bunny' | 'maid' | 'yukata' | 'gown' | 'silk';
+
+/** Купальник ли это (для пляжа, источников и рыбалки). */
+export function isSwimwear(wear?: Wear): boolean {
+  return !!wear && (wear.startsWith('swim') || wear === 'micro');
+}
 
 export interface Look {
   hair: string;
@@ -38,9 +46,9 @@ export interface Look {
   extra?: 'wings' | 'darkWings' | 'tail' | 'snake' | 'fishTail' | 'scorpion' | 'vines' | 'gears' | 'none';
   /** Сменный наряд вместо классового костюма (у обликов; у Зарины — родной наряд танцовщицы). */
   wear?: Wear;
-  /** Объём груди: −1 стройнее, 0 обычный, 1–2 пышнее. */
+  /** Объём груди: −1 стройнее, 0 обычный, 1–2 пышнее, 3 — самая пышная (героиня Солнечного курорта). */
   bust?: number;
-  /** Бёдра: 0 обычные, 1–2 шире (с полными бёдрами ног). */
+  /** Бёдра: 0 обычные, 1–2 шире (с полными бёдрами ног), 3 — самые широкие. */
   hips?: number;
 }
 
@@ -469,6 +477,15 @@ HEROINES.push(
       { ru: 'Слышишь, как звенит? Там, внизу, что-то блестит. Копаем!', en: 'Hear that ringing? Something shines down there. Dig!' },
       { hair: '#C0203A', style: 'wild', skin: SK.tan, eyes: '#FF4A6A', outfit: '#4A2A1E', trim: '#E03A5A', acc: 'tiara', accColor: '#FF6A8A', extra: 'none' }),
     festival: 'mine',
+  },
+  {
+    // самая пышная фигура в игре и родной наряд — микро-бикини на тонких завязках
+    ...h('solara', 'Солара', 'Solara', 'bard', 'light', 'UR',
+      { ru: 'Королева Пляжа', en: 'Queen of the Beach' },
+      { ru: 'Хозяйка тропического курорта: загорелая, смешливая и уверенная в себе. Когда она танцует на песке, волны замирают, чтобы посмотреть, а её купальник — самый крошечный на всём острове. Говорит, так загар ложится ровнее.', en: 'Hostess of a tropical resort: sun-kissed, cheerful and sure of herself. When she dances on the sand the waves stop to watch, and her swimsuit is the tiniest on the whole island. She says it makes for an even tan.' },
+      { ru: 'Солнце, песок и ты, Командор. Чего ещё желать?', en: 'Sun, sand and you, Commander. What more could I want?' },
+      { hair: '#FFD27A', style: 'long', skin: SK.tan, eyes: '#FF8A3A', outfit: '#FF3A8A', trim: '#F2D46B', acc: 'flower', accColor: '#FF5A7A', extra: 'none', wear: 'micro', bust: 3, hips: 3 }),
+    festival: 'resort',
   },
 );
 

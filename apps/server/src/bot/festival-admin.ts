@@ -26,7 +26,7 @@ const DAY = 24 * HOUR;
 /** Даты в командах — по Москве (UTC+3). */
 export const MSK = 3 * HOUR;
 
-const FEST_ICON: Record<FestivalId, string> = { bloodmoon: '🌕', tides: '🌊', sakura: '🌸', tourney: '🏆', mine: '💎' };
+const FEST_ICON: Record<FestivalId, string> = { bloodmoon: '🌕', resort: '🏝️', tides: '🌊', sakura: '🌸', tourney: '🏆', mine: '💎' };
 
 const ALIASES: Record<string, FestivalId> = {
   bloodmoon: 'bloodmoon',
@@ -34,6 +34,12 @@ const ALIASES: Record<string, FestivalId> = {
   luna: 'bloodmoon',
   луна: 'bloodmoon',
   'кровавая': 'bloodmoon',
+  resort: 'resort',
+  beach: 'resort',
+  sun: 'resort',
+  курорт: 'resort',
+  пляж: 'resort',
+  солнце: 'resort',
   tides: 'tides',
   tide: 'tides',
   sea: 'tides',

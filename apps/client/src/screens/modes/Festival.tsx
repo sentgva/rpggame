@@ -6,6 +6,7 @@ import {
   festGoalsFor,
   mineOf,
   tourEntriesLeft,
+  volleyLeft,
   type FestGoalDef,
   FEST_MILESTONES,
   FEST_STAGES,
@@ -53,15 +54,16 @@ import { stageText } from '../MapTab';
 import { playMode } from './Endgame';
 import { MineTab } from './FestMine';
 import { TourneyTab } from './FestTourney';
+import { VolleyTab } from './FestVolley';
 import st from './Festival.module.css';
 
-type Tab = 'path' | 'boss' | 'tourney' | 'mine' | 'tasks' | 'rewards' | 'shop';
+type Tab = 'path' | 'boss' | 'tourney' | 'mine' | 'volley' | 'tasks' | 'rewards' | 'shop';
 
 /** Последняя вкладка праздника — удобство игрока, хранится в браузере. */
 function savedTab(): Tab {
   try {
     const v = localStorage.getItem('festTab');
-    return (['path', 'boss', 'tourney', 'mine', 'tasks', 'rewards', 'shop'] as Tab[]).includes(v as Tab) ? (v as Tab) : 'path';
+    return (['path', 'boss', 'tourney', 'mine', 'volley', 'tasks', 'rewards', 'shop'] as Tab[]).includes(v as Tab) ? (v as Tab) : 'path';
   } catch {
     return 'path';
   }
@@ -101,7 +103,9 @@ export function Festival() {
       ? [{ id: 'tourney', label: t('fest.tabTourney'), badge: tourEntriesLeft(f) > 0 && (!f.tour?.run || f.tour.run.phase === 'done') }]
       : kind === 'mine'
         ? [{ id: 'mine', label: t('fest.tabMine'), badge: mineOf(s, f).picks > 0 }]
-        : [
+        : kind === 'volley'
+          ? [{ id: 'volley', label: t('fest.tabVolley'), badge: volleyLeft(f) > 0 }]
+          : [
             { id: 'path', label: t('fest.tabPath') },
             { id: 'boss', label: t('fest.tabBoss'), badge: f.boss.used < FEST_BOSS_ATTEMPTS },
           ];
@@ -129,6 +133,7 @@ export function Festival() {
           {shown === 'boss' && <BossTab def={def} f={f} now={now} />}
           {shown === 'tourney' && <TourneyTab def={def} f={f} />}
           {shown === 'mine' && <MineTab def={def} f={f} />}
+          {shown === 'volley' && <VolleyTab def={def} f={f} />}
           {shown === 'tasks' && <TasksTab f={f} tasks={tasks} goalsList={goals} />}
           {shown === 'rewards' && <RewardsTab def={def} f={f} />}
           {shown === 'shop' && <ShopTab now={now} />}
@@ -710,7 +715,7 @@ function ShopTab({ now }: { now: number }) {
               ) : o.give.shards ? (
                 <HeroImg id={def.hero} className="pixel" width={44} height={44} />
               ) : (
-                <Icon name={o.give.heart ? 'hearts' : o.give.item ? 'chest' : o.give.entry ? 'arena' : o.give.picks ? 'forge' : (Object.keys(o.give.cur ?? {})[0] ?? 'gift')} size={36} />
+                <Icon name={o.give.heart ? 'hearts' : o.give.item ? 'chest' : o.give.entry ? 'arena' : o.give.picks ? 'forge' : o.give.matches ? 'ball' : (Object.keys(o.give.cur ?? {})[0] ?? 'gift')} size={36} />
               )}
               <div className={css.grow}>
                 <div className={st.taskName}>{tl(o.name)}</div>

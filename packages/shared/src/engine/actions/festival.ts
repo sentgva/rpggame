@@ -35,7 +35,7 @@ import {
   type FestivalNow,
 } from '../../content';
 import { Rng, hashStr, mixSeed } from '../../rng';
-import type { FestivalState, Item, MineState, PlayerState, TourneyState } from '../../types';
+import type { FestivalState, Item, MineState, PlayerState, TourneyState, VolleyState } from '../../types';
 import type { Action } from '../apply';
 import type { UnitInit } from '../battle';
 import { addItem, assert, farmLevel, give, requireUnlocked, rollLoot, scaleReward, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
@@ -101,6 +101,7 @@ export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number },
       boss: { ...f.boss, used: 0 },
       tour: f.tour ? { ...f.tour, entries: 0 } : f.tour,
       mine: f.mine ? { ...f.mine, picks: Math.max(f.mine.picks, Math.min(MINE_CAP, f.mine.picks + MINE_DAILY * days)) } : f.mine,
+      volley: f.volley ? { ...f.volley, used: 0 } : f.volley,
     };
   }
   if (cur && f.fest === undefined) f = { ...f, fest: cur.def.id };
@@ -110,6 +111,11 @@ export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number },
 /** Турнир праздника (пустой — до первого входа). */
 export function tourOf(f: FestivalState): TourneyState {
   return f.tour ?? { entries: 0, bonus: 0, best: 0, wins: 0, champs: 0 };
+}
+
+/** Пляжный волейбол праздника (пустой — до первого матча). */
+export function volleyOf(f: FestivalState): VolleyState {
+  return f.volley ?? { used: 0, bonus: 0, best: 0, wins: 0, big: 0 };
 }
 
 /** Копи праздника: у каждого игрока своё поле (зерно — от игрока и праздника). */
@@ -130,6 +136,7 @@ export function festCopy(ctx: Ctx, cur: FestivalNow): FestivalState {
     boss: { ...f.boss },
     tour: f.tour && { ...f.tour, run: f.tour.run && { ...f.tour.run, picks: [...f.tour.run.picks], offer: [...f.tour.run.offer] } },
     mine: f.mine && { ...f.mine, dug: [...f.mine.dug] },
+    volley: f.volley && { ...f.volley, match: f.volley.match && { ...f.volley.match, heroes: [...f.volley.match.heroes] } },
   };
 }
 
@@ -193,6 +200,12 @@ export function festGoalValue(s: PlayerState, f: FestivalState, metric: FestGoal
       return f.mine?.chests ?? 0;
     case 'mineSteps':
       return f.mine?.steps ?? 0;
+    case 'volBest':
+      return f.volley?.best ?? 0;
+    case 'volWins':
+      return f.volley?.wins ?? 0;
+    case 'volBig':
+      return f.volley?.big ?? 0;
     default:
       return Math.max(0, (s.counters[metric] ?? 0) - (f.base[metric] ?? 0));
   }
@@ -459,11 +472,12 @@ export const festivalActions = {
       if (p[1] !== undefined && p[1] !== String(cycle)) delete s.shop.bought[k];
     }
     if (offer.give.cur) give(ctx, offer.give.cur);
-    // вход на турнир и кирки для копей
-    if (offer.give.entry || offer.give.picks) {
+    // вход на турнир, кирки для копей и матчи на пляже
+    if (offer.give.entry || offer.give.picks || offer.give.matches) {
       const f = festCopy(ctx, fn);
       if (offer.give.entry) f.tour = { ...tourOf(f), bonus: tourOf(f).bonus + offer.give.entry };
       if (offer.give.picks) f.mine = { ...mineOf(s, f), picks: mineOf(s, f).picks + offer.give.picks };
+      if (offer.give.matches) f.volley = { ...volleyOf(f), bonus: volleyOf(f).bonus + offer.give.matches };
       s.festival = f;
     }
     const shards = offer.give.shards ? addFestShards(ctx, def, offer.give.shards) : undefined;

@@ -156,6 +156,20 @@
   animation-name: rise;
 }
 
+/* солнечные блёстки: тёплые искры поднимаются от песка */
+.sun {
+  top: auto;
+  bottom: -12px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff0a0;
+  box-shadow:
+    0 0 6px #ffb040,
+    0 0 2px #fff;
+  animation-name: rise;
+}
+
 .petal {
   width: 6px;
   height: 4px;

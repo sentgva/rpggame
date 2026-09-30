@@ -1,5 +1,5 @@
 import type { L10n } from '../types';
-import { HEROINES, HEROINE_MAP, SKINS, SKIN_MAP, type Look, type SkinDef, type Wear } from './heroines';
+import { HEROINES, HEROINE_MAP, SKINS, SKIN_MAP, isSwimwear, type Look, type SkinDef, type Wear } from './heroines';
 
 /**
  * «Уход» за UR-героинями: близость 0–10. Разговоры, угощения, горячие источники и свидания.
@@ -79,6 +79,7 @@ const TRAITS: Record<string, { p: Personality; treat?: Treat; place?: Place }> =
   tsubaki: { p: 'shy', treat: 'sweets', place: 'garden' },
   freya: { p: 'proud', treat: 'roast', place: 'tower' },
   rubina: { p: 'fierce', treat: 'roast', place: 'tavern' },
+  solara: { p: 'playful', treat: 'fruit', place: 'lake' },
 };
 
 export function bondTraits(hero: string): { p: Personality } & Taste {
@@ -251,7 +252,9 @@ for (const id of BOND_HEROES) {
     continue;
   }
   const h = HEROINE_MAP[id];
-  const skin: SkinDef = { id: `${id}_spa`, hero: id, name: L('Купальник', 'Swimsuit'), look: { wear: SPA_WEAR[bondTraits(id).p], outfit: h.look.outfit, trim: h.look.trim }, source: 'bond' };
+  // родной наряд — уже купальник (Солара): в нём и в источник
+  const wear = isSwimwear(h.look.wear) ? h.look.wear! : SPA_WEAR[bondTraits(id).p];
+  const skin: SkinDef = { id: `${id}_spa`, hero: id, name: L('Купальник', 'Swimsuit'), look: { wear, outfit: h.look.outfit, trim: h.look.trim }, source: 'bond' };
   SKIN_MAP[skin.id] = skin;
   BOND_SPA_SKIN[id] = skin.id;
 }

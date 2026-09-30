@@ -24,4 +24,5 @@ export { activeArtifacts, artifactFreeReady, artifactState, type ArtifactPull } 
 export { riftState, riftBoss, riftReward, riftThresholds, spireParty, spireReward, hordeState, hordeWaveReward, hordeBonus } from './engine/actions/endgame';
 export { tourEntriesLeft, tourNext, tourUnits } from './engine/actions/tourney';
 export { mineEnemies, mineNeedsFight } from './engine/actions/mine';
-export { festCopy, mineOf, tourOf, festivalNow, festivalState, festBoss, festStageEnemies, festGoalValue, festTaskValue, festClaimable, festBought, festShopNow } from './engine/actions/festival';
+export { volleyLeft } from './engine/actions/volley';
+export { festCopy, mineOf, tourOf, volleyOf, festivalNow, festivalState, festBoss, festStageEnemies, festGoalValue, festTaskValue, festClaimable, festBought, festShopNow } from './engine/actions/festival';

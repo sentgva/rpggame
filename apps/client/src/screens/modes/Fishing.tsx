@@ -12,6 +12,7 @@ import {
   SKIN_MAP,
   fishBaitCost,
   fishingState,
+  isSwimwear,
   type FishDef,
   type FishRarity,
   type FishSpot,
@@ -275,9 +276,11 @@ export function Fishing() {
 
   const buddySkin = (() => {
     if (!buddy) return undefined;
-    // на воде — купальник, если он у неё есть
-    const summer = s.skins.find((k) => SKIN_MAP[k]?.hero === buddy && SKIN_MAP[k]?.set === 'summer');
-    return spot !== 'moon' && summer ? summer : s.heroines[buddy]?.skin;
+    // на воде — купальник, если он у неё есть (и если она уже не в купальнике)
+    const cur = s.heroines[buddy]?.skin;
+    const inSwim = isSwimwear(cur ? SKIN_MAP[cur]?.look.wear : HEROINE_MAP[buddy]?.look.wear);
+    if (spot === 'moon' || inSwim) return cur;
+    return s.skins.find((k) => SKIN_MAP[k]?.hero === buddy && isSwimwear(SKIN_MAP[k]?.look.wear)) ?? cur;
   })();
 
   const phaseRef = useRef(phase);
