@@ -1,10 +1,11 @@
 import type { Config } from '../config';
-import { HEROINE_MAP, STARTER_HEROINES, CHANGELOG_LATEST } from '../content';
+import { STARTER_HEROINES, CHANGELOG_LATEST } from '../content';
 import { hashStr, mixSeed } from '../rng';
 import type { Currency, HeroineState, PlayerState } from '../types';
 import { CURRENCIES } from '../types';
 
-export const STATE_VERSION = 1;
+/** 2 — «Легион из шести»: фиксированный отряд вместо гачи, старые сохранения сбрасываются. */
+export const STATE_VERSION = 2;
 const DAY = 86400000;
 
 export function dayKey(now: number): string {
@@ -31,11 +32,11 @@ export function yesterdayKey(now: number): string {
 }
 
 export function newHeroine(cfg: Config, id: string): HeroineState {
-  const def = HEROINE_MAP[id];
+  void cfg;
   return {
     id,
     lvl: 1,
-    stars: cfg.hero.startStars[def.rarity],
+    stars: 1,
     tree: {},
     skills: [null, null],
     gear: {},
@@ -53,7 +54,6 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
   const cur = emptyCurrencies();
   cur.gold = 300;
   cur.crystals = 300;
-  cur.scrolls = 1;
 
   const s: PlayerState = {
     v: STATE_VERSION,
@@ -66,25 +66,15 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
     account: { lvl: 1, xp: 0 },
     cur,
     heroines,
-    shards: {},
     items: {},
     invCap: cfg.inventory.start,
     gems: {},
     skins: [],
-    party: {
-      presets: [
-        ['coral', null, 'lira', 'seyra', null],
-        [null, null, null, null, null],
-        [null, null, null, null, null],
-      ],
-      active: 0,
-    },
     progress: { diff: 0, cleared: [0, 0, 0], wave: 0, bossFails: 0, retryAt: 0, maxGlobal: 0, maxGlobalEver: 0 },
     chest: { since: now, minutes: 0, gold: 0, xp: 0, accXp: 0, itemMin: 0, dust: 0 },
     boosts: { x2Until: 0 },
-    day: { key: dayKey(now), quickFree: false, quickAd: false, quick: 0, ads: 0, freeSummon: false, keys: {}, arena: 0, arenaBought: 0, gift: false },
+    day: { key: dayKey(now), quickFree: false, quickAd: false, quick: 0, ads: 0, keys: {}, arena: 0, arenaBought: 0, gift: false },
     week: { key: weekKey(now), treeDiscount: false },
-    summon: { pitySSR: 0, pityUR: 0, total: 0 },
     constellation: 0,
     ascension: { count: 0, ether: 0, up: {}, story: 0 },
     modes: {
@@ -120,11 +110,11 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
         id: 'welcome',
         title: { ru: 'Добро пожаловать, Командор!', en: 'Welcome, Commander!' },
         body: {
-          ru: 'Кристалл Эфира пробудился. Прими эти дары и собери Легион Валькирий.',
-          en: 'The Aether Crystal has awakened. Accept these gifts and gather the Valkyrie Legion.',
+          ru: 'Кристалл Эфира пробудился. Астрид и Лира уже в строю — остальные валькирии присоединятся по пути. Эмблемы — на первые ранги.',
+          en: 'The Aether Crystal has awakened. Astrid and Lira stand ready — the other valkyries will join along the way. Emblems are for the first ranks.',
         },
         at: now,
-        rewards: { cur: { crystals: 300, scrolls: 2 } },
+        rewards: { cur: { crystals: 300, emblems: 20 } },
       },
     ],
     settings: {
@@ -153,6 +143,8 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
 /** Миграция старых сохранений: заполняем недостающие поля значениями по умолчанию. */
 export function migrate(cfg: Config, raw: PlayerState, now: number): PlayerState {
   const fresh = createPlayer(cfg, raw.id, raw.name, raw.createdAt ?? now, raw.settings?.lang ?? 'ru');
+  // сохранения эпохи гачи несовместимы с новым отрядом — начинаем заново (игроков тогда ещё не было)
+  if (!(raw.v >= 2)) return createPlayer(cfg, raw.id, raw.name, now, raw.settings?.lang ?? 'ru');
   const s = fillDefaults(raw as any, fresh as any) as PlayerState;
   for (const c of CURRENCIES) if (typeof s.cur[c] !== 'number' || !isFinite(s.cur[c])) s.cur[c] = 0;
   s.v = STATE_VERSION;
@@ -165,7 +157,7 @@ function fillDefaults(target: any, defaults: any): any {
   if (typeof target !== 'object' || Array.isArray(target)) return defaults;
   for (const k of Object.keys(defaults)) {
     // словари с динамическими ключами не дополняем содержимым по умолчанию
-    if (k === 'heroines' || k === 'items' || k === 'shards' || k === 'gems' || k === 'up' || k === 'tree' || k === 'gear' || k === 'dungeons' || k === 'keys' || k === 'bought' || k === 'counters' || k === 'achievements' || k === 'daily' || k === 'weekly') {
+    if (k === 'heroines' || k === 'items' || k === 'gems' || k === 'up' || k === 'tree' || k === 'gear' || k === 'dungeons' || k === 'keys' || k === 'bought' || k === 'counters' || k === 'achievements' || k === 'daily' || k === 'weekly') {
       if (target[k] === undefined) target[k] = defaults[k];
       continue;
     }

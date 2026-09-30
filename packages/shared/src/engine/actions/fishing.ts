@@ -97,33 +97,26 @@ export const fishingActions = {
     const gold = Math.floor(goldPerMin(cfg, s) * r.goldMin * (perfect ? 1 + FISH_PERFECT : 1));
     const cur: Record<string, number> = { gold, dust: r.dust };
     if (r.crystals) cur.crystals = r.crystals;
+    if (r.emblems) cur.emblems = r.emblems;
     give(ctx, cur);
-    let shards: Record<string, number> | undefined;
-    if (r.shards) {
-      // легендарный улов — осколки спутницы (или случайной своей героини)
-      const owned = Object.keys(s.heroines);
-      const who = hook.hero && s.heroines[hook.hero] ? hook.hero : owned[ctx.rng.int(owned.length)];
-      s.shards[who] = (s.shards[who] ?? 0) + r.shards;
-      shards = { [who]: r.shards };
-    }
     const prev = f.log[fish.id];
     const first = !prev;
     const record = !prev || hook.weight > prev.best;
     f.log[fish.id] = { n: (prev?.n ?? 0) + 1, best: Math.max(prev?.best ?? 0, hook.weight) };
     // коллекция видов
     const species = Object.keys(f.log).length;
-    const collection: { species: number; crystals: number; scrolls?: number; hearts?: number }[] = [];
+    const collection: { species: number; crystals: number; emblems?: number; hearts?: number }[] = [];
     for (const m of FISH_COLLECTION) {
       if (species < m.species || f.milestones.includes(m.species)) continue;
       f.milestones.push(m.species);
-      give(ctx, { crystals: m.crystals, scrolls: m.scrolls ?? 0 });
+      give(ctx, { crystals: m.crystals, emblems: m.emblems ?? 0 });
       const hearts = m.hearts ? grantHeart(ctx, m.hearts) : 0;
       collection.push({ ...m, hearts });
     }
     s.fishing = f;
     track(ctx, 'fishCaught', 1);
     if (fish.rarity === 'legend') track(ctx, 'fishLegend', 1);
-    return { ok: true, fish: fish.id, rarity: fish.rarity, weight: hook.weight, perfect, cur, shards, first, record, collection, species };
+    return { ok: true, fish: fish.id, rarity: fish.rarity, weight: hook.weight, perfect, cur, first, record, collection, species };
   },
 
   /** Пачка наживки за золото (несколько раз в день). */

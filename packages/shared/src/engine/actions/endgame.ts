@@ -1,17 +1,11 @@
 import {
   ACTS,
   COLOSSI,
-  HERALDS,
-  HERALD_BY_ELEMENT,
-  HEROINE_MAP,
   HORDE_BLESSINGS,
   HORDE_BLESSING_MAP,
   HORDE_BLESS_EVERY,
-  HORDE_SKIN_WAVES,
   RIFT_TACTICS,
   RIFT_TACTIC_MAP,
-  SPIRE_SKINS,
-  SPIRE_SKIN_FLOOR,
   RIFT_COLOSSUS,
   RIFT_TIERS,
   hordeStage,
@@ -31,21 +25,8 @@ import { activeParty, addStats, buildHeroine } from '../stats';
 import { customEnemies, heroUnits } from '../units';
 import { currentParty, runBattle, stripRaw } from './battle';
 import { grantHeart } from './bond';
-import { onExpedition } from './heroes';
 
 type Cur = Record<string, number>;
-
-/** Выдать облик-награду режима (если его ещё нет). */
-function grantSkin(ctx: Ctx, id: string | undefined): string | undefined {
-  if (!id || ctx.s.skins.includes(id)) return undefined;
-  ctx.s.skins.push(id);
-  return id;
-}
-
-function addShards(ctx: Ctx, hero: string, n: number, out: Record<string, number>) {
-  ctx.s.shards[hero] = (ctx.s.shards[hero] ?? 0) + n;
-  out[hero] = (out[hero] ?? 0) + n;
-}
 
 // ——— Разлом Колосса ———
 
@@ -72,42 +53,35 @@ export function riftBoss(ctx: Pick<Ctx, 'cfg' | 's' | 'now'>): { id: string; ele
   return { id, element, level, units, hp: units[0].stats.hp };
 }
 
-/** Награда яруса: осколки Вестницы стихии дня, кристаллы, золото и звёздная пыль. */
-export function riftReward(ctx: Pick<Ctx, 'cfg' | 's'>, tier: number, level: number, element: Element) {
+/** Награда яруса: Эмблемы, кристаллы, золото и звёздная пыль. */
+export function riftReward(ctx: Pick<Ctx, 'cfg' | 's'>, tier: number, level: number) {
   const { cfg, s } = ctx;
-  if (tier <= 0) return { cur: { gold: Math.floor(goldPerMin(cfg, s, level) * 3) } as Cur, shards: 0, hero: HERALD_BY_ELEMENT[element] };
+  if (tier <= 0) return { cur: { gold: Math.floor(goldPerMin(cfg, s, level) * 3) } as Cur };
   return {
     cur: {
       gold: Math.floor(goldPerMin(cfg, s, level) * 6 * tier),
       crystals: 5 * tier,
       starDust: 3 * tier,
+      emblems: Math.ceil(tier / 2),
     } as Cur,
-    shards: tier,
-    hero: HERALD_BY_ELEMENT[element],
   };
 }
 
-function grantRift(ctx: Ctx, tier: number, level: number, element: Element) {
-  const r = riftReward(ctx, tier, level, element);
+function grantRift(ctx: Ctx, tier: number, level: number) {
+  const r = riftReward(ctx, tier, level);
   give(ctx, r.cur);
-  const shards: Record<string, number> = {};
-  if (r.shards && r.hero) addShards(ctx, r.hero, r.shards, shards);
-  return { cur: r.cur, shards };
+  return { cur: r.cur };
 }
 
 // ——— Стихийные шпили ———
 
-/** Отряд шпиля: пять сильнейших героинь стихии (кроме ушедших в экспедицию), танки — вперёд. */
-export function spireParty(ctx: Pick<Ctx, 'cfg' | 's' | 'now'>, el: Element): (string | null)[] {
-  const { cfg, s } = ctx;
-  const ids = Object.keys(s.heroines).filter((id) => HEROINE_MAP[id]?.element === el && !onExpedition(ctx as Ctx, id));
-  const power = (id: string) => buildHeroine(cfg, s, s.heroines[id]).power;
-  const top = ids.sort((a, b) => power(b) - power(a)).slice(0, 5);
-  const front = (id: string) => (['guardian', 'berserker'].includes(HEROINE_MAP[id].cls) ? 0 : 1);
-  top.sort((a, b) => front(a) - front(b));
-  const slots: (string | null)[] = [null, null, null, null, null];
-  top.forEach((id, i) => (slots[i] = id));
-  return slots;
+/**
+ * Отряд шпиля — весь Легион. Враги шпиля — одной стихии,
+ * поэтому героини с преимуществом стихии здесь решают, а слабые к ней — страдают.
+ */
+export function spireParty(ctx: Pick<Ctx, 'cfg' | 's' | 'now'>, el: Element): string[] {
+  void el;
+  return activeParty(ctx.s);
 }
 
 function spireEnemies(ctx: Ctx, el: Element, floor: number): UnitInit[] {
@@ -124,11 +98,11 @@ function spireEnemies(ctx: Ctx, el: Element, floor: number): UnitInit[] {
 }
 
 export function spireReward(floor: number, el: Element) {
+  void el;
   const milestone = floor % 10 === 0;
   return {
     cur: { crystals: 3 + Math.floor(floor / 25) + (milestone ? 30 : 0), starDust: 4 + Math.floor(floor / 5) } as Cur,
-    shards: milestone ? 10 : 0,
-    hero: HERALD_BY_ELEMENT[el],
+    emblems: milestone ? 6 : 0,
   };
 }
 
@@ -176,7 +150,8 @@ export function hordeWaveReward(ctx: Pick<Ctx, 'cfg' | 's'>, wave: number, rewar
   const k = 1 + rewardPct;
   const cur: Cur = { gold: Math.floor(goldPerMin(cfg, s) * 2 * k), dust: Math.floor((8 + wave) * k) };
   if (wave % 5 === 0) cur.crystals = 10 + wave;
-  return { cur, heraldShards: wave % 10 === 0 ? 5 : 0 };
+  if (wave % 10 === 0) cur.emblems = Math.round(3 * k);
+  return { cur };
 }
 
 export const endgameActions = {
@@ -193,7 +168,7 @@ export const endgameActions = {
     const ours = new Set(b.raw.units.filter((u) => u.side === 0).map((u) => u.uid));
     const dmg = Math.round(Object.entries(b.dmgDone ?? {}).reduce((sum, [uid, v]) => (ours.has(Number(uid)) ? sum + v : sum), 0));
     const tier = riftTier(dmg, boss.hp, b.win);
-    const reward: ReturnType<typeof grantRift> & { items?: string[] } = grantRift(ctx, tier, boss.level, boss.element);
+    const reward: ReturnType<typeof grantRift> & { items?: string[] } = grantRift(ctx, tier, boss.level);
     // Доспех Колосса: с 4-го яруса — легендарная часть, за победу над Колоссом — мифическая
     if (tier >= RIFT_SET_TIER) {
       const uid = grantModeSetPiece(ctx, 'rift', tier >= 10 ? 5 : 4);
@@ -222,16 +197,14 @@ export const endgameActions = {
     assert(left > 0, 'noAttempts');
     const boss = riftBoss(ctx);
     const cur: Cur = {};
-    const shards: Record<string, number> = {};
     for (let i = 0; i < left; i++) {
-      const g = grantRift(ctx, r.bestTierToday, boss.level, boss.element);
+      const g = grantRift(ctx, r.bestTierToday, boss.level);
       for (const [k, v] of Object.entries(g.cur)) cur[k] = (cur[k] ?? 0) + v;
-      for (const [k, v] of Object.entries(g.shards)) shards[k] = (shards[k] ?? 0) + v;
       track(ctx, 'riftFight', 1);
     }
     r.used = cfg.modes.riftAttempts;
     s.modes.rift = r;
-    return { cur, shards, times: left };
+    return { cur, times: left };
   },
 
   'spire.fight': (ctx: Ctx, a: Action) => {
@@ -243,7 +216,7 @@ export const endgameActions = {
     const floor = (spires[el] ?? 0) + 1;
     assert(floor <= cfg.modes.spireFloors, 'maxRank');
     const slots = spireParty(ctx, el);
-    assert(slots.some(Boolean), 'emptyParty');
+    assert(slots.length > 0, 'emptyParty');
     const b = runBattle(ctx, spireEnemies(ctx, el, floor), heroUnits(cfg, s, slots), cfg.battle.bossTimeLimit);
     let reward = null;
     if (b.win) {
@@ -251,15 +224,12 @@ export const endgameActions = {
       s.modes.spires = spires;
       const r = spireReward(floor, el);
       const cur = scaleReward(cfg, s, r.cur) as Cur;
+      if (r.emblems) cur.emblems = (cur.emblems ?? 0) + r.emblems;
       give(ctx, cur);
-      const shards: Record<string, number> = {};
-      if (r.shards && r.hero) addShards(ctx, r.hero, r.shards, shards);
-      // рубеж шпиля: облик «Маскарада» стихии (выдаётся и тем, кто прошёл рубеж раньше)
-      const skin = floor >= SPIRE_SKIN_FLOOR ? grantSkin(ctx, SPIRE_SKINS[el]) : undefined;
       // Стихийная призма: часть сета на каждом 10-м этаже
       const uid = floor % 10 === 0 ? grantModeSetPiece(ctx, 'spires') : null;
       const hearts = floor % 25 === 0 ? grantHeart(ctx) : 0;
-      reward = { cur, shards, skins: skin ? [skin] : undefined, items: uid ? [uid] : undefined, hearts: hearts || undefined };
+      reward = { cur, items: uid ? [uid] : undefined, hearts: hearts || undefined };
       track(ctx, 'spireWin', 1);
       trackMax(ctx, 'spireBest', floor);
     }
@@ -300,18 +270,12 @@ export const endgameActions = {
       // золото в награде волны — уже готовая сумма (scaleReward считает его в минутах дохода)
       const cur = { ...r.cur } as Cur;
       give(ctx, cur);
-      const shards: Record<string, number> = {};
-      if (r.heraldShards) addShards(ctx, HERALDS[ctx.rng.int(HERALDS.length)].id, r.heraldShards, shards);
       // передышка: каждые N волн выжившие восстанавливают треть здоровья
       if (wave % cfg.modes.hordeHealEvery === 0) for (const id of Object.keys(hp)) if (hp[id] > 0) hp[id] = Math.min(1, hp[id] + 0.33);
-      const skins = Object.entries(HORDE_SKIN_WAVES)
-        .filter(([w]) => wave >= Number(w))
-        .map(([, id]) => grantSkin(ctx, id))
-        .filter((x): x is string => !!x);
       // Знамя Орды: часть сета каждые 10 волн
       const uid = wave % 10 === 0 ? grantModeSetPiece(ctx, 'horde') : null;
       const hearts = wave % 25 === 0 ? grantHeart(ctx) : 0;
-      reward = { cur, shards, skins: skins.length ? skins : undefined, items: uid ? [uid] : undefined, hearts: hearts || undefined };
+      reward = { cur, items: uid ? [uid] : undefined, hearts: hearts || undefined };
       trackMax(ctx, 'hordeBest', wave);
       track(ctx, 'hordeWave', 1);
     } else next.active = false;

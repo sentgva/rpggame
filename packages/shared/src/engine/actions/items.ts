@@ -4,7 +4,7 @@ import { EQUIP_SLOTS, equipSlotToItemSlot } from '../../types';
 import type { Action } from '../apply';
 import { addItem, assert, farmLevel, rollLoot, smeltGain, spend, track, trackMax, vInt, vOneOf, vStr, vStrArr, type Ctx } from '../core';
 import { rollAffix } from '../loot';
-import { equippedIndex, itemPower } from '../stats';
+import { activeParty, equippedIndex, itemPower } from '../stats';
 
 function item(ctx: Ctx, uid: unknown): Item {
   const id = vStr(uid, 'uid');
@@ -146,7 +146,7 @@ export const itemActions = {
 
   'item.autoEquip': (ctx: Ctx, a: Action) => {
     const { s } = ctx;
-    const ids = a.hero ? [vStr(a.hero, 'hero')] : (s.party.presets[s.party.active].filter(Boolean) as string[]);
+    const ids = a.hero ? [vStr(a.hero, 'hero')] : activeParty(s);
     let changes = 0;
     for (const id of ids) if (s.heroines[id]) changes += autoEquipHero(ctx, id);
     return { changes };

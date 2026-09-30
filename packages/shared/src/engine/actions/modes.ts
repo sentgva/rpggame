@@ -11,12 +11,12 @@ import {
   EXPEDITION_QUESTS,
   GEM_TYPES,
   HEROINE_MAP,
+  ROSTER,
   LAB_BUFFS,
   LAB_FLOORS,
   LAB_STEPS,
   RELICS,
   RELIC_MAP,
-  SUMMON_POOL,
   TOWER_SKIN_FLOORS,
   abyssOmen,
   abyssReward,
@@ -134,7 +134,9 @@ export function towerReward(floor: number, hard = false) {
   return {
     crystals: (2 + Math.floor(floor / 40)) * (boss ? 4 : 1) * k,
     starDust: Math.floor((5 + floor / 5) * (boss ? 3 : 1)) * k,
-    skin: TOWER_SKIN_FLOORS[floor],
+    // Эмблемы: страж каждого 10-го этажа, рубеж каждого 50-го — щедрее
+    emblems: (floor % 50 === 0 ? 25 : boss ? 4 : 0) * k,
+    skin: TOWER_SKIN_FLOORS[floor] as string | undefined,
   };
 }
 
@@ -214,10 +216,11 @@ function labAdvance(ctx: Ctx, run: LabyrinthRun) {
 
 // ——— арена ———
 
-function botTeam(rng: Rng): { id: string; lvl: number; stars: number }[] {
-  const pool = [...SUMMON_POOL.R, ...SUMMON_POOL.SR, ...SUMMON_POOL.SSR, ...SUMMON_POOL.UR];
+/** Соперник арены — другой отряд Легиона: столько же героинь, сколько у игрока, классы — случайные. */
+function botTeam(rng: Rng, n: number): { id: string; lvl: number; stars: number }[] {
+  const pool = [...ROSTER];
   rng.shuffle(pool);
-  return pool.slice(0, 5).map((id) => ({ id, lvl: 1, stars: 1 }));
+  return pool.slice(0, Math.max(3, Math.min(ROSTER.length, n))).map((id) => ({ id, lvl: 1, stars: 1 }));
 }
 
 function arenaOpponents(ctx: Ctx, force = false): ArenaOpponent[] {
@@ -237,7 +240,7 @@ function arenaOpponents(ctx: Ctx, force = false): ArenaOpponent[] {
       rating: Math.max(0, Math.round(rating + (i - 1) * 60 + rng.range(-20, 20))),
       power: Math.round(myPower * f),
       seed,
-      team: botTeam(rng),
+      team: botTeam(rng, activeParty(s).length),
     });
   }
   s.modes.arena.opponents = opps;
@@ -250,7 +253,7 @@ function arenaUnits(ctx: Ctx, opp: ArenaOpponent): UnitInit[] {
   const { cfg, s } = ctx;
   const fake = { ...s, heroines: {} as Record<string, HeroineState>, items: {}, constellation: 0, ascension: { ...s.ascension, up: {} } };
   const avgLvl = Math.max(1, Math.round(activeParty(s).reduce((sum, id) => sum + s.heroines[id].lvl, 0) / Math.max(1, activeParty(s).length)));
-  for (const m of opp.team) fake.heroines[m.id] = { id: m.id, lvl: avgLvl, stars: Math.max(1, cfg.hero.startStars[HEROINE_MAP[m.id].rarity]), tree: {}, skills: [null, null], gear: {} };
+  for (const m of opp.team) fake.heroines[m.id] = { id: m.id, lvl: avgLvl, stars: 1, tree: {}, skills: [null, null], gear: {} };
   const slots = opp.team.map((m) => m.id);
   const units = heroUnits(cfg, fake as typeof s, slots);
   const raw = opp.team.reduce((sum, m) => sum + buildHeroine(cfg, fake as typeof s, fake.heroines[m.id], { party: slots }).power, 0);
@@ -267,21 +270,14 @@ function grantExpedition(ctx: Ctx, e: Expedition, mult: number, add?: Partial<Re
   const { s, cfg } = ctx;
   const q = EXPEDITION_MAP[e.quest];
   const r = q.reward;
-  const base = scaleReward(cfg, s, { gold: r.gold, forgeMats: r.forgeMats, dust: r.dust, starDust: r.starDust, crystals: r.crystals, scrolls: r.scrolls });
+  const base = scaleReward(cfg, s, { gold: r.gold, forgeMats: r.forgeMats, dust: r.dust, starDust: r.starDust, crystals: r.crystals, emblems: r.emblems });
   const cur: Record<string, number> = {};
   for (const [k, v] of Object.entries(base)) if (v) cur[k] = Math.max(0, Math.round((v as number) * mult));
   for (const [k, v] of Object.entries(add ?? {})) if (v) cur[k] = (cur[k] ?? 0) + v;
   give(ctx, cur);
-  let shards: Record<string, number> | undefined;
-  if (r.shards) {
-    const hero = e.heroes[ctx.rng.int(e.heroes.length)];
-    const n = Math.max(1, Math.round(r.shards * Math.min(1, mult)));
-    s.shards[hero] = (s.shards[hero] ?? 0) + n;
-    shards = { [hero]: n };
-  }
   s.modes.expeditions = s.modes.expeditions.filter((x) => x.id !== e.id);
   track(ctx, 'expedition', 1);
-  return { cur, shards };
+  return { cur };
 }
 
 export const modeActions = {
@@ -362,7 +358,7 @@ export const modeActions = {
     if (b.win) {
       s.modes.tower = floor;
       const r = towerReward(floor, hard);
-      give(ctx, { crystals: r.crystals, starDust: r.starDust });
+      give(ctx, { crystals: r.crystals, starDust: r.starDust, emblems: r.emblems });
       if (r.skin && !s.skins.includes(r.skin)) s.skins.push(r.skin);
       reward = { ...r, items: undefined as string[] | undefined, hearts: undefined as number | undefined };
       // Наряд арлекина: за «Испытание» на этаже стража
@@ -433,11 +429,10 @@ export const modeActions = {
     assert(s.modes.expeditions.length < expeditionSlots(ctx), 'noSlots');
     const heroes = vStrArr(a.heroes, 3, 'heroes');
     assert(heroes.length === q.heroes && new Set(heroes).size === heroes.length, 'badParam', { name: 'heroes' });
-    const party = activeParty(s);
+    // героиня не покидает отряд: в экспедицию уходит её дозор, а она ведёт его на привалах
     for (const id of heroes) {
       const h = s.heroines[id];
       assert(h, 'noHero');
-      assert(!party.includes(id), 'inParty');
       assert(!onExpedition(ctx, id), 'onExpedition');
       assert(h.stars >= q.minStars, 'requirements');
     }
@@ -486,20 +481,18 @@ export const modeActions = {
     const done = ctx.s.modes.expeditions.filter((x) => ctx.now >= x.end).map((x) => x.id);
     assert(done.length > 0, 'notDone');
     const cur: Record<string, number> = {};
-    const shards: Record<string, number> = {};
     const events: { id: string; event: string }[] = [];
     let n = 0;
     for (const id of done) {
-      const r = modeActions['expedition.claim'](ctx, { type: 'expedition.claim', id }) as { event?: string; cur?: Record<string, number>; shards?: Record<string, number> };
+      const r = modeActions['expedition.claim'](ctx, { type: 'expedition.claim', id }) as { event?: string; cur?: Record<string, number> };
       if (r.event) {
         events.push({ id, event: r.event });
         continue;
       }
       n++;
       for (const [k, v] of Object.entries(r.cur ?? {})) cur[k] = (cur[k] ?? 0) + (v ?? 0);
-      for (const [k, v] of Object.entries(r.shards ?? {})) shards[k] = (shards[k] ?? 0) + v;
     }
-    return { cur, shards, n, events };
+    return { cur, n, events };
   },
 
   'expedition.cancel': (ctx: Ctx, a: Action) => {

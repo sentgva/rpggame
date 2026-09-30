@@ -29,8 +29,8 @@ export const devActions = {
       addHeroine(ctx, id);
       const h = s.heroines[id];
       const def = HEROINE_MAP[id];
-      if (a.stars !== undefined) h.stars = vInt(a.stars, 1, cfg.hero.maxStars[def.rarity], 'stars');
-      if (a.awaken !== undefined) h.awakened = !!a.awaken && def.rarity === 'UR';
+      if (a.stars !== undefined) h.stars = vInt(a.stars, 1, cfg.hero.maxRank, 'stars');
+      if (a.awaken !== undefined) h.awakened = !!a.awaken && h.stars >= cfg.hero.maxRank;
       if (a.lvl !== undefined) h.lvl = vInt(a.lvl, 1, cfg.hero.awakenCap, 'lvl');
       if (a.spec !== undefined) h.spec = a.spec === null ? undefined : vOneOf(a.spec, ['A', 'B'] as const, 'spec');
       if (a.skin !== undefined) {

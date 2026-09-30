@@ -66,7 +66,7 @@ function heroFor(ctx: Ctx, a: Action): string {
 
 /** Опыт близости с повышением уровней и наградами пиков. */
 export function bondGain(ctx: Ctx, hero: string, b: BondState, xp: number) {
-  const out = { xp, levelUps: [] as number[], rewards: {} as Record<string, number>, shards: 0 };
+  const out = { xp, levelUps: [] as number[], rewards: {} as Record<string, number> };
   b.xp += xp;
   while (b.lvl < BOND_MAX && b.xp >= BOND_XP[b.lvl]) {
     b.xp -= BOND_XP[b.lvl];
@@ -74,13 +74,9 @@ export function bondGain(ctx: Ctx, hero: string, b: BondState, xp: number) {
     out.levelUps.push(b.lvl);
     const m = BOND_MILESTONES[b.lvl];
     if (m) {
-      give(ctx, { crystals: m.crystals, scrolls: m.scrolls ?? 0 });
+      give(ctx, { crystals: m.crystals, emblems: m.emblems ?? 0 });
       out.rewards.crystals = (out.rewards.crystals ?? 0) + m.crystals;
-      if (m.scrolls) out.rewards.scrolls = (out.rewards.scrolls ?? 0) + m.scrolls;
-      if (m.shards) {
-        ctx.s.shards[hero] = (ctx.s.shards[hero] ?? 0) + m.shards;
-        out.shards += m.shards;
-      }
+      if (m.emblems) out.rewards.emblems = (out.rewards.emblems ?? 0) + m.emblems;
     }
     track(ctx, 'bondLevel', 1);
   }

@@ -16,7 +16,7 @@ export const DAILY_QUESTS: QuestDef[] = [
   { id: 'd_boss', name: { ru: 'Победить босса', en: 'Defeat a boss' }, counter: 'bossWin', target: 1, activity: 20, reward: { gold: 60 } },
   { id: 'd_level', name: { ru: 'Повысить уровень героинь 3 раза', en: 'Level up heroines 3 times' }, counter: 'heroLevel', target: 3, activity: 20, reward: { xp: 60 } },
   { id: 'd_enhance', name: { ru: 'Заточить предметы 2 раза', en: 'Enhance items 2 times' }, counter: 'enhance', target: 2, activity: 20, reward: { dust: 30 } },
-  { id: 'd_summon', name: { ru: 'Призвать героиню', en: 'Summon a heroine' }, counter: 'summon', target: 1, activity: 20, reward: { crystals: 10 } },
+  { id: 'd_combo', name: { ru: 'Провести 25 связок классов в бою', en: 'Land 25 class combos in battle' }, counter: 'combo', target: 25, activity: 20, reward: { emblems: 1 } },
   { id: 'd_dungeon', name: { ru: 'Пройти подземелье 2 раза', en: 'Clear dungeons 2 times' }, counter: 'dungeon', target: 2, activity: 20, reward: { starDust: 10 } },
   { id: 'd_quick', name: { ru: 'Сделать быстрый сбор', en: 'Use quick collect' }, counter: 'quick', target: 1, activity: 20, reward: { crystals: 5 } },
 ];
@@ -25,7 +25,7 @@ export const DAILY_QUESTS: QuestDef[] = [
 export const WEEKLY_QUESTS: QuestDef[] = [
   { id: 'w_daily', name: { ru: 'Выполнить 30 ежедневных заданий', en: 'Complete 30 daily quests' }, counter: 'dailyDone', target: 30, activity: 50, reward: { crystals: 50 } },
   { id: 'w_boss', name: { ru: 'Победить 15 боссов', en: 'Defeat 15 bosses' }, counter: 'bossWin', target: 15, activity: 50, reward: { gold: 600 } },
-  { id: 'w_summon', name: { ru: 'Призвать 10 героинь', en: 'Summon 10 heroines' }, counter: 'summon', target: 10, activity: 50, reward: { scrolls: 1 } },
+  { id: 'w_combo', name: { ru: 'Провести 400 связок классов', en: 'Land 400 class combos' }, counter: 'combo', target: 400, activity: 50, reward: { emblems: 5 } },
   { id: 'w_dungeon', name: { ru: 'Пройти 15 подземелий', en: 'Clear 15 dungeons' }, counter: 'dungeon', target: 15, activity: 50, reward: { starDust: 60 } },
   { id: 'w_tower', name: { ru: 'Покорить 5 этажей Башни', en: 'Conquer 5 Tower floors' }, counter: 'towerWin', target: 5, activity: 50, reward: { crystals: 30 } },
   { id: 'w_enhance', name: { ru: 'Заточить предметы 20 раз', en: 'Enhance items 20 times' }, counter: 'enhance', target: 20, activity: 50, reward: { dust: 200 } },
@@ -39,25 +39,25 @@ export const WEEKLY_QUESTS: QuestDef[] = [
 export const DAILY_CHESTS: { at: number; reward: Partial<Record<Currency, number>> }[] = [
   { at: 40, reward: { gold: 30, dust: 20 } },
   { at: 80, reward: { crystals: 10, xp: 30 } },
-  { at: 120, reward: { scrolls: 1, starDust: 15 } },
+  { at: 120, reward: { emblems: 3, starDust: 15 } },
   { at: 160, reward: { crystals: 25, forgeMats: 5 } },
 ];
 export const WEEKLY_CHESTS: { at: number; reward: Partial<Record<Currency, number>> }[] = [
   { at: 100, reward: { crystals: 30 } },
-  { at: 200, reward: { scrolls: 2 } },
+  { at: 200, reward: { emblems: 8 } },
   { at: 300, reward: { crystals: 60, starDust: 50 } },
-  { at: 400, reward: { scrolls: 3, forgeMats: 30 } },
+  { at: 400, reward: { emblems: 12, forgeMats: 30 } },
   { at: 500, reward: { crystals: 100 } },
 ];
 
-/** Награды за вход: 28-дневный календарь, 28-й день — SSR-героиня на выбор. */
-export const LOGIN_REWARDS: { day: number; reward: Partial<Record<Currency, number>>; ssrChoice?: boolean }[] = Array.from(
+/** Награды за вход: 28-дневный календарь, 28-й день — большой запас Эмблем. */
+export const LOGIN_REWARDS: { day: number; reward: Partial<Record<Currency, number>>; big?: boolean }[] = Array.from(
   { length: 28 },
   (_, i) => {
     const day = i + 1;
-    if (day === 28) return { day, reward: { crystals: 100 }, ssrChoice: true };
-    if (day % 7 === 0) return { day, reward: { crystals: 60 + day * 5, scrolls: 1 } };
-    if (day % 3 === 0) return { day, reward: { scrolls: 1, dust: 50 } };
+    if (day === 28) return { day, reward: { crystals: 200, emblems: 40 }, big: true };
+    if (day % 7 === 0) return { day, reward: { crystals: 60 + day * 5, emblems: 6 } };
+    if (day % 3 === 0) return { day, reward: { emblems: 2, dust: 50 } };
     return { day, reward: { crystals: 15 + day, gold: 20 } };
   },
 );
@@ -79,8 +79,9 @@ const tiers = (arr: number[]) => arr;
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'stage', name: { ru: 'Покорительница этапов', en: 'Stage Conqueror' }, metric: 'maxStage', tiers: tiers(Array.from({ length: 30 }, (_, i) => (i + 1) * 20)), crystals: 10, title: { ru: 'Покорительница', en: 'Conqueror' } },
   { id: 'bossWin', name: { ru: 'Убийца боссов', en: 'Boss Slayer' }, metric: 'bossWin', tiers: tiers([1, 5, 10, 25, 50, 100, 200, 350, 500, 750, 1000, 1500, 2000, 3000, 5000]), crystals: 8, title: { ru: 'Гроза боссов', en: 'Bane of Bosses' } },
-  { id: 'summon', name: { ru: 'Зов Кристалла', en: 'Crystal Call' }, metric: 'summon', tiers: tiers([1, 10, 30, 60, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000]), crystals: 10 },
-  { id: 'heroes', name: { ru: 'Коллекционерка', en: 'Collector' }, metric: 'heroCount', tiers: tiers([5, 8, 10, 12, 15, 18, 20, 25, 30, 35, 40, 45, 50]), crystals: 17, title: { ru: 'Собирательница душ', en: 'Soul Gatherer' } },
+  { id: 'combo', name: { ru: 'Сыгранность', en: 'Teamwork' }, metric: 'combo', tiers: tiers([1, 50, 200, 500, 1000, 2500, 5000, 10000, 20000, 35000, 50000, 75000, 100000, 200000]), crystals: 10, title: { ru: 'Душа Легиона', en: 'Heart of the Legion' } },
+  { id: 'heroes', name: { ru: 'Легион в сборе', en: 'Legion Assembled' }, metric: 'heroCount', tiers: tiers([3, 4, 5, 6]), crystals: 30, title: { ru: 'Командор Шести', en: 'Commander of Six' } },
+  { id: 'ranks', name: { ru: 'Ранги Легиона', en: 'Legion Ranks' }, metric: 'rankTotal', tiers: tiers([4, 6, 8, 10, 12, 15, 18, 21, 24, 27, 30, 33, 36]), crystals: 15 },
   { id: 'heroLevel', name: { ru: 'Наставница', en: 'Mentor' }, metric: 'maxHeroLevel', tiers: tiers([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 140, 160, 180, 200]), crystals: 8 },
   { id: 'enhance', name: { ru: 'Кузнец', en: 'Smith' }, metric: 'enhance', tiers: tiers([1, 10, 25, 50, 100, 200, 350, 500, 750, 1000, 1500, 2000, 3000, 5000]), crystals: 7 },
   { id: 'maxEnhance', name: { ru: 'Мастер заточки', en: 'Enhance Master' }, metric: 'maxEnhance', tiers: tiers([3, 5, 7, 9, 10, 11, 12, 13, 14, 15]), crystals: 13 },

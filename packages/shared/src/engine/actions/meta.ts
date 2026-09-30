@@ -4,7 +4,6 @@ import {
   ASC_MAP,
   DAILY_CHESTS,
   DAILY_QUESTS,
-  HEROINE_MAP,
   LOGIN_REWARDS,
   LORE,
   PASS_BONUS_XP,
@@ -23,7 +22,6 @@ import {
   addItem,
   assert,
   give,
-  grantReward,
   metric,
   requireUnlocked,
   rollLoot,
@@ -36,6 +34,7 @@ import {
   type Ctx,
   farmLevel,
 } from '../core';
+import { activeParty } from '../stats';
 import { autoEquipHero } from './items';
 
 export function constellationCost(ctx: Pick<Ctx, 'cfg'>, k: number): number {
@@ -183,17 +182,10 @@ export const metaActions = {
     assert(login.claimedKey !== s.day.key, 'claimed');
     const day = ((login.streak - 1) % 28) + 1;
     const r = LOGIN_REWARDS[day - 1];
-    let hero: string | undefined;
-    if (r.ssrChoice) {
-      hero = vStr(a.hero, 'hero');
-      const def = HEROINE_MAP[hero];
-      assert(def && def.rarity === 'SSR' && !def.boss, 'badParam', { name: 'hero' });
-    }
     login.claimedKey = s.day.key;
     const reward = scaleReward(cfg, s, r.reward);
     give(ctx, reward);
-    if (hero) grantReward(ctx, { heroes: [hero] });
-    return { day, reward, hero };
+    return { day, reward };
   },
 
   /** Забрать все доступные уровни достижения. */
@@ -324,7 +316,7 @@ export const metaActions = {
   /** Удобство: одной кнопкой надеть лучшее на весь отряд. */
   'party.autoEquip': (ctx: Ctx) => {
     let n = 0;
-    for (const id of ctx.s.party.presets[ctx.s.party.active]) if (id) n += autoEquipHero(ctx, id);
+    for (const id of activeParty(ctx.s)) n += autoEquipHero(ctx, id);
     return { changes: n };
   },
 };

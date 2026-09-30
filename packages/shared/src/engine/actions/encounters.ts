@@ -1,4 +1,4 @@
-import { ACTS, ENCOUNTERS, ENCOUNTER_GAP, ENCOUNTER_MAP, ENCOUNTER_TTL, ENCOUNTER_UNLOCK, MIMIC_CHANCE, SUMMON_POOL, stageFromGlobal, type EncounterKind } from '../../content';
+import { ACTS, ENCOUNTERS, ENCOUNTER_GAP, ENCOUNTER_MAP, ENCOUNTER_TTL, ENCOUNTER_UNLOCK, MIMIC_CHANCE, stageFromGlobal, type EncounterKind } from '../../content';
 import type { Currency } from '../../types';
 import type { Action } from '../apply';
 import { addItem, assert, farmLevel, farmStage, give, goldPerMin, rollLoot, spend, track, vOneOf, xpPerMin, type Ctx } from '../core';
@@ -20,11 +20,11 @@ export function encounterOffer(ctx: Pick<Ctx, 'cfg' | 's'>, kind: string) {
     case 'chest':
       return { loot: { gold: g(25), dust: 20 + Math.floor(L / 2), crystals: 15 } as Cur, win: { gold: g(50), crystals: 45, dust: 40 + L } as Cur };
     case 'merchant':
-      return { scroll: { crystals: 150 } as Cur, epic: { gold: g(45) } as Cur };
+      return { scroll: { crystals: 150 } as Cur, emblems: 6, epic: { gold: g(45) } as Cur };
     case 'shrine':
       return { gold: { gold: g(40) } as Cur, xp: { xp: Math.max(10, Math.floor(xpm * 40)) } as Cur, dust: { dust: 60 + L * 2 } as Cur };
     case 'traveler':
-      return { help: { gold: g(15) } as Cur, shards: 5, thanks: { crystals: 5 } as Cur };
+      return { help: { gold: g(15) } as Cur, emblems: 2, thanks: { crystals: 5 } as Cur };
     case 'gambler':
       return { bet: { gold: g(20) } as Cur };
     case 'ambush':
@@ -107,8 +107,8 @@ export const encounterActions = {
         if (choice === 'scroll') {
           spend(ctx, o.scroll as Cur);
           out.spent = o.scroll as Cur;
-          give(ctx, { scrolls: 1 });
-          out.cur = { scrolls: 1 };
+          give(ctx, { emblems: o.emblems as number });
+          out.cur = { emblems: o.emblems as number };
         } else if (choice === 'epic') {
           spend(ctx, o.epic as Cur);
           out.spent = o.epic as Cur;
@@ -124,10 +124,8 @@ export const encounterActions = {
         if (choice === 'help') {
           spend(ctx, o.help as Cur);
           out.spent = o.help as Cur;
-          const pool = [...SUMMON_POOL.SR, ...SUMMON_POOL.SSR];
-          const hero = pool[ctx.rng.int(pool.length)];
-          s.shards[hero] = (s.shards[hero] ?? 0) + (o.shards as number);
-          out.shards = { [hero]: o.shards as number };
+          give(ctx, { emblems: o.emblems as number });
+          out.cur = { emblems: o.emblems as number };
         } else grant(o.thanks as Cur);
         break;
       case 'gambler':

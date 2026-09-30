@@ -3,12 +3,6 @@
   "stat": {
     "levelGrowth": 0.08,
     "starGrowth": 0.15,
-    "rarityMult": {
-      "R": 1.0,
-      "SR": 1.25,
-      "SSR": 1.6,
-      "UR": 2.0
-    },
     "critBase": 0.05,
     "critMax": 0.8,
     "critDmgBase": 1.5,
@@ -19,7 +13,8 @@
     "resistMax": 0.7,
     "dmgReduceMax": 0.6,
     "spdBase": 100,
-    "skinBonus": 0.03
+    "skinBonus": 0.03,
+    "heroMult": 1.65
   },
   "hero": {
     "xpBase": 100,
@@ -35,42 +30,26 @@
       120
     ],
     "awakenCap": 200,
-    "starShards": [
-      10,
-      20,
-      40,
-      80,
-      160
-    ],
-    "maxStars": {
-      "R": 4,
-      "SR": 5,
-      "SSR": 6,
-      "UR": 6
-    },
-    "startStars": {
-      "R": 1,
-      "SR": 2,
-      "SSR": 3,
-      "UR": 4
-    },
-    "recruitShards": {
-      "R": 10,
-      "SR": 20,
-      "SSR": 40,
-      "UR": 80
-    },
-    "dupeShards": {
-      "R": 10,
-      "SR": 20,
-      "SSR": 40,
-      "UR": 80
-    },
-    "awakenShards": 160,
     "awakenCrystals": 3000,
     "specLevel": 60,
     "treeFreeResetLevel": 30,
-    "treeResetCost": 200
+    "treeResetCost": 200,
+    "maxRank": 6,
+    "rankEmblems": [
+      10,
+      25,
+      50,
+      90,
+      150
+    ],
+    "rankGold": [
+      5,
+      15,
+      40,
+      90,
+      180
+    ],
+    "awakenEmblems": 250
   },
   "account": {
     "xpBase": 60,
@@ -263,20 +242,8 @@
     "actBossStarDust": 40,
     "bossItems": 1,
     "actBossItems": 3,
-    "actBossShards": 10
-  },
-  "summon": {
-    "rates": {
-      "R": 60,
-      "SR": 32,
-      "SSR": 7.2,
-      "UR": 0.8
-    },
-    "pitySSR": 60,
-    "pityUR": 150,
-    "cost1": 300,
-    "cost10": 2700,
-    "scrollCost": 1
+    "actBossEmblems": 15,
+    "bossEmblems": 1
   },
   "constellation": {
     "count": 12,
@@ -336,7 +303,7 @@
   "unlocks": {
     "stage": {
       "tree": 5,
-      "stars": 10,
+      "ranks": 10,
       "expeditions": 15,
       "dungeons": 21,
       "tower": 30,

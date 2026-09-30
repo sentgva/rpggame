@@ -16,12 +16,17 @@ export type TargetRule =
   | 'allyStrongest';
 
 export type DotKind = 'burn' | 'poison' | 'bleed';
+/**
+ * Метки связок: daze — ошеломление (Рыцарь), curse — проклятие (Колдунья), root — оковы (Следопыт),
+ * prey — добыча (Охотница), bless — благословение союзницы (Жрица).
+ */
+export type MarkKind = 'daze' | 'curse' | 'root' | 'prey' | 'bless';
 export type CcKind = 'stun' | 'freeze' | 'silence';
 /** Характеристики, которые можно временно менять баффами/дебаффами. */
 export type BuffStat = 'atk' | 'def' | 'spd' | 'crit' | 'critDmg' | 'acc' | 'eva' | 'dmgTaken' | 'dmg' | 'healRecv';
 
 export interface SkillEffect {
-  t: 'dmg' | 'heal' | 'shield' | 'dot' | 'cc' | 'buff' | 'debuff' | 'taunt' | 'energy' | 'summon' | 'revive' | 'cleanse' | 'hot';
+  t: 'dmg' | 'heal' | 'shield' | 'dot' | 'cc' | 'buff' | 'debuff' | 'taunt' | 'energy' | 'summon' | 'revive' | 'cleanse' | 'hot' | 'mark';
   target?: TargetRule;
   /** Множитель от характеристики scale (1.8 = 180%). */
   mult?: number;
@@ -31,6 +36,7 @@ export interface SkillEffect {
   hits?: number;
   dot?: DotKind;
   cc?: CcKind;
+  mark?: MarkKind;
   chance?: number;
   turns?: number;
   stat?: BuffStat;
@@ -105,6 +111,8 @@ export type SpecialEffectId =
   | 'berserkLowHp'
   | 'secondWind'
   | 'immuneBlind'
+  | 'companion'
+  | 'packLeader'
   | 'classMod';
 
 export interface SpecialEffectDef {
@@ -314,6 +322,16 @@ export const SPECIAL_EFFECTS: Record<SpecialEffectId, SpecialEffectDef> = {
     id: 'immuneBlind',
     name: { ru: 'Зоркость', en: 'Clear Sight' },
     desc: { ru: 'Иммунитет к ослеплению (снижению точности)', en: 'Immune to blind (accuracy reduction)' },
+  },
+  companion: {
+    id: 'companion',
+    name: { ru: 'Волк-спутник', en: 'Wolf Companion' },
+    desc: { ru: 'В начале боя рядом встаёт волк ({n})', en: 'A wolf stands beside her at the start of battle ({n})' },
+  },
+  packLeader: {
+    id: 'packLeader',
+    name: { ru: 'Вожак стаи', en: 'Pack Leader' },
+    desc: { ru: 'Волки сильнее на {v}', en: 'Wolves are {v} stronger' },
   },
   classMod: {
     id: 'classMod',

@@ -7,28 +7,10 @@ export type L10n = { ru: string; en: string };
 export type Element = 'fire' | 'nature' | 'water' | 'light' | 'dark';
 export const ELEMENTS: Element[] = ['fire', 'nature', 'water', 'light', 'dark'];
 
-export type ClassId =
-  | 'guardian'
-  | 'berserker'
-  | 'archer'
-  | 'sorceress'
-  | 'priestess'
-  | 'necromancer'
-  | 'assassin'
-  | 'bard';
-export const CLASS_IDS: ClassId[] = [
-  'guardian',
-  'berserker',
-  'archer',
-  'sorceress',
-  'priestess',
-  'necromancer',
-  'assassin',
-  'bard',
-];
+/** Шесть классов — по одной героине на класс. */
+export type ClassId = 'knight' | 'assassin' | 'priestess' | 'ranger' | 'warlock' | 'hunter';
+export const CLASS_IDS: ClassId[] = ['knight', 'assassin', 'priestess', 'ranger', 'warlock', 'hunter'];
 
-export type HeroRarity = 'R' | 'SR' | 'SSR' | 'UR';
-export const HERO_RARITIES: HeroRarity[] = ['R', 'SR', 'SSR', 'UR'];
 
 /** 0 обычный … 6 божественный */
 export type ItemRarity = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -139,7 +121,7 @@ export type Currency =
   | 'gold'
   | 'xp'
   | 'crystals'
-  | 'scrolls'
+  | 'emblems'
   | 'dust'
   | 'starDust'
   | 'ether'
@@ -153,7 +135,7 @@ export const CURRENCIES: Currency[] = [
   'gold',
   'xp',
   'crystals',
-  'scrolls',
+  'emblems',
   'dust',
   'starDust',
   'ether',
@@ -290,7 +272,6 @@ export interface MailMessage {
 
 export interface Reward {
   cur?: Partial<Record<Currency, number>>;
-  shards?: Record<string, number>;
   heroes?: string[];
   items?: Item[];
   gems?: Record<string, number>;
@@ -331,13 +312,9 @@ export interface BondState {
 
 /** Артефакты: уровни (1–5), слоты отряда, гарантии баннера. */
 export interface ArtifactState {
+  /** изготовленные артефакты и их уровни (1–5) */
   owned: Record<string, number>;
   slots: (string | null)[];
-  pitySSR: number;
-  pityUR: number;
-  total: number;
-  /** день последнего бесплатного призыва */
-  freeDay?: string;
 }
 
 /** Резиденция героинь: уровни комнат и последняя ночёвка. */
@@ -374,8 +351,6 @@ export interface FestivalState {
   base: Record<string, number>;
   /** босс праздника: уровень, снятое HP текущего уровня, попытки сегодня, победы, лучший урон */
   boss: { lvl: number; dmg: number; used: number; kills: number; best: number };
-  /** «Турнир Валькирий»: текущий забег, входы сегодня (и купленные), рекорд, победы, чемпионства */
-  tour?: TourneyState;
   /** «Самоцветные копи»: этаж, раскопанные клетки, кирки */
   mine?: MineState;
   /** «Пляжный волейбол» Солнечного курорта: матчи сегодня, лестница соперниц, победы */
@@ -394,28 +369,6 @@ export interface VolleyState {
   big: number;
   /** идущий матч: ступень, своя пара и время начала */
   match?: { rung: number; heroes: string[]; at: number };
-}
-
-/** Забег турнира: драфт из предложенных героинь, затем бои до 3 поражений или 7 побед. */
-export interface TourneyRun {
-  seed: number;
-  picks: string[];
-  /** предложение на выбор (драфт или замена после победы) */
-  offer: string[];
-  phase: 'draft' | 'fight' | 'swap' | 'done';
-  wins: number;
-  losses: number;
-}
-
-export interface TourneyState {
-  run?: TourneyRun;
-  /** входов использовано сегодня */
-  entries: number;
-  /** купленные в лавке входы (не сгорают) */
-  bonus: number;
-  best: number;
-  wins: number;
-  champs: number;
 }
 
 export interface MineState {
@@ -465,7 +418,7 @@ export interface PlayerState {
   createdAt: number;
   rng: number;
   battleSeed: number;
-  /** Близость с UR-героинями (режим «Уход») и Сердца Эфира для нарядов близости. */
+  /** Близость с героинями (режим «Уход») и Сердца Эфира для нарядов близости. */
   bond?: Record<string, BondState>;
   bondHearts?: number;
   home?: HomeState;
@@ -482,12 +435,10 @@ export interface PlayerState {
   account: { lvl: number; xp: number };
   cur: Record<Currency, number>;
   heroines: Record<string, HeroineState>;
-  shards: Record<string, number>;
   items: Record<string, Item>;
   invCap: number;
   gems: Record<string, number>;
   skins: string[];
-  party: { presets: (string | null)[][]; active: number };
   progress: {
     diff: Difficulty;
     cleared: [number, number, number];
@@ -505,14 +456,12 @@ export interface PlayerState {
     quickAd: boolean;
     quick: number;
     ads: number;
-    freeSummon: boolean;
     keys: Record<string, number>;
     arena: number;
     arenaBought: number;
     gift: boolean;
   };
   week: { key: string; treeDiscount: boolean };
-  summon: { pitySSR: number; pityUR: number; total: number };
   constellation: number;
   ascension: { count: number; ether: number; up: Record<string, number>; story: number };
   modes: {

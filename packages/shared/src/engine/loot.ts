@@ -128,9 +128,9 @@ export function generateItem(cfg: Config, rng: Rng, uid: string, o: LootOpts): I
   let fx: string | undefined = o.fx;
   let forcedType: string | undefined;
 
-  if (rarity === 5 && !fx) {
-    // мифический: оружие класса с эффектом, меняющим умение класса
-    const classes = o.classes && o.classes.length ? o.classes : (['sorceress'] as ClassId[]);
+  if (rarity === 5 && !fx && !o.set) {
+    // мифический: оружие класса с эффектом, меняющим умение класса (мифическая часть сета — обычная вещь сета)
+    const classes = o.classes && o.classes.length ? o.classes : (['warlock'] as ClassId[]);
     const cls = rng.pick(classes);
     const myth = rng.pick(MYTHICS.filter((m) => m.cls === cls));
     fx = myth.id;

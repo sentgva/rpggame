@@ -60,7 +60,6 @@ export const volleyActions = {
     const cur: Cur = r.tokens ? { eventTokens: r.tokens } : {};
     let points = r.points;
     let first: ReturnType<typeof volleyFirstReward> | null = null;
-    let shards: Record<string, number> | undefined;
     const next = { ...v, match: undefined };
     if (won) {
       next.wins++;
@@ -71,10 +70,7 @@ export const volleyActions = {
         first = volleyFirstReward(m.rung);
         if (first.crystals) cur.crystals = first.crystals;
         points += first.points;
-        if (first.shards) {
-          s.shards[fn.def.hero] = (s.shards[fn.def.hero] ?? 0) + first.shards;
-          shards = { [fn.def.hero]: first.shards };
-        }
+        if (first.emblems) cur.emblems = first.emblems;
       }
     }
     if (spikes) track(ctx, 'volSpike', spikes);
@@ -83,6 +79,6 @@ export const volleyActions = {
     f.volley = next;
     s.festival = f;
     ctx.events.push({ name: 'volley_end', props: { rung: m.rung, won, us, them } });
-    return { won, big, us, them, rung: m.rung, reward: { cur, points, shards, first: !!first }, festival: f };
+    return { won, big, us, them, rung: m.rung, reward: { cur, points, first: !!first }, festival: f };
   },
 };

@@ -74,13 +74,11 @@ export const mineActions = {
     const r = mineReward(tile, m.floor);
     const cur: Cur = r.tokens ? { eventTokens: r.tokens } : {};
     let points = r.points;
-    let shards = 0;
     let hearts = 0;
     m.picks = Math.max(0, m.picks + r.picks);
     if (tile === 'chest') {
       const c = mineChest(ctx.rng, m.floor);
       for (const [k, v] of Object.entries(c.cur ?? {})) cur[k] = (cur[k] ?? 0) + (v ?? 0);
-      shards += c.shards ?? 0;
       m.chests++;
       track(ctx, 'mineChest', 1);
     }
@@ -89,12 +87,11 @@ export const mineActions = {
       m.best = Math.max(m.best, m.floor);
       m.dug = [MINE_START_IDX];
       const bonus = mineDescendBonus(m.floor);
-      shards += bonus.shards;
+      if (bonus.emblems) cur.emblems = (cur.emblems ?? 0) + bonus.emblems;
       if (bonus.heart) hearts += grantHeart(ctx);
       track(ctx, 'mineFloor', 1);
     } else m.dug.push(cell);
     give(ctx, cur);
-    if (shards) s.shards[fn.def.hero] = (s.shards[fn.def.hero] ?? 0) + shards;
     f.points += points;
     f.mine = m;
     s.festival = f;
@@ -103,7 +100,7 @@ export const mineActions = {
       win: true,
       tile,
       cell,
-      reward: { cur, points, picks: r.picks, shards: shards ? { [fn.def.hero]: shards } : undefined, hearts: hearts || undefined, floor: tile === 'stairs' ? m.floor : undefined },
+      reward: { cur, points, picks: r.picks, hearts: hearts || undefined, floor: tile === 'stairs' ? m.floor : undefined },
       festival: f,
     };
   },

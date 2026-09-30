@@ -1,22 +1,22 @@
 import type { Currency, Element, L10n } from '../types';
 import { ENEMY_MAP, type EnemyDef } from './acts';
 import type { SkillDef } from './effects';
-import { HEROINE_MAP, SKINS, SKIN_MAP, type SkinDef } from './heroines';
+import { SKINS, SKIN_MAP, type SkinDef } from './heroines';
 import { TOWER_MODS, type TowerMod } from './modes';
 
 /**
  * Праздники Легиона — большой ивент, который идёт всегда, но каждые две недели сменяется:
- * Кровавая Луна → Турнир → Приливы → Копи → Сакура → Солнечный курорт → снова Луна…
- * У каждого праздника — своя героиня (только за награды праздника), свой босс-колосс,
- * путь из 18 этапов, ежедневные задания, цели, шкала наград и лавка.
+ * Кровавая Луна → Самоцветные копи → Праздник Приливов → Солнечный курорт → Цветение Сакуры → снова Луна…
+ * У каждого праздника — героиня-покровительница из Легиона (она на баннере), свой босс-колосс или
+ * своя механика, ежедневные задания, цели, шкала наград и лавка. Эмблемы праздника идут на ранги героинь.
  */
-export type FestivalId = 'bloodmoon' | 'resort' | 'tides' | 'sakura' | 'tourney' | 'mine';
+export type FestivalId = 'bloodmoon' | 'mine' | 'tides' | 'resort' | 'sakura';
 /**
  * Вид праздника — у каждого своя главная механика:
- * trail — путь из 18 этапов и босс-колосс; tourney — драфт-турнир чужими героинями;
- * mine — исследование копей в тумане за кирки; volley — пляжный волейбол парами на тайминг.
+ * trail — путь из 18 этапов и босс-колосс; mine — исследование копей в тумане за кирки;
+ * volley — пляжный волейбол парами на тайминг.
  */
-export type FestivalKind = 'trail' | 'tourney' | 'mine' | 'volley';
+export type FestivalKind = 'trail' | 'mine' | 'volley';
 
 export interface FestivalDef {
   id: FestivalId;
@@ -25,13 +25,13 @@ export interface FestivalDef {
   tagline: L10n;
   lore: L10n;
   element: Element;
-  /** героиня праздника (осколки — только здесь) */
+  /** героиня Легиона — покровительница праздника (на баннере и в анонсе) */
   hero: string;
   /** путь и босс (вид trail) */
   trail?: {
     /** босс праздника — колосс с огромным запасом HP, набирает уровни */
     boss: string;
-    /** финальный враг пути — героиня праздника в облике испытания */
+    /** финальный враг пути — противница-испытание */
     trialBoss: string;
     /** акты, откуда приходят враги трёх глав пути */
     acts: [number, number, number];
@@ -43,9 +43,9 @@ export interface FestivalDef {
   colors: { bg: [string, string]; accent: string; glow: string };
   /** частицы на баннере */
   particle: 'moon' | 'bubble' | 'petal' | 'spark' | 'dust' | 'sun';
-  /** облик героини праздника — финальная награда шкалы */
-  finalSkin: string;
-  /** облики других героинь — в лавке праздника */
+  /** облик — финальная награда шкалы (появится вместе с обликами героинь) */
+  finalSkin?: string;
+  /** облики в лавке праздника */
   shopSkins: string[];
 }
 
@@ -58,11 +58,11 @@ export const FESTIVALS: FestivalDef[] = [
     name: L('Кровавая Луна', 'Blood Moon'),
     tagline: L('Ночь, когда луна алеет и просыпаются древние охотницы', 'The night the moon turns red and ancient huntresses wake'),
     lore: L(
-      'Раз в шесть недель луна над Легионом наливается алым. Из склепов выходит Эржебет, Алая Луна, — и следом за ней по городу идёт охотница Селена. Кто переживёт эту ночь, того она признает достойным.',
-      'Every six weeks the moon above the Legion turns crimson. Erzsébet, the Scarlet Moon, rises from the crypts — and the huntress Selene stalks the streets after her. Whoever survives the night earns her respect.',
+      'Раз в шесть недель луна над Легионом наливается алым. Из склепов выходит Эржебет, Алая Луна, а следом по городу идёт её охотница Селена. Кейра знает их повадки лучше всех — она и поведёт Легион сквозь эту ночь.',
+      'Every six weeks the moon above the Legion turns crimson. Erzsébet, the Scarlet Moon, rises from the crypts, and her huntress Selene stalks the streets after her. Keira knows their ways better than anyone — she will lead the Legion through the night.',
     ),
     element: 'dark',
-    hero: 'selene',
+    hero: 'keira',
     trail: {
       boss: 'fest_erzsebet',
       trialBoss: 'fest_selene',
@@ -71,24 +71,23 @@ export const FESTIVALS: FestivalDef[] = [
     },
     colors: { bg: ['#1a0610', '#6a0e24'], accent: '#ff5a6a', glow: '#ff3a4a' },
     particle: 'moon',
-    finalSkin: 'selene_moon',
-    shopSkins: ['lilith_moon', 'velvet_moon'],
+    shopSkins: [],
   },
   {
-    id: 'tourney',
-    kind: 'tourney',
-    name: L('Турнир Валькирий', 'Valkyrie Tourney'),
-    tagline: L('Чужой отряд, твоя тактика — кто дойдёт до финала?', 'A borrowed squad, your tactics — who will reach the final?'),
+    id: 'mine',
+    kind: 'mine',
+    name: L('Самоцветные копи', 'Gem Mines'),
+    tagline: L('Каждый удар кирки — шаг в неизвестность', 'Every swing of the pick is a step into the unknown'),
     lore: L(
-      'Раз в сезон Вальхалла открывает ворота арены. Здесь неважно, кого ты вырастил: героинь для боя тянут жребием, и побеждает тот, кто лучше их сложит. В финале ждёт Фрейя — бессменная чемпионка.',
-      "Once a season Valhalla opens the gates of its arena. Here it doesn't matter whom you've raised: heroines are drawn by lot, and the one who combines them best wins. Freya, the undefeated champion, waits in the final.",
+      'Под Легионом нашли древние копи: чем глубже, тем ярче камни и злее их стражи. Лира уверяет, что слышит, как в скале поёт огонь, — и первой берётся за кирку.',
+      'Ancient mines were found beneath the Legion: the deeper you go, the brighter the stones and the fiercer their guardians. Lira swears she can hear fire singing in the rock — and is the first to pick up a pick.',
     ),
-    element: 'light',
-    hero: 'freya',
-    colors: { bg: ['#1a140a', '#6a4a1a'], accent: '#ffd24a', glow: '#ffc040' },
-    particle: 'spark',
-    finalSkin: 'freya_gold',
-    shopSkins: ['astrid_tourney', 'liora_tourney'],
+    element: 'fire',
+    hero: 'lira',
+    mine: { acts: [8, 6, 10] },
+    colors: { bg: ['#0e0a14', '#3a1e4a'], accent: '#ff6a8a', glow: '#c05aff' },
+    particle: 'dust',
+    shopSkins: [],
   },
   {
     id: 'tides',
@@ -96,11 +95,11 @@ export const FESTIVALS: FestivalDef[] = [
     name: L('Праздник Приливов', 'Tide Festival'),
     tagline: L('Море выходит на берег — и приводит с собой свою царицу', 'The sea comes ashore — and brings its queen along'),
     lore: L(
-      'В дни большого прилива на берег выходит Амфитрита, Владычица Приливов, — выбрать себе чемпиона. Но вместе с ней из глубин поднимается Сцилла, и праздник превращается в битву.',
-      'In the days of the great tide Amphitrite, Sovereign of the Tides, walks ashore to choose a champion. But Scylla rises from the depths with her, and the festival turns into a battle.',
+      'В дни большого прилива на берег выходит Амфитрита, Владычица Приливов, — испытать силу Легиона. Вместе с ней из глубин поднимается Сцилла. Ульфа привыкла к ледяной воде и встречает их первой.',
+      'In the days of the great tide Amphitrite, Sovereign of the Tides, walks ashore to test the Legion. Scylla rises from the depths with her. Ulfa is used to icy water and meets them first.',
     ),
     element: 'water',
-    hero: 'amphitrite',
+    hero: 'ulfa',
     trail: {
       boss: 'fest_scylla',
       trialBoss: 'fest_amphitrite',
@@ -109,25 +108,22 @@ export const FESTIVALS: FestivalDef[] = [
     },
     colors: { bg: ['#061a2a', '#0e5a7a'], accent: '#6ff0e0', glow: '#3ad0f0' },
     particle: 'bubble',
-    finalSkin: 'amphitrite_pearl',
-    shopSkins: ['aurora_tide', 'skadi_tide'],
+    shopSkins: [],
   },
   {
-    id: 'mine',
-    kind: 'mine',
-    name: L('Самоцветные копи', 'Gem Mines'),
-    tagline: L('Каждый удар кирки — шаг в неизвестность', 'Every swing of the pick is a step into the unknown'),
+    id: 'resort',
+    kind: 'volley',
+    name: L('Солнечный курорт', 'Sun Resort'),
+    tagline: L('Жаркое солнце, лагуна и пляжный волейбол', 'Hot sun, a lagoon and beach volleyball'),
     lore: L(
-      'Под Легионом нашли древние копи: чем глубже, тем ярче камни и злее их стражи. Разведку ведёт Рубина — у неё чутьё на самоцветы и кирка, которую она пускает в ход не только по камню.',
-      'Ancient mines were found beneath the Legion: the deeper you go, the brighter the stones and the fiercer their guardians. Rubina leads the dig — she can sense gems, and her pick is not only for rock.',
+      'Легион пригласили на тропический остров. Здесь устраивают турнир по пляжному волейболу: восемь пар соперниц, песок и солнце. Мирабель надеялась отдохнуть, но уже записала всех в команду.',
+      'The Legion is invited to a tropical island with a beach volleyball tournament: eight rival pairs, sand and sun. Mirabel hoped to rest, but has already signed everyone up.',
     ),
-    element: 'fire',
-    hero: 'rubina',
-    mine: { acts: [8, 6, 10] },
-    colors: { bg: ['#0e0a14', '#3a1e4a'], accent: '#ff6a8a', glow: '#c05aff' },
-    particle: 'dust',
-    finalSkin: 'rubina_diamond',
-    shopSkins: ['hanna_gem', 'nox_gem'],
+    element: 'light',
+    hero: 'mirabel',
+    colors: { bg: ['#2a1206', '#c0501e'], accent: '#ffd24a', glow: '#ff9a3a' },
+    particle: 'sun',
+    shopSkins: [],
   },
   {
     id: 'sakura',
@@ -135,11 +131,11 @@ export const FESTIVALS: FestivalDef[] = [
     name: L('Цветение Сакуры', 'Sakura Bloom'),
     tagline: L('Лепестки падают, клинки поют', 'Petals fall, blades sing'),
     lore: L(
-      'Весной у подножия гор зацветает сакура, и в Легион приходит странствующая мечница Цубаки. Но лепестки будят и Акане, Они-химэ, — а её праздник всегда заканчивается дракой.',
-      'In spring the sakura blooms at the foot of the mountains, and the wandering swordswoman Tsubaki comes to the Legion. But the petals also wake Akane, the Oni Princess — and her festivals always end in a brawl.',
+      'Весной у подножия гор зацветает сакура, и в Легион приходит странствующая мечница Цубаки — бросить вызов. Но лепестки будят и Акане, Они-химэ. Сейра знает эти рощи и ведёт отряд тропами, где их не ждут.',
+      'In spring the sakura blooms at the foot of the mountains, and the wandering swordswoman Tsubaki comes to challenge the Legion. The petals also wake Akane, the Oni Princess. Seyra knows these groves and leads the party by paths no one expects.',
     ),
     element: 'nature',
-    hero: 'tsubaki',
+    hero: 'seyra',
     trail: {
       boss: 'fest_akane',
       trialBoss: 'fest_tsubaki',
@@ -148,24 +144,7 @@ export const FESTIVALS: FestivalDef[] = [
     },
     colors: { bg: ['#1e0e1a', '#8a3a5a'], accent: '#ffb4d4', glow: '#ff8ac0' },
     particle: 'petal',
-    finalSkin: 'tsubaki_storm',
-    shopSkins: ['sylvana_sakura', 'isolde_sakura'],
-  },
-  {
-    id: 'resort',
-    kind: 'volley',
-    name: L('Солнечный курорт', 'Sun Resort'),
-    tagline: L('Жаркое солнце, пляжный волейбол и королева пляжа', 'Hot sun, beach volleyball and the queen of the beach'),
-    lore: L(
-      'Легион пригласили на тропический остров. Хозяйка курорта Солара устраивает турнир по пляжному волейболу: восемь пар соперниц, песок, солнце и купальники, которые едва держатся на завязках. Дойди до финала — и сыграй против самой королевы пляжа.',
-      "The Legion is invited to a tropical island. The resort's hostess Solara holds a beach volleyball tournament: eight rival pairs, sand, sun and swimsuits barely held on by their strings. Reach the final — and play against the queen of the beach herself.",
-    ),
-    element: 'light',
-    hero: 'solara',
-    colors: { bg: ['#2a1206', '#c0501e'], accent: '#ffd24a', glow: '#ff9a3a' },
-    particle: 'sun',
-    finalSkin: 'solara_pearl',
-    shopSkins: ['lilith_resort', 'melusine_resort'],
+    shopSkins: [],
   },
 ];
 export const FESTIVAL_MAP: Record<FestivalId, FestivalDef> = Object.fromEntries(FESTIVALS.map((f) => [f.id, f])) as Record<FestivalId, FestivalDef>;
@@ -365,12 +344,12 @@ export function festStars(fallen: number): number {
 }
 
 /** Награда за первое прохождение этапа. */
-export function festFirstReward(stage: number): { tokens: number; points: number; shards: number } {
+export function festFirstReward(stage: number): { tokens: number; points: number; emblems: number } {
   const chapter = Math.ceil(stage / FEST_CHAPTER);
   return {
     tokens: 60 + stage * 8,
     points: 30 + chapter * 15,
-    shards: stage === FEST_STAGES ? 20 : stage % FEST_CHAPTER === 0 ? 5 : 0,
+    emblems: stage === FEST_STAGES ? 20 : stage % FEST_CHAPTER === 0 ? 5 : 0,
   };
 }
 /** Очки за каждую новую звезду этапа. */
@@ -393,12 +372,12 @@ export function festBossLevel(base: number, lvl: number): number {
   return base + (lvl - 1) * 2;
 }
 /** Очки и жетоны за бой с боссом: база + доля снятого HP; за победу над уровнем — сундук. */
-export function festBossReward(share: number, killed: boolean): { tokens: number; points: number; shards: number; crystals: number } {
+export function festBossReward(share: number, killed: boolean): { tokens: number; points: number; emblems: number; crystals: number } {
   const k = Math.max(0, Math.min(1, share));
   return {
     tokens: 25 + Math.round(90 * k) + (killed ? 250 : 0),
     points: 25 + Math.round(160 * k) + (killed ? 120 : 0),
-    shards: killed ? 10 : 0,
+    emblems: killed ? 8 : 0,
     crystals: killed ? 60 : 0,
   };
 }
@@ -419,11 +398,6 @@ export const FEST_TASKS_KIND: Record<FestivalKind, FestTaskDef[]> = {
     { id: 'ft_raid', name: L('Провести 3 рейда на пути', 'Run 3 trail raids'), counter: 'festRaid', target: 3 },
     { id: 'ft_boss', name: L('Сразиться с боссом праздника 2 раза', 'Fight the festival boss 2 times'), counter: 'festBoss', target: 2 },
     { id: 'ft_fight', name: L('Победить в 3 боях пути', 'Win 3 trail battles'), counter: 'festWin', target: 3 },
-  ],
-  tourney: [
-    { id: 'ft_tfight', name: L('Провести 3 боя турнира', 'Fight 3 tourney battles'), counter: 'tourFight', target: 3 },
-    { id: 'ft_twin', name: L('Одержать 2 победы на турнире', 'Win 2 tourney battles'), counter: 'tourWin', target: 2 },
-    { id: 'ft_tdraft', name: L('Собрать отряд на драфте', 'Draft a squad'), counter: 'tourDraft', target: 1 },
   ],
   mine: [
     { id: 'ft_mdig', name: L('Сделать 15 шагов в копях', 'Take 15 steps in the mines'), counter: 'mineStep', target: 15 },
@@ -447,7 +421,7 @@ export const FEST_TASKS_COMMON: FestTaskDef[] = [
   { id: 'fc_chest', name: L('Собрать сундук 3 раза', 'Collect the chest 3 times'), counter: 'chestCollect', target: 3 },
   { id: 'fc_smelt', name: L('Переплавить 10 предметов', 'Smelt 10 items'), counter: 'smelt', target: 10 },
   { id: 'fc_care', name: L('Позаботиться о героинях 3 раза', 'Care for heroines 3 times'), counter: 'bondCare', target: 3 },
-  { id: 'fc_summon', name: L('Призвать 2 героини', 'Summon 2 heroines'), counter: 'summon', target: 2 },
+  { id: 'fc_combo', name: L('Провести 30 связок классов', 'Land 30 class combos'), counter: 'combo', target: 30 },
   { id: 'fc_exped', name: L('Завершить 2 экспедиции', 'Complete 2 expeditions'), counter: 'expedition', target: 2 },
 ];
 export const FEST_TASK_MAP: Record<string, FestTaskDef> = Object.fromEntries([...Object.values(FEST_TASKS_KIND).flat(), ...FEST_TASKS_COMMON].map((t) => [t.id, t]));
@@ -475,12 +449,9 @@ export type FestGoalMetric =
   | 'tasks'
   | 'bossWin'
   | 'hordeWave'
-  | 'summon'
+  | 'combo'
   | 'towerWin'
   | 'dungeon'
-  | 'tourBest'
-  | 'tourWins'
-  | 'tourChamps'
   | 'mineFloor'
   | 'mineChests'
   | 'mineSteps'
@@ -502,31 +473,26 @@ export interface FestGoalDef {
 export const FEST_GOALS: FestGoalDef[] = [
   { id: 'fg_stars1', kind: 'trail', name: L('Собрать 18 звёзд пути', 'Earn 18 trail stars'), metric: 'stars', target: 18, points: 100, cur: { crystals: 50 } },
   { id: 'fg_stars2', kind: 'trail', name: L('Собрать 36 звёзд пути', 'Earn 36 trail stars'), metric: 'stars', target: 36, points: 150, cur: { crystals: 80 } },
-  { id: 'fg_stars3', kind: 'trail', name: L('Собрать все 54 звезды', 'Earn all 54 stars'), metric: 'stars', target: 54, points: 250, cur: { crystals: 150, scrolls: 2 } },
+  { id: 'fg_stars3', kind: 'trail', name: L('Собрать все 54 звезды', 'Earn all 54 stars'), metric: 'stars', target: 54, points: 250, cur: { crystals: 150, emblems: 2 } },
   { id: 'fg_kill1', kind: 'trail', name: L('Одолеть босса праздника', 'Defeat the festival boss'), metric: 'kills', target: 1, points: 100, cur: { crystals: 60 } },
   { id: 'fg_kill3', kind: 'trail', name: L('Одолеть босса праздника 3 раза', 'Defeat the festival boss 3 times'), metric: 'kills', target: 3, points: 200, cur: { crystals: 120 } },
-  { id: 'fg_kill6', kind: 'trail', name: L('Одолеть босса праздника 6 раз', 'Defeat the festival boss 6 times'), metric: 'kills', target: 6, points: 300, cur: { crystals: 200, scrolls: 2 } },
-  { id: 'fg_tbest', kind: 'tourney', name: L('Дойти до 4 побед за один турнир', 'Reach 4 wins in one tourney run'), metric: 'tourBest', target: 4, points: 150, cur: { crystals: 80 } },
-  { id: 'fg_tchamp', kind: 'tourney', name: L('Стать чемпионкой турнира', 'Become the tourney champion'), metric: 'tourChamps', target: 1, points: 300, cur: { crystals: 200, scrolls: 2 } },
-  { id: 'fg_twins1', kind: 'tourney', name: L('Одержать 20 побед на турнире', 'Win 20 tourney battles'), metric: 'tourWins', target: 20, points: 150, cur: { crystals: 80 } },
-  { id: 'fg_twins2', kind: 'tourney', name: L('Одержать 50 побед на турнире', 'Win 50 tourney battles'), metric: 'tourWins', target: 50, points: 250, cur: { crystals: 150 } },
-  { id: 'fg_tchamp3', kind: 'tourney', name: L('Стать чемпионкой 3 раза', 'Become champion 3 times'), metric: 'tourChamps', target: 3, points: 300, cur: { crystals: 200, scrolls: 2 } },
+  { id: 'fg_kill6', kind: 'trail', name: L('Одолеть босса праздника 6 раз', 'Defeat the festival boss 6 times'), metric: 'kills', target: 6, points: 300, cur: { crystals: 200, emblems: 2 } },
   { id: 'fg_mfloor5', kind: 'mine', name: L('Спуститься на 5-й этаж копей', 'Reach mine floor 5'), metric: 'mineFloor', target: 5, points: 150, cur: { crystals: 80 } },
   { id: 'fg_mfloor10', kind: 'mine', name: L('Спуститься на 10-й этаж', 'Reach floor 10'), metric: 'mineFloor', target: 10, points: 250, cur: { crystals: 150 } },
-  { id: 'fg_mfloor15', kind: 'mine', name: L('Спуститься на 15-й этаж', 'Reach floor 15'), metric: 'mineFloor', target: 15, points: 300, cur: { crystals: 200, scrolls: 2 } },
+  { id: 'fg_mfloor15', kind: 'mine', name: L('Спуститься на 15-й этаж', 'Reach floor 15'), metric: 'mineFloor', target: 15, points: 300, cur: { crystals: 200, emblems: 2 } },
   { id: 'fg_mchest', kind: 'mine', name: L('Открыть 15 сундуков', 'Open 15 chests'), metric: 'mineChests', target: 15, points: 150, cur: { starDust: 80 } },
   { id: 'fg_msteps', kind: 'mine', name: L('Сделать 250 шагов', 'Take 250 steps'), metric: 'mineSteps', target: 250, points: 200, cur: { crystals: 120 } },
   { id: 'fg_vr4', kind: 'volley', name: L('Обыграть 4 пары лестницы', 'Beat 4 pairs of the ladder'), metric: 'volBest', target: 4, points: 150, cur: { crystals: 80 } },
-  { id: 'fg_vr8', kind: 'volley', name: L('Обыграть королеву пляжа', 'Beat the queen of the beach'), metric: 'volBest', target: 8, points: 300, cur: { crystals: 200, scrolls: 2 } },
+  { id: 'fg_vr8', kind: 'volley', name: L('Обыграть королеву пляжа', 'Beat the queen of the beach'), metric: 'volBest', target: 8, points: 300, cur: { crystals: 200, emblems: 2 } },
   { id: 'fg_vw15', kind: 'volley', name: L('Выиграть 15 матчей', 'Win 15 matches'), metric: 'volWins', target: 15, points: 150, cur: { crystals: 80 } },
   { id: 'fg_vw40', kind: 'volley', name: L('Выиграть 40 матчей', 'Win 40 matches'), metric: 'volWins', target: 40, points: 250, cur: { crystals: 150 } },
-  { id: 'fg_vbig', kind: 'volley', name: L('Разгромить соперниц 8 раз (5:0 или 5:1)', 'Crush rivals 8 times (5:0 or 5:1)'), metric: 'volBig', target: 8, points: 200, cur: { crystals: 120, scrolls: 1 } },
+  { id: 'fg_vbig', kind: 'volley', name: L('Разгромить соперниц 8 раз (5:0 или 5:1)', 'Crush rivals 8 times (5:0 or 5:1)'), metric: 'volBig', target: 8, points: 200, cur: { crystals: 120, emblems: 1 } },
   { id: 'fg_task10', name: L('Выполнить 10 заданий праздника', 'Complete 10 festival tasks'), metric: 'tasks', target: 10, points: 120, cur: { starDust: 60 } },
-  { id: 'fg_task30', name: L('Выполнить 30 заданий праздника', 'Complete 30 festival tasks'), metric: 'tasks', target: 30, points: 200, cur: { scrolls: 2 } },
+  { id: 'fg_task30', name: L('Выполнить 30 заданий праздника', 'Complete 30 festival tasks'), metric: 'tasks', target: 30, points: 200, cur: { emblems: 2 } },
   { id: 'fg_task50', name: L('Выполнить 50 заданий праздника', 'Complete 50 festival tasks'), metric: 'tasks', target: 50, points: 300, cur: { crystals: 200 } },
   { id: 'fg_boss', name: L('Победить 40 боссов кампании', 'Defeat 40 campaign bosses'), metric: 'bossWin', target: 40, points: 150, cur: { dust: 400 } },
   { id: 'fg_horde', name: L('Пройти 40 волн Нашествия', 'Clear 40 Horde waves'), metric: 'hordeWave', target: 40, points: 150, cur: { crystals: 80 } },
-  { id: 'fg_summon', name: L('Призвать 20 героинь', 'Summon 20 heroines'), metric: 'summon', target: 20, points: 150, cur: { starDust: 80 } },
+  { id: 'fg_combo', name: L('Провести 1200 связок классов', 'Land 1200 class combos'), metric: 'combo', target: 1200, points: 150, cur: { starDust: 80 } },
   { id: 'fg_tower', name: L('Покорить 10 этажей Башни', 'Conquer 10 Tower floors'), metric: 'towerWin', target: 10, points: 120, cur: { crystals: 60 } },
   { id: 'fg_dungeon', name: L('Пройти 20 подземелий', 'Clear 20 dungeons'), metric: 'dungeon', target: 20, points: 120, cur: { forgeMats: 20 } },
 ];
@@ -541,66 +507,45 @@ export function festGoalsFor(kind: FestivalKind): FestGoalDef[] {
 export interface FestMilestone {
   at: number;
   cur?: Partial<Record<Currency, number>>;
-  /** осколки героини праздника */
-  shards?: number;
   item?: 'legendary' | 'mythic';
   heart?: boolean;
-  /** облик героини праздника (финал шкалы) */
+  /** облик праздника (финал шкалы), если он есть */
   skin?: boolean;
 }
 
-/** 25 ступеней: до финального облика нужно пройти праздник почти целиком. */
+/** 25 ступеней: к финалу шкалы нужно пройти праздник почти целиком. Эмблемы идут на ранги героинь. */
 export const FEST_MILESTONES: FestMilestone[] = [
   { at: 100, cur: { eventTokens: 100, gold: 60 } },
   { at: 250, cur: { crystals: 50 } },
-  { at: 400, shards: 10 },
-  { at: 600, cur: { scrolls: 1, dust: 200 } },
+  { at: 400, cur: { emblems: 10 } },
+  { at: 600, cur: { emblems: 5, dust: 200 } },
   { at: 800, cur: { eventTokens: 200 } },
   { at: 1000, item: 'legendary' },
-  { at: 1250, shards: 10 },
+  { at: 1250, cur: { emblems: 10 } },
   { at: 1500, cur: { crystals: 100, starDust: 50 } },
   { at: 1800, heart: true },
-  { at: 2100, cur: { scrolls: 2 } },
-  { at: 2400, shards: 10 },
+  { at: 2100, cur: { emblems: 10 } },
+  { at: 2400, cur: { emblems: 10 } },
   { at: 2700, cur: { eventTokens: 300 } },
   { at: 3000, item: 'legendary', cur: { forgeMats: 20 } },
   { at: 3350, cur: { crystals: 150 } },
-  { at: 3700, shards: 15 },
-  { at: 4050, cur: { scrolls: 2, starDust: 80 } },
+  { at: 3700, cur: { emblems: 15 } },
+  { at: 4050, cur: { emblems: 10, starDust: 80 } },
   { at: 4400, heart: true },
   { at: 4750, cur: { eventTokens: 400 } },
-  { at: 5100, shards: 15 },
+  { at: 5100, cur: { emblems: 15 } },
   { at: 5450, item: 'mythic' },
   { at: 5800, cur: { crystals: 250 } },
-  { at: 6150, cur: { scrolls: 3 } },
-  { at: 6500, shards: 20 },
+  { at: 6150, cur: { emblems: 15 } },
+  { at: 6500, cur: { emblems: 20 } },
   { at: 6850, cur: { crystals: 300, eventTokens: 500 } },
-  { at: 7200, skin: true, cur: { crystals: 200 } },
+  { at: 7200, skin: true, cur: { crystals: 400, emblems: 30 } },
 ];
 
-// ——— Облики праздников ———
+// ——— Облики праздников (появятся вместе с обликами героинь Легиона) ———
 
 type FestSkin = [id: string, hero: string, ru: string, en: string, look: SkinDef['look']];
-const FEST_SKINS: FestSkin[] = [
-  ['selene_moon', 'selene', 'Алая королева бала', 'Scarlet Ball Queen', { wear: 'regalia', outfit: '#8A0E1E', trim: '#F2D46B', acc: 'crown', accColor: '#F2D46B' }],
-  ['lilith_moon', 'lilith', 'Бал Кровавой Луны', 'Blood Moon Ball', { wear: 'gown', outfit: '#6A0E1E', trim: '#F2D46B', acc: 'veil', accColor: '#2A0A10' }],
-  ['velvet_moon', 'velvet', 'Лунная вдова', 'Moon Widow', { wear: 'lace3', outfit: '#1E0A14', trim: '#E03A4A', acc: 'mask', accColor: '#1E0A14' }],
-  ['amphitrite_pearl', 'amphitrite', 'Жемчужная царица', 'Pearl Queen', { wear: 'swim3', outfit: '#F2F0E6', trim: '#6FD0E0', acc: 'tiara', accColor: '#F2F0E6', extra: 'fishTail' }],
-  ['aurora_tide', 'aurora', 'Бриз на закате', 'Sunset Breeze', { wear: 'dancer', outfit: '#F08A5A', trim: '#FFE8A0', acc: 'flower', accColor: '#F08A5A' }],
-  ['skadi_tide', 'skadi', 'Северное море', 'Northern Sea', { wear: 'swim3', outfit: '#1E3A5A', trim: '#E6F6FF', acc: 'tiara', accColor: '#E6F6FF' }],
-  ['tsubaki_storm', 'tsubaki', 'Цветущая буря', 'Blooming Storm', { wear: 'silk', outfit: '#C0306A', trim: '#F4B8CC', acc: 'bow', accColor: '#F4B8CC', hair: '#FFE0F0' }],
-  ['sylvana_sakura', 'sylvana', 'Весенний дух', 'Spring Spirit', { wear: 'dancer', outfit: '#F4B8CC', trim: '#2F8A34', acc: 'flower', accColor: '#F4B8CC' }],
-  ['isolde_sakura', 'isolde', 'Снег сакуры', 'Sakura Snow', { wear: 'yukata', outfit: '#F2E6F0', trim: '#C0306A', acc: 'bow', accColor: '#C0306A' }],
-  ['freya_gold', 'freya', 'Золотая чемпионка', 'Golden Champion', { wear: 'regalia', outfit: '#E6B23A', trim: '#FFFFFF', acc: 'crown', accColor: '#F2D46B' }],
-  ['astrid_tourney', 'astrid', 'Рыцарь турнира', 'Tourney Knight', { wear: 'regalia', outfit: '#3A4A8A', trim: '#E6B23A', acc: 'helmet', accColor: '#E6E6F0' }],
-  ['liora_tourney', 'liora', 'Знаменосица', 'Standard-Bearer', { wear: 'dancer', outfit: '#E03A3A', trim: '#F2D46B', acc: 'bandana', accColor: '#F2D46B' }],
-  ['rubina_diamond', 'rubina', 'Алмазная королева', 'Diamond Queen', { wear: 'gown', hair: '#F2F0FF', outfit: '#DDEEFF', trim: '#6FD0E0', acc: 'crown', accColor: '#9FE0FF' }],
-  ['hanna_gem', 'hanna', 'Самоцветный бал', 'Gemstone Ball', { wear: 'gown', outfit: '#6A1E9A', trim: '#40E0D0', acc: 'tiara', accColor: '#40E0D0' }],
-  ['nox_gem', 'nox', 'Тень копей', 'Shadow of the Mines', { wear: 'silk', outfit: '#1E1A2A', trim: '#FF6A8A', acc: 'mask', accColor: '#1E1A2A' }],
-  ['solara_pearl', 'solara', 'Белый жемчуг', 'White Pearl', { wear: 'micro', hair: '#FFF0C8', outfit: '#FFFFFF', trim: '#F2D46B', acc: 'flower', accColor: '#FFFFFF' }],
-  ['lilith_resort', 'lilith', 'Курортный роман', 'Resort Romance', { wear: 'micro', outfit: '#1A0E1E', trim: '#E03A5A', acc: 'flower', accColor: '#E03A5A' }],
-  ['melusine_resort', 'melusine', 'Голубая лагуна', 'Blue Lagoon', { wear: 'micro', outfit: '#2AC0D0', trim: '#FFFFFF', acc: 'flower', accColor: '#FF8AB0' }],
-];
+const FEST_SKINS: FestSkin[] = [];
 for (const [id, hero, ru, en, look] of FEST_SKINS) {
   const skin: SkinDef = { id, hero, name: { ru, en }, look, source: 'event' };
   SKINS.push(skin);
@@ -629,22 +574,20 @@ export interface FestOfferDef {
   name: L10n;
   cost: number;
   limit: number;
-  give: { cur?: Partial<Record<Currency, number>>; shards?: number; skin?: string; item?: 'legendary' | 'mythic'; heart?: boolean; entry?: number; picks?: number; matches?: number };
+  give: { cur?: Partial<Record<Currency, number>>; skin?: string; item?: 'legendary' | 'mythic'; heart?: boolean; picks?: number; matches?: number };
 }
 
 /** Лавка текущего праздника (жетоны ивента). Лимиты — на праздник. */
 export function festShop(def: FestivalDef): FestOfferDef[] {
-  const hero = HEROINE_MAP[def.hero].name;
   return [
-    { id: 'fs_shards', name: L(`10 осколков: ${hero.ru}`, `10 shards: ${hero.en}`), cost: 700, limit: 5, give: { shards: 10 } },
-    ...(def.kind === 'tourney' ? [{ id: 'fs_entry', name: L('Вход на турнир', 'Tourney entry'), cost: 250, limit: 7, give: { entry: 1 } }] : []),
+    { id: 'fs_emblems', name: L('Эмблемы ×10', 'Emblems ×10'), cost: 450, limit: 6, give: { cur: { emblems: 10 } } },
     ...(def.kind === 'mine' ? [{ id: 'fs_picks', name: L('Кирки ×10', 'Picks ×10'), cost: 200, limit: 10, give: { picks: 10 } }] : []),
     ...(def.kind === 'volley' ? [{ id: 'fs_match', name: L('Матч на пляже', 'Beach match'), cost: 200, limit: 10, give: { matches: 1 } }] : []),
     ...def.shopSkins.map((sk) => ({ id: `fs_${sk}`, name: L(`Облик «${SKIN_MAP[sk].name.ru}»`, `Skin "${SKIN_MAP[sk].name.en}"`), cost: 2600, limit: 1, give: { skin: sk } })),
     { id: 'fs_heart', name: L('Сердце Эфира', 'Aether Heart'), cost: 900, limit: 2, give: { heart: true } },
     { id: 'fs_mythic', name: L('Мифический предмет', 'Mythic item'), cost: 2200, limit: 1, give: { item: 'mythic' } },
     { id: 'fs_legend', name: L('Легендарный предмет', 'Legendary item'), cost: 600, limit: 3, give: { item: 'legendary' } },
-    { id: 'fs_scroll', name: L('Свиток призыва', 'Summon scroll'), cost: 220, limit: 10, give: { cur: { scrolls: 1 } } },
+    { id: 'fs_emblem', name: L('Эмблемы ×3', 'Emblems ×3'), cost: 150, limit: 10, give: { cur: { emblems: 3 } } },
     { id: 'fs_crystals', name: L('Кристаллы ×100', 'Crystals ×100'), cost: 300, limit: 5, give: { cur: { crystals: 100 } } },
     { id: 'fs_stardust', name: L('Звёздная пыль ×80', 'Star dust ×80'), cost: 150, limit: 5, give: { cur: { starDust: 80 } } },
     { id: 'fs_forge', name: L('Материалы кузницы ×15', 'Forge materials ×15'), cost: 150, limit: 5, give: { cur: { forgeMats: 15 } } },
@@ -717,11 +660,10 @@ export const FESTIVAL_ENEMIES: EnemyDef[] = [
     skills: ['enemy.brute', 'fest.petalStorm', 'boss.ultNature'],
     look: FL('#E03A5A', 'wild', '#F4D3B8', '#FFD24A', '#8A1E3A', '#F4B8CC', 'horns', '#F2E6D8', 'none', 'yukata'),
   },
-  { id: 'fest_selene', act: 9, hero: 'selene', name: L('Селена', 'Selene'), title: L('Охотница Кровавой Луны', 'Huntress of the Blood Moon'), role: 'ranged', element: 'dark', kind: 'boss', mechanic: 'skyborne', skills: ['fest.silverVolley', 'boss.soulRend', 'boss.ultDark'], look: null as unknown as EnemyDef['look'] },
-  { id: 'fest_amphitrite', act: 4, hero: 'amphitrite', name: L('Амфитрита', 'Amphitrite'), title: L('Владычица Приливов', 'Sovereign of the Tides'), role: 'tank', element: 'water', kind: 'boss', mechanic: 'freeze', skills: ['fest.trident', 'boss.tidalWave', 'boss.ultWater'], look: null as unknown as EnemyDef['look'] },
-  { id: 'fest_tsubaki', act: 1, hero: 'tsubaki', name: L('Цубаки', 'Tsubaki'), title: L('Клинок Сакуры', 'Blade of the Sakura'), role: 'rogue', element: 'nature', kind: 'boss', mechanic: 'phases', skills: ['fest.iai', 'fest.petalStorm', 'boss.ultNature'], look: null as unknown as EnemyDef['look'] },
+  { id: 'fest_selene', act: 9, name: L('Селена', 'Selene'), title: L('Охотница Кровавой Луны', 'Huntress of the Blood Moon'), role: 'ranged', element: 'dark', kind: 'boss', mechanic: 'skyborne', skills: ['fest.silverVolley', 'boss.soulRend', 'boss.ultDark'], look: FL('#E8E0F4', 'long', '#E8DCE8', '#E03A4A', '#5A0E1E', '#D8D0E8', 'tiara', '#E03A4A', 'darkWings', 'gown') },
+  { id: 'fest_amphitrite', act: 4, name: L('Амфитрита', 'Amphitrite'), title: L('Владычица Приливов', 'Sovereign of the Tides'), role: 'tank', element: 'water', kind: 'boss', mechanic: 'freeze', skills: ['fest.trident', 'boss.tidalWave', 'boss.ultWater'], look: FL('#2AB0C0', 'long', '#F4D3B8', '#6FF0E0', '#0E5A7A', '#F2D46B', 'crown', '#F2D46B', 'none', 'regalia') },
+  { id: 'fest_tsubaki', act: 1, name: L('Цубаки', 'Tsubaki'), title: L('Клинок Сакуры', 'Blade of the Sakura'), role: 'rogue', element: 'nature', kind: 'boss', mechanic: 'phases', skills: ['fest.iai', 'fest.petalStorm', 'boss.ultNature'], look: FL('#F4A8C8', 'ponytail', '#F4D3B8', '#C0306A', '#F2E6F0', '#C0306A', 'flower', '#F4B8CC', 'none', 'yukata') },
 ];
 for (const e of FESTIVAL_ENEMIES) {
-  if (e.hero) e.look = HEROINE_MAP[e.hero].look;
   ENEMY_MAP[e.id] = e;
 }

@@ -76,9 +76,9 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-/** Характер героини для фотосессии: у UR — свой из «Ухода», у остальных — по имени (стабильно). */
+/** Характер героини для фотосессии — тот же, что в «Уходе». */
 export function photoPersonality(hero: string): Personality {
-  if (HEROINE_MAP[hero]?.rarity === 'UR') return bondTraits(hero).p;
+  if (HEROINE_MAP[hero]) return bondTraits(hero).p;
   return PERSONALITIES[hash(hero) % PERSONALITIES.length];
 }
 
@@ -86,7 +86,7 @@ export function photoPersonality(hero: string): Personality {
 export function photoTaste(hero: string): { loc: PhotoLoc; pose: PhotoPose; face: PhotoFace } {
   const p = photoPersonality(hero);
   const h = hash(hero + ':photo');
-  const place = HEROINE_MAP[hero]?.rarity === 'UR' ? bondTraits(hero).place : undefined;
+  const place = HEROINE_MAP[hero] ? bondTraits(hero).place : undefined;
   const loc = (place && LOC_BY_PLACE[place]) || LOC_IDS[h % LOC_IDS.length];
   return { loc, pose: POSE_BY_P[p][(h >> 3) & 1], face: FACE_BY_P[p][(h >> 5) & 1] };
 }

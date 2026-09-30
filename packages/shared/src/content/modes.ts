@@ -36,16 +36,8 @@ export function towerStage(floor: number): number {
   return Math.round(8 + floor * 0.55);
 }
 
-export const TOWER_SKIN_FLOORS: Record<number, string> = {
-  50: 'mirabel_pearl',
-  100: 'keira_winter',
-  150: 'coral_beach',
-  200: 'seyra_autumn',
-  250: 'brianna_beach',
-  300: 'celestine_nova',
-  350: 'ophelia_lace',
-  450: 'elegy_lace',
-};
+/** Облики за рубежи Башни (появятся вместе с коллекциями обликов). */
+export const TOWER_SKIN_FLOORS: Record<number, string> = {};
 
 // ——— Экспедиции ———
 export interface ExpeditionQuestDef {
@@ -56,22 +48,22 @@ export interface ExpeditionQuestDef {
   minStars: number;
   cls?: ClassId;
   element?: Element;
-  reward: { gold?: number; shards?: number; forgeMats?: number; dust?: number; starDust?: number; crystals?: number; scrolls?: number };
+  reward: { gold?: number; forgeMats?: number; dust?: number; starDust?: number; crystals?: number; emblems?: number };
 }
 
 export const EXPEDITION_QUESTS: ExpeditionQuestDef[] = [
   { id: 'patrol', name: { ru: 'Патруль опушки', en: 'Glade Patrol' }, hours: 1, heroes: 1, minStars: 1, reward: { gold: 60, dust: 5 } },
   { id: 'escort', name: { ru: 'Сопровождение каравана', en: 'Caravan Escort' }, hours: 2, heroes: 2, minStars: 1, reward: { gold: 150, forgeMats: 3 } },
-  { id: 'herbs', name: { ru: 'Сбор трав', en: 'Herb Gathering' }, hours: 2, heroes: 1, minStars: 2, element: 'nature', reward: { gold: 100, shards: 3 } },
+  { id: 'herbs', name: { ru: 'Сбор трав', en: 'Herb Gathering' }, hours: 2, heroes: 1, minStars: 2, element: 'nature', reward: { gold: 100, emblems: 3 } },
   { id: 'ruins', name: { ru: 'Разведка руин', en: 'Ruin Scouting' }, hours: 4, heroes: 2, minStars: 2, reward: { gold: 280, dust: 25, starDust: 5 } },
-  { id: 'hunt', name: { ru: 'Большая охота', en: 'Great Hunt' }, hours: 4, heroes: 2, minStars: 2, cls: 'archer', reward: { gold: 320, shards: 5 } },
-  { id: 'library', name: { ru: 'Запретная библиотека', en: 'Forbidden Library' }, hours: 6, heroes: 2, minStars: 3, cls: 'sorceress', reward: { gold: 420, scrolls: 1, starDust: 8 } },
-  { id: 'shrine', name: { ru: 'Очищение святилища', en: 'Shrine Cleansing' }, hours: 6, heroes: 3, minStars: 3, element: 'light', reward: { gold: 500, shards: 8, crystals: 20 } },
+  { id: 'hunt', name: { ru: 'Большая охота', en: 'Great Hunt' }, hours: 4, heroes: 2, minStars: 2, cls: 'ranger', reward: { gold: 320, emblems: 5 } },
+  { id: 'library', name: { ru: 'Запретная библиотека', en: 'Forbidden Library' }, hours: 6, heroes: 2, minStars: 3, cls: 'warlock', reward: { gold: 420, emblems: 4, starDust: 8 } },
+  { id: 'shrine', name: { ru: 'Очищение святилища', en: 'Shrine Cleansing' }, hours: 6, heroes: 3, minStars: 3, element: 'light', reward: { gold: 500, emblems: 8, crystals: 20 } },
   { id: 'mine', name: { ru: 'Заброшенная шахта', en: 'Abandoned Mine' }, hours: 8, heroes: 3, minStars: 3, reward: { gold: 700, forgeMats: 12, dust: 60 } },
-  { id: 'crypt', name: { ru: 'Склеп королей', en: 'Crypt of Kings' }, hours: 8, heroes: 3, minStars: 4, element: 'dark', reward: { gold: 800, shards: 12, starDust: 20 } },
-  { id: 'siege', name: { ru: 'Снятие осады', en: 'Lifting the Siege' }, hours: 12, heroes: 3, minStars: 4, cls: 'guardian', reward: { gold: 1200, crystals: 40, forgeMats: 20 } },
-  { id: 'dragon', name: { ru: 'Логово дракониды', en: "Dragoness's Lair" }, hours: 12, heroes: 3, minStars: 5, element: 'fire', reward: { gold: 1500, shards: 20, crystals: 50 } },
-  { id: 'stars', name: { ru: 'Звёздный маяк', en: 'Star Beacon' }, hours: 12, heroes: 3, minStars: 5, reward: { gold: 1400, starDust: 50, scrolls: 1 } },
+  { id: 'crypt', name: { ru: 'Склеп королей', en: 'Crypt of Kings' }, hours: 8, heroes: 3, minStars: 4, element: 'dark', reward: { gold: 800, emblems: 12, starDust: 20 } },
+  { id: 'siege', name: { ru: 'Снятие осады', en: 'Lifting the Siege' }, hours: 12, heroes: 3, minStars: 4, cls: 'knight', reward: { gold: 1200, crystals: 40, forgeMats: 20 } },
+  { id: 'dragon', name: { ru: 'Логово дракониды', en: "Dragoness's Lair" }, hours: 12, heroes: 3, minStars: 5, element: 'fire', reward: { gold: 1500, emblems: 20, crystals: 50 } },
+  { id: 'stars', name: { ru: 'Звёздный маяк', en: 'Star Beacon' }, hours: 12, heroes: 3, minStars: 5, reward: { gold: 1400, starDust: 50, emblems: 6 } },
 ];
 export const EXPEDITION_MAP: Record<string, ExpeditionQuestDef> = Object.fromEntries(EXPEDITION_QUESTS.map((q) => [q.id, q]));
 
@@ -181,9 +173,9 @@ export function spireOpen(el: Element, now: number): boolean {
   return RIFT_ROTATION[day - 1] === el;
 }
 
-/** Уровень силы врагов шпиля: отряд одной стихии слабее полного, поэтому растёт мягче Башни. */
+/** Уровень силы врагов шпиля: враги одной стихии, растут чуть мягче Башни. */
 export function spireStage(floor: number): number {
-  return Math.round(4 + floor * 1.6);
+  return Math.round(6 + floor * 2);
 }
 
 // ——— Нашествие ———
@@ -302,11 +294,11 @@ export const ABYSS_PACTS: AbyssPact[] = [
 ];
 export const ABYSS_PACT_MAP: Record<string, AbyssPact> = Object.fromEntries(ABYSS_PACTS.map((p) => [p.id, p]));
 /** Рубежи жара: разовая награда за первую победу с таким суммарным жаром. */
-export const ABYSS_HEAT_MILESTONES: { heat: number; crystals: number; scrolls?: number; divineMats?: number }[] = [
+export const ABYSS_HEAT_MILESTONES: { heat: number; crystals: number; emblems?: number; divineMats?: number }[] = [
   { heat: 60, crystals: 100 },
-  { heat: 120, crystals: 200, scrolls: 1 },
-  { heat: 180, crystals: 300, scrolls: 2, divineMats: 10 },
-  { heat: 240, crystals: 500, scrolls: 3, divineMats: 20 },
+  { heat: 120, crystals: 200, emblems: 1 },
+  { heat: 180, crystals: 300, emblems: 2, divineMats: 10 },
+  { heat: 240, crystals: 500, emblems: 3, divineMats: 20 },
 ];
 
 /**
@@ -319,7 +311,7 @@ export function abyssReward(level: number, heat: number, claimed: readonly numbe
   const milestones = ABYSS_HEAT_MILESTONES.filter((m) => heat >= m.heat && !claimed.includes(m.heat));
   for (const m of milestones) {
     cur.crystals += m.crystals;
-    if (m.scrolls) cur.scrolls = (cur.scrolls ?? 0) + m.scrolls;
+    if (m.emblems) cur.emblems = (cur.emblems ?? 0) + m.emblems;
     if (m.divineMats) cur.divineMats += m.divineMats;
   }
   return { cur, milestones };
@@ -379,7 +371,7 @@ export const EXPEDITION_EVENTS: ExpeditionEvent[] = [
     title: { ru: 'Раненая путница', en: 'A Wounded Traveler' },
     text: { ru: 'На обочине — раненая путница. Помочь — значит задержаться и потратить припасы.', en: 'A wounded traveler lies by the road. Helping means delay and spent supplies.' },
     choices: {
-      a: { label: { ru: 'Помочь', en: 'Help her' }, outcome: { win: { mult: 0.8, add: { scrolls: 1 }, text: { ru: 'В благодарность она отдала свиток призыва.', en: 'In thanks she gives a summon scroll.' } } } },
+      a: { label: { ru: 'Помочь', en: 'Help her' }, outcome: { win: { mult: 0.8, add: { emblems: 4 }, text: { ru: 'В благодарность она отдала старые эмблемы Легиона.', en: 'In thanks she gives old Legion emblems.' } } } },
       b: { label: { ru: 'Пройти мимо', en: 'Walk past' }, outcome: { win: { mult: 1, text: { ru: 'Отряд молча прошёл мимо.', en: 'The squad walks past in silence.' } } } },
     },
   },

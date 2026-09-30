@@ -5,7 +5,7 @@ import type { ClassId, FinalStats, PlayerState, SpecialEffect, Stats } from '../
 import type { SkillRef, UnitInit, UnitKind } from './battle';
 import { buildHeroine } from './stats';
 
-const MELEE: ClassId[] = ['guardian', 'berserker', 'assassin'];
+const MELEE: ClassId[] = ['knight', 'assassin'];
 
 export interface PartyOptions {
   extra?: Stats;
@@ -13,7 +13,7 @@ export interface PartyOptions {
   hp?: Record<string, number>;
 }
 
-/** Юниты отряда игрока по активному пресету (слоты 0–1 — передний ряд, 2–4 — задний). */
+/** Юниты отряда игрока: ряд — по классу героини (Рыцарь впереди, остальные позади). */
 export function heroUnits(cfg: Config, s: PlayerState, slots: (string | null)[], opt: PartyOptions = {}): UnitInit[] {
   const party = slots.filter((x): x is string => !!x && !!s.heroines[x]);
   const out: UnitInit[] = [];
@@ -26,7 +26,7 @@ export function heroUnits(cfg: Config, s: PlayerState, slots: (string | null)[],
     out.push({
       side: 0,
       slot,
-      row: slot < 2 ? 'front' : 'back',
+      row: cls.row,
       kind: 'hero',
       ref: id,
       element: b.element,

@@ -52,34 +52,12 @@ const TASTE: Record<Personality, Taste> = {
 
 /** Характер и вкусы UR-героинь (у каждой — свои). */
 const TRAITS: Record<string, { p: Personality; treat?: Treat; place?: Place }> = {
-  velvet: { p: 'mysterious' },
-  isolde: { p: 'proud', treat: 'fruit' },
-  lilith: { p: 'playful', treat: 'wine' },
-  aurora: { p: 'gentle', place: 'lake' },
-  seraphina: { p: 'gentle' },
-  liora: { p: 'fierce', place: 'tower' },
-  melusine: { p: 'playful', place: 'lake' },
-  sylvana: { p: 'gentle', treat: 'fruit' },
-  nefertari: { p: 'proud' },
-  skadi: { p: 'proud', treat: 'roast' },
-  thalassia: { p: 'mysterious' },
-  carmilla: { p: 'playful', treat: 'wine', place: 'tower' },
-  ifrita: { p: 'fierce' },
-  brunhilde: { p: 'fierce', treat: 'wine' },
-  aegis: { p: 'shy', place: 'garden' },
-  morrigan: { p: 'mysterious', place: 'tower' },
-  nyx: { p: 'shy', treat: 'sweets' },
-  flamma: { p: 'fierce', place: 'fair' },
-  maristella: { p: 'playful' },
-  sylphide: { p: 'shy' },
-  aurelia: { p: 'proud', place: 'garden' },
-  nocturna: { p: 'mysterious', treat: 'sweets' },
-  selene: { p: 'proud', treat: 'wine', place: 'tower' },
-  amphitrite: { p: 'gentle', treat: 'fruit', place: 'lake' },
-  tsubaki: { p: 'shy', treat: 'sweets', place: 'garden' },
-  freya: { p: 'proud', treat: 'roast', place: 'tower' },
-  rubina: { p: 'fierce', treat: 'roast', place: 'tavern' },
-  solara: { p: 'playful', treat: 'fruit', place: 'lake' },
+  astrid: { p: 'proud', treat: 'roast', place: 'tower' },
+  lira: { p: 'playful', treat: 'sweets', place: 'fair' },
+  mirabel: { p: 'gentle', treat: 'cake', place: 'garden' },
+  seyra: { p: 'shy', treat: 'fruit', place: 'lake' },
+  keira: { p: 'mysterious', treat: 'wine', place: 'tower' },
+  ulfa: { p: 'fierce', treat: 'roast', place: 'tavern' },
 };
 
 export function bondTraits(hero: string): { p: Personality } & Taste {
@@ -88,8 +66,8 @@ export function bondTraits(hero: string): { p: Personality } & Taste {
   return { p: t.p, treat: t.treat ?? base.treat, dislike: base.dislike === (t.treat ?? base.treat) ? 'roast' : base.dislike, place: t.place ?? base.place };
 }
 
-/** Кому доступен уход: UR-героини (включая владычиц и Вестниц). */
-export const BOND_HEROES = HEROINES.filter((h) => h.rarity === 'UR').map((h) => h.id);
+/** Уход доступен всем героиням Легиона. */
+export const BOND_HEROES = HEROINES.map((h) => h.id);
 
 /** Опыт до следующего уровня близости (0→1 … 9→10). */
 export const BOND_XP = [40, 60, 90, 130, 180, 240, 310, 390, 480, 600];
@@ -104,11 +82,11 @@ export const BOND_SPA_COST = { crystals: 30 } as const;
 export const BOND_COSTUME_HEARTS = 10;
 
 /** Награды пиков близости. */
-export const BOND_MILESTONES: Record<number, { crystals: number; scrolls?: number; shards?: number }> = {
-  3: { crystals: 50 },
-  5: { crystals: 150, shards: 10 },
-  7: { crystals: 300, scrolls: 2 },
-  10: { crystals: 500, scrolls: 3, shards: 30 },
+export const BOND_MILESTONES: Record<number, { crystals: number; emblems?: number }> = {
+  3: { crystals: 50, emblems: 3 },
+  5: { crystals: 150, emblems: 8 },
+  7: { crystals: 300, emblems: 12 },
+  10: { crystals: 500, emblems: 30 },
 };
 
 // ——— разговоры: у каждого характера свои темы; ответы — лучший, нормальный, неудачный ———

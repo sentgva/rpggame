@@ -35,7 +35,7 @@ import {
   type FestivalNow,
 } from '../../content';
 import { Rng, hashStr, mixSeed } from '../../rng';
-import type { FestivalState, Item, MineState, PlayerState, TourneyState, VolleyState } from '../../types';
+import type { FestivalState, Item, MineState, PlayerState, VolleyState } from '../../types';
 import type { Action } from '../apply';
 import type { UnitInit } from '../battle';
 import { addItem, assert, farmLevel, give, requireUnlocked, rollLoot, scaleReward, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
@@ -48,7 +48,7 @@ import { grantHeart } from './bond';
 type Cur = Record<string, number>;
 
 /** Общие счётчики, от которых считаются цели праздника. */
-const GOAL_COUNTERS: FestGoalMetric[] = ['bossWin', 'hordeWave', 'summon', 'towerWin', 'dungeon'];
+const GOAL_COUNTERS: FestGoalMetric[] = ['bossWin', 'hordeWave', 'combo', 'towerWin', 'dungeon'];
 
 /** Праздник, идущий сейчас по расписанию из конфига (null — праздника нет). */
 export function festivalNow(ctx: { cfg: Config; now: number }): FestivalNow | null {
@@ -91,7 +91,7 @@ export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number },
     };
   }
   if (f.day !== today) {
-    // турнир: входы на новый день; копи: кирки за каждый прошедший день (до запаса)
+    // копи: кирки за каждый прошедший день (до запаса)
     const days = Math.max(1, Math.round((Date.parse(today) - Date.parse(f.day)) / 86400000) || 1);
     f = {
       ...f,
@@ -99,18 +99,12 @@ export function festivalState(ctx: { s: PlayerState; cfg: Config; now: number },
       tickets: FEST_TICKETS,
       tasks: [],
       boss: { ...f.boss, used: 0 },
-      tour: f.tour ? { ...f.tour, entries: 0 } : f.tour,
       mine: f.mine ? { ...f.mine, picks: Math.max(f.mine.picks, Math.min(MINE_CAP, f.mine.picks + MINE_DAILY * days)) } : f.mine,
       volley: f.volley ? { ...f.volley, used: 0 } : f.volley,
     };
   }
   if (cur && f.fest === undefined) f = { ...f, fest: cur.def.id };
   return f;
-}
-
-/** Турнир праздника (пустой — до первого входа). */
-export function tourOf(f: FestivalState): TourneyState {
-  return f.tour ?? { entries: 0, bonus: 0, best: 0, wins: 0, champs: 0 };
 }
 
 /** Пляжный волейбол праздника (пустой — до первого матча). */
@@ -134,7 +128,6 @@ export function festCopy(ctx: Ctx, cur: FestivalNow): FestivalState {
     goals: [...f.goals],
     base: { ...f.base },
     boss: { ...f.boss },
-    tour: f.tour && { ...f.tour, run: f.tour.run && { ...f.tour.run, picks: [...f.tour.run.picks], offer: [...f.tour.run.offer] } },
     mine: f.mine && { ...f.mine, dug: [...f.mine.dug] },
     volley: f.volley && { ...f.volley, match: f.volley.match && { ...f.volley.match, heroes: [...f.volley.match.heroes] } },
   };
@@ -188,12 +181,6 @@ export function festGoalValue(s: PlayerState, f: FestivalState, metric: FestGoal
       return f.boss.kills;
     case 'tasks':
       return f.tasksDone;
-    case 'tourBest':
-      return f.tour?.best ?? 0;
-    case 'tourWins':
-      return f.tour?.wins ?? 0;
-    case 'tourChamps':
-      return f.tour?.champs ?? 0;
     case 'mineFloor':
       return f.mine?.best ?? 1;
     case 'mineChests':
@@ -232,12 +219,6 @@ export function festClaimable(ctx: { s: PlayerState; cfg: Config; now: number })
   return n;
 }
 
-function addFestShards(ctx: Ctx, def: FestivalDef, n: number): Record<string, number> | undefined {
-  if (n <= 0) return undefined;
-  ctx.s.shards[def.hero] = (ctx.s.shards[def.hero] ?? 0) + n;
-  return { [def.hero]: n };
-}
-
 function festItem(ctx: Ctx, kind: 'legendary' | 'mythic'): string | undefined {
   const it: Item = rollLoot(ctx, { lvl: farmLevel(ctx.cfg, ctx.s), forceRarity: kind === 'mythic' ? 5 : 4 });
   return addItem(ctx, it, { noAutoSmelt: true }) ?? undefined;
@@ -270,12 +251,11 @@ export const festivalActions = {
       const prev = f.stars[stage - 1];
       const cur: Cur = {};
       let points = 0;
-      let shards: Record<string, number> | undefined;
       if (!cleared) {
         const r = festFirstReward(stage);
         cur.eventTokens = r.tokens;
+        if (r.emblems) cur.emblems = r.emblems;
         points += r.points;
-        shards = addFestShards(ctx, def, r.shards);
       } else {
         f.tickets--;
         const r = festRaidReward(stage);
@@ -290,7 +270,7 @@ export const festivalActions = {
       give(ctx, cur);
       f.points += points;
       track(ctx, 'festWin', 1);
-      reward = { cur, points, shards, first: !cleared };
+      reward = { cur, points, first: !cleared };
     }
     s.festival = f;
     ctx.events.push({ name: 'fest_stage', props: { fest: def.id, stage, win: b.win, stars } });
@@ -334,8 +314,8 @@ export const festivalActions = {
     const r = festBossReward(dmg / boss.hp, killed);
     const cur: Cur = { eventTokens: r.tokens };
     if (r.crystals) cur.crystals = r.crystals;
+    if (r.emblems) cur.emblems = r.emblems;
     give(ctx, cur);
-    const shards = addFestShards(ctx, def, r.shards);
     let hearts = 0;
     let items: string[] | undefined;
     const lvl = f.boss.lvl;
@@ -361,7 +341,7 @@ export const festivalActions = {
       hp: boss.hp,
       killed,
       lvl,
-      reward: { cur, points: r.points, shards, hearts: hearts || undefined, items },
+      reward: { cur, points: r.points, hearts: hearts || undefined, items },
       festival: f,
     };
   },
@@ -414,7 +394,6 @@ export const festivalActions = {
     const ready = list.filter((i) => f.points >= FEST_MILESTONES[i].at && !f.claimed.includes(i));
     assert(ready.length > 0, 'notDone');
     const cur: Cur = {};
-    let shards = 0;
     let hearts = 0;
     const items: string[] = [];
     const skins: string[] = [];
@@ -427,9 +406,8 @@ export const festivalActions = {
         items.push(uid);
       }
       if (m.cur) addCur(cur, scaleReward(cfg, s, m.cur));
-      if (m.shards) shards += m.shards;
       if (m.heart) hearts += grantHeart(ctx);
-      if (m.skin) {
+      if (m.skin && def.finalSkin) {
         // облик уже есть (с прошлого круга) — вместо него кристаллы
         if (s.skins.includes(def.finalSkin)) addCur(cur, { crystals: 500 });
         else {
@@ -440,12 +418,11 @@ export const festivalActions = {
       f.claimed.push(i);
     }
     give(ctx, cur);
-    const sh = addFestShards(ctx, def, shards);
     s.festival = f;
-    return { cur, shards: sh, hearts: hearts || undefined, items: items.length ? items : undefined, skins: skins.length ? skins : undefined, festival: f };
+    return { cur, hearts: hearts || undefined, items: items.length ? items : undefined, skins: skins.length ? skins : undefined, festival: f };
   },
 
-  /** Лавка праздника: жетоны ивента → осколки героини праздника, облики и ресурсы. Лимиты — на праздник. */
+  /** Лавка праздника: жетоны ивента → Эмблемы, облики и ресурсы. Лимиты — на праздник. */
   'fest.buy': (ctx: Ctx, a: Action) => {
     const { s } = ctx;
     requireUnlocked(ctx, 'events');
@@ -472,18 +449,16 @@ export const festivalActions = {
       if (p[1] !== undefined && p[1] !== String(cycle)) delete s.shop.bought[k];
     }
     if (offer.give.cur) give(ctx, offer.give.cur);
-    // вход на турнир, кирки для копей и матчи на пляже
-    if (offer.give.entry || offer.give.picks || offer.give.matches) {
+    // кирки для копей и матчи на пляже
+    if (offer.give.picks || offer.give.matches) {
       const f = festCopy(ctx, fn);
-      if (offer.give.entry) f.tour = { ...tourOf(f), bonus: tourOf(f).bonus + offer.give.entry };
       if (offer.give.picks) f.mine = { ...mineOf(s, f), picks: mineOf(s, f).picks + offer.give.picks };
       if (offer.give.matches) f.volley = { ...volleyOf(f), bonus: volleyOf(f).bonus + offer.give.matches };
       s.festival = f;
     }
-    const shards = offer.give.shards ? addFestShards(ctx, def, offer.give.shards) : undefined;
     if (offer.give.skin) s.skins.push(offer.give.skin);
     const hearts = offer.give.heart ? grantHeart(ctx) : 0;
-    return { cur: offer.give.cur, shards, skin: offer.give.skin, item: uid, hearts: hearts || undefined };
+    return { cur: offer.give.cur, skin: offer.give.skin, item: uid, hearts: hearts || undefined };
   },
 };
 

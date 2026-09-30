@@ -1,10 +1,11 @@
-import { ACTS, ACT_BOSSES, AFFIX_REWARD, STAGES_PER_DIFF, stageAffixes, stageRef, type StageRef } from '../../content';
+import { ACTS, AFFIX_REWARD, HEROINES, STAGES_PER_DIFF, stageAffixes, stageRef, type StageRef } from '../../content';
 import { activeArtifacts } from './artifacts';
 import { mixSeed } from '../../rng';
 import type { Difficulty } from '../../types';
 import { simulateBattle, type BattleResult, type UnitInit } from '../battle';
 import {
   addAccountXp,
+  addHeroine,
   addItem,
   assert,
   give,
@@ -16,6 +17,7 @@ import {
   type Ctx,
 } from '../core';
 import { bossUnits, heroUnits, powerLevel, waveUnits } from '../units';
+import { activeParty } from '../stats';
 import type { Action } from '../apply';
 
 export function nextBattleSeed(ctx: Ctx): number {
@@ -26,9 +28,9 @@ export function nextBattleSeed(ctx: Ctx): number {
   return seed;
 }
 
-export function currentParty(ctx: Ctx): (string | null)[] {
-  const { s } = ctx;
-  return s.party.presets[s.party.active] ?? [];
+/** Отряд в бою — весь Легион (героини, что уже присоединились). */
+export function currentParty(ctx: Ctx): string[] {
+  return activeParty(ctx.s);
 }
 
 export interface BattleSummary {
@@ -40,6 +42,7 @@ export interface BattleSummary {
   events?: BattleResult['events'];
   heroHp?: Record<string, number>;
   dmgDone?: Record<number, number>;
+  combos?: number;
 }
 
 /** Запуск боя с общими настройками (dev-читы, таймер). noArtifacts — бой без артефактов отряда (турнир). */
@@ -59,6 +62,7 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     inputs: ctx.control?.inputs,
     artifacts: opt.noArtifacts ? [] : activeArtifacts(s),
   });
+  if (res.combos) track(ctx, 'combo', res.combos);
   return {
     seed,
     win: res.win,
@@ -68,6 +72,7 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     events: res.events,
     heroHp: res.heroHp,
     dmgDone: res.dmgDone,
+    combos: res.combos,
     raw: res,
   };
 }
@@ -154,7 +159,9 @@ export const battleActions = {
       s.progress.wave = 0;
     }
     ctx.events.push({ name: 'stage_clear', props: { stage: ref.n } });
-    return { battle: stripRaw(b), stage: ref, win: true, rewards };
+    // по ходу кампании к Легиону присоединяются новые героини
+    const joined = joinHeroines(ctx);
+    return { battle: stripRaw(b), stage: ref, win: true, rewards, joined };
   },
 
   /** Реванш: сбрасываем таймер автоповтора. */
@@ -201,24 +208,23 @@ function stageClearRewards(ctx: Ctx, ref: StageRef) {
     const uid = addItem(ctx, it);
     if (uid) items.push(uid);
   }
-  // осколки владычицы на Кошмаре; на Normal/Hard владычица отдаёт осколки души самой «младшей» героине отряда
-  let shards: { hero: string; n: number } | null = null;
-  if (first && ref.kind === 'boss' && ref.diff < 2 && R.actBossShards) {
-    const party = currentParty(ctx).filter((id): id is string => !!id && !!s.heroines[id]);
-    const hero = party.sort((a, b) => s.heroines[a].stars - s.heroines[b].stars || s.heroines[a].lvl - s.heroines[b].lvl)[0];
-    if (hero) {
-      const n = R.actBossShards * (1 + ref.diff);
-      s.shards[hero] = (s.shards[hero] ?? 0) + n;
-      shards = { hero, n };
-    }
+  // Эмблемы за первое прохождение: боссы актов — много, каждый 5-й этап — понемногу
+  let emblems = 0;
+  if (first && ref.kind === 'boss') emblems = R.actBossEmblems * (1 + ref.diff);
+  else if (first && ref.stage % R.bossCrystalsEvery === 0) emblems = R.bossEmblems * (1 + ref.diff) * 2;
+  if (emblems) {
+    give(ctx, { emblems });
+    cur.emblems = emblems;
   }
-  if (first && ref.kind === 'boss' && ref.diff === 2) {
-    const boss = ACT_BOSSES.find((b) => b.id === act.boss);
-    if (boss?.hero) {
-      const n = s.heroines[boss.hero] ? 40 : 80;
-      s.shards[boss.hero] = (s.shards[boss.hero] ?? 0) + n;
-      shards = { hero: boss.hero, n };
-    }
+  return { cur, items };
+}
+
+/** Героини, которые присоединяются к Легиону после этого этапа (по прогрессу кампании). */
+export function joinHeroines(ctx: Ctx): string[] {
+  const out: string[] = [];
+  for (const h of HEROINES) {
+    if (ctx.s.heroines[h.id] || ctx.s.progress.maxGlobalEver < h.join) continue;
+    if (addHeroine(ctx, h.id)) out.push(h.id);
   }
-  return { cur, items, shards };
+  return out;
 }

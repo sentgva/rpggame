@@ -106,17 +106,17 @@ export function mineReward(tile: MineTile, floor: number): { tokens: number; poi
   }
 }
 
-/** Содержимое сундука: ресурсы или осколки героини праздника. */
-export function mineChest(rng: Rng, floor: number): { cur?: Partial<Record<Currency, number>>; shards?: number } {
+/** Содержимое сундука: ресурсы или Эмблемы. */
+export function mineChest(rng: Rng, floor: number): { cur?: Partial<Record<Currency, number>> } {
   const r = rng.next();
   if (r < 0.3) return { cur: { crystals: 20 + floor * 2 } };
   if (r < 0.55) return { cur: { starDust: 30 + floor * 3 } };
   if (r < 0.75) return { cur: { dust: 120 + floor * 15 } };
-  if (r < 0.85) return { cur: { scrolls: 1 } };
-  return { shards: 3 };
+  if (r < 0.9) return { cur: { emblems: 2 } };
+  return { cur: { emblems: 4 } };
 }
 
-/** Бонус за спуск на этаж floor: каждый третий — осколки, каждый пятый — Сердце Эфира. */
-export function mineDescendBonus(floor: number): { shards: number; heart: boolean } {
-  return { shards: floor % 3 === 0 ? 10 : 0, heart: floor % 5 === 0 };
+/** Бонус за спуск на этаж floor: каждый третий — Эмблемы, каждый пятый — Сердце Эфира. */
+export function mineDescendBonus(floor: number): { emblems: number; heart: boolean } {
+  return { emblems: floor % 3 === 0 ? 6 : 0, heart: floor % 5 === 0 };
 }

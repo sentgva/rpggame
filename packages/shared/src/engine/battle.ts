@@ -4,9 +4,9 @@
  * результат совпадает бит в бит. Все входные характеристики — целые числа.
  */
 import type { Config } from '../config';
-import { ENEMY_MAP, SKILL_MAP, elementMult, artifactValue } from '../content';
+import { CLASSES, ENEMY_MAP, SKILL_MAP, elementMult, artifactValue, type ComboDef } from '../content';
 import type { BossMechanic } from '../content/acts';
-import type { BuffStat, SkillDef, SkillEffect, SkillMod, TargetRule } from '../content/effects';
+import type { BuffStat, MarkKind, SkillDef, SkillEffect, SkillMod, TargetRule } from '../content/effects';
 import { Rng } from '../rng';
 import type { ClassId, Element, FinalStats, SpecialEffect, Stats } from '../types';
 
@@ -81,13 +81,39 @@ export type BattleEvent =
   | { t: number; k: 'revive'; tg: number; hp: number }
   | { t: number; k: 'summon'; unit: UnitSnap }
   | { t: number; k: 'mech'; m: string; tg?: number; v?: number }
+  /** Связка классов: героиня u сыграла на метке союзницы по цели tg. */
+  | { t: number; k: 'combo'; c: ComboDef['id']; u: number; tg: number }
+  /** Фирменное умение героини u готово (r = 1) или потрачено (r = 0). */
+  | { t: number; k: 'sig'; u: number; r: 0 | 1 }
   | { t: number; k: 'end'; win: boolean };
 
-/** Команда игрока: выпустить ульту героини u (не раньше t, мс); u = -1 — с момента t ульты снова автоматические. */
+/**
+ * Команда игрока: выпустить ульту героини u (не раньше t, мс); s = 1 — фирменное умение вместо ульты.
+ * u = -1 — с момента t умения снова автоматические.
+ */
 export interface BattleInput {
   t: number;
   u: number;
+  s?: 1;
 }
+
+/** Сколько фирменное умение ждёт команды в ручном режиме, прежде чем героиня применит его сама (мс). */
+export const SIG_HOLD = 2500;
+
+/** Сила связок классов. */
+export const COMBO = {
+  backstab: 0.3,
+  crush: 0.3,
+  detonate: 0.5,
+  detonateSplash: 0.4,
+  hunt: 0.2,
+  huntSecond: 0.6,
+  grace: 0.2,
+  graceHeal: 0.08,
+  decay: 1.5,
+  /** энергия Жрице за каждую связку отряда */
+  priestEnergy: 8,
+} as const;
 
 /** «Сокрушительный удар» босса: каст виден заранее, ульта или оглушение прерывают его. */
 export const BOSS_CAST = {
@@ -121,11 +147,14 @@ export interface BattleResult {
   kills: number;
   units: UnitSnap[];
   timeout: boolean;
+  /** Связки классов, сыгранные отрядом игрока. */
+  combos: number;
 }
 
 interface Status {
   key: string;
-  type: 'buff' | 'debuff' | 'dot' | 'hot' | 'cc' | 'taunt';
+  type: 'buff' | 'debuff' | 'dot' | 'hot' | 'cc' | 'taunt' | 'mark';
+  mark?: MarkKind;
   stat?: BuffStat;
   value: number;
   dot?: string;
@@ -140,6 +169,10 @@ interface ActiveSkill {
   def: SkillDef;
   cd: number;
   maxCd: number;
+  /** фирменное умение класса (в ручном режиме — по кнопке) */
+  sig?: boolean;
+  /** с какого момента умение готово и ждёт команды */
+  readyAt?: number;
 }
 
 interface U {
@@ -239,6 +272,10 @@ class Battle {
   private markUid = -1;
   private artifactUsed: Record<string, 1> = {};
   private prismElements = 0;
+  private combos = 0;
+  private lastDealt = 0;
+  /** Идёт дополнительный удар связки — новые связки не запускаются. */
+  private inCombo = false;
 
   constructor(
     cfg: Config,
@@ -311,7 +348,10 @@ class Battle {
       alive: true,
       nextAt: 0,
       basic: this.makeSkill(init.basic)!,
-      skills: init.skills.map((r) => this.makeSkill(r)).filter((x): x is ActiveSkill => !!x),
+      skills: init.skills
+        .map((r) => this.makeSkill(r))
+        .filter((x): x is ActiveSkill => !!x)
+        .map((sk) => (init.cls && CLASSES[init.cls]?.sig === sk.def.id ? { ...sk, sig: true } : sk)),
       ult: this.makeSkill(init.ult),
       statuses: [],
       fx,
@@ -377,6 +417,8 @@ class Battle {
     this.setupArtifacts();
     this.emit({ t: 0, k: 'start', units: this.units.map((u) => this.snap(u)) });
     for (const u of this.units) if (u.shield > 0) this.emit({ t: 0, k: 'shield', tg: u.uid, v: u.shield, sh: u.shield });
+    // волки-спутники Охотницы встают рядом с первых секунд
+    for (const u of [...this.units]) if (u.fx.companion && u.alive) this.summon(u, 'wolf', u.fx.companion.n ?? 1, 0.45);
     this.setupMechanics();
     this.setupCasts();
 
@@ -431,6 +473,7 @@ class Battle {
       kills: this.kills,
       units: this.units.map((u) => this.snap(u)),
       timeout,
+      combos: this.combos,
     };
   }
 
@@ -517,8 +560,32 @@ class Battle {
       s.turns--;
       if (s.turns <= 0) this.removeStatus(u, s);
     }
-    for (const sk of u.skills) if (sk.cd > 0) sk.cd--;
+    for (const sk of u.skills)
+      if (sk.cd > 0) {
+        sk.cd--;
+        if (sk.cd === 0 && sk.sig && u.alive) {
+          sk.readyAt = this.t;
+          this.emit({ t: this.t, k: 'sig', u: u.uid, r: 1 });
+        }
+      }
     u.nextAt = this.t + this.interval(u);
+  }
+
+  /** Ручной режим: героиня отряда игрока ждёт команды (до ульты — всегда, до фирменного умения — SIG_HOLD). */
+  private manualFor(u: U): boolean {
+    return !!this.setup.manual && u.side === 0 && u.kind === 'hero' && this.t < this.autoFrom;
+  }
+
+  /** Держать ли фирменное умение до команды игрока (команда — снимается из очереди). */
+  private holdSig(u: U, sk: ActiveSkill): boolean {
+    if (!this.manualFor(u)) return false;
+    if (sk.readyAt === undefined) sk.readyAt = this.t;
+    const i = this.pending.findIndex((x) => x.u === u.uid && x.s === 1 && x.t <= this.t);
+    if (i >= 0) {
+      this.pending.splice(i, 1);
+      return false;
+    }
+    return this.t - sk.readyAt < SIG_HOLD;
   }
 
   private act(u: U) {
@@ -527,8 +594,8 @@ class Battle {
     let kind: 'basic' | 'active' | 'ult' = 'basic';
     let ultReady = !silenced && !!u.ult && u.energy >= this.B.energyMax;
     // ручной режим: героиня держит ульту, пока игрок не скомандует
-    if (ultReady && this.setup.manual && u.side === 0 && u.kind === 'hero' && this.t < this.autoFrom) {
-      const i = this.pending.findIndex((x) => x.u === u.uid && x.t <= this.t);
+    if (ultReady && this.manualFor(u)) {
+      const i = this.pending.findIndex((x) => x.u === u.uid && !x.s && x.t <= this.t);
       if (i < 0) ultReady = false;
       else this.pending.splice(i, 1);
     }
@@ -539,6 +606,7 @@ class Battle {
       for (const sk of u.skills) {
         if (sk.cd > 0) continue;
         if (!this.skillUseful(u, sk.def)) continue;
+        if (sk.sig && this.holdSig(u, sk)) continue;
         choice = sk;
         kind = 'active';
         break;
@@ -549,6 +617,10 @@ class Battle {
     this.useSkill(u, choice, kind);
     if (kind === 'active') {
       choice.cd = choice.maxCd;
+      if (choice.sig) {
+        choice.readyAt = undefined;
+        this.emit({ t: this.t, k: 'sig', u: u.uid, r: 0 });
+      }
       if (u.fx.echo) {
         u.echoCount++;
         const n = u.fx.echo.n ?? 5;
@@ -603,6 +675,8 @@ class Battle {
     if (!foes.length) return undefined;
     const taunters = foes.filter((f) => f.statuses.some((s) => s.type === 'taunt'));
     if (taunters.length) return taunters[this.rng.int(taunters.length)];
+    const combo = this.comboTarget(u, foes);
+    if (combo) return combo;
     const front = foes.filter((f) => f.row === 'front');
     const back = foes.filter((f) => f.row === 'back');
     if (rule === 'enemyBack' || u.targeting === 'back') {
@@ -817,8 +891,45 @@ class Battle {
           for (const tg of targets) this.cleanse(tg);
           break;
         }
+        case 'mark': {
+          // метки связок — не контроль: сопротивление их не снимает
+          const mark = eff.mark ?? 'daze';
+          for (const tg of targets) this.addStatus(tg, { key: `mark:${mark}`, type: 'mark', mark, value: 0, amount: 0, turns: eff.turns ?? 2, src: u.uid });
+          break;
+        }
       }
     }
+  }
+
+  // ——— связки классов ———
+
+  /** Метка на юните, поставленная стороной side (метки врага не помогают). */
+  private markOn(tg: U, mark: MarkKind, side: 0 | 1): Status | undefined {
+    return tg.statuses.find((s) => s.type === 'mark' && s.mark === mark && this.units[s.src]?.side === side);
+  }
+
+  /** Связка сыграна: событие, счётчик и энергия Жрицам отряда. */
+  private comboDone(u: U, tg: U, c: ComboDef['id']) {
+    this.emit({ t: this.t, k: 'combo', c, u: u.uid, tg: tg.uid });
+    if (u.side === 0) this.combos++;
+    for (const p of this.alive(u.side)) if (p.cls === 'priestess' && p.kind === 'hero') this.gainEnergy(p, COMBO.priestEnergy);
+  }
+
+  /** Какую метку ищет атакующая, выбирая цель (чтобы связки складывались и без ручного управления). */
+  private comboTarget(u: U, foes: U[]): U | undefined {
+    const want: MarkKind | 'poison' | null =
+      u.cls === 'assassin' ? 'daze' : u.cls === 'knight' ? 'root' : u.cls === 'ranger' || u.cls === 'hunter' ? 'curse' : u.cls === 'warlock' ? 'poison' : null;
+    if (want === 'poison') {
+      const p = foes.filter((f) => f.statuses.some((s) => s.type === 'dot' && s.dot === 'poison'));
+      if (p.length) return p[this.rng.int(p.length)];
+    } else if (want) {
+      const m = foes.filter((f) => this.markOn(f, want, u.side));
+      if (m.length) return m[this.rng.int(m.length)];
+    }
+    // добыча Охотницы притягивает волков всегда, остальных — через раз
+    const prey = foes.filter((f) => this.markOn(f, 'prey', u.side));
+    if (prey.length && (u.ref === 'wolf' || this.rng.chance(0.5))) return prey[this.rng.int(prey.length)];
+    return undefined;
   }
 
   // ——— урон ———
@@ -835,16 +946,78 @@ class Battle {
       return;
     }
     void def;
+    // связки: метка союзницы на цели усиливает этот удар
+    let comboBonus = 0;
+    let forceCrit = false;
+    const after: (() => void)[] = [];
+    const combo = !this.inCombo && !isCounter;
+    const foeSide = u.side;
+    if (combo) {
+      const daze = u.cls === 'assassin' ? this.markOn(tg, 'daze', foeSide) : undefined;
+      if (daze) {
+        forceCrit = true;
+        comboBonus += COMBO.backstab;
+        this.removeStatus(tg, daze);
+        this.comboDone(u, tg, 'backstab');
+      }
+      const root = u.cls === 'knight' ? this.markOn(tg, 'root', foeSide) : undefined;
+      if (root) {
+        comboBonus += COMBO.crush;
+        this.removeStatus(tg, root);
+        this.comboDone(u, tg, 'crush');
+        after.push(() => this.applyCc(u, tg, 'stun', 1, 1));
+      }
+      const curse = u.cls === 'ranger' || u.cls === 'hunter' ? this.markOn(tg, 'curse', foeSide) : undefined;
+      if (curse) {
+        comboBonus += COMBO.detonate;
+        this.removeStatus(tg, curse);
+        this.comboDone(u, tg, 'detonate');
+        after.push(() => {
+          const others = this.enemiesOf(u).filter((x) => x !== tg);
+          if (others.length && this.lastDealt > 0) {
+            const o = others[this.rng.int(others.length)];
+            this.applyDamageRaw(u, o, Math.max(1, Math.round(this.lastDealt * COMBO.detonateSplash)), { dot: 'shrapnel' });
+          }
+        });
+      }
+      if (u.cls === 'warlock' && kind !== 'basic') {
+        const poison = tg.statuses.filter((s) => s.type === 'dot' && s.dot === 'poison');
+        if (poison.length) {
+          const burst = Math.round(poison.reduce((sum, s) => sum + s.amount * Math.max(1, s.turns), 0) * COMBO.decay);
+          for (const s of poison) this.removeStatus(tg, s);
+          this.comboDone(u, tg, 'decay');
+          after.push(() => {
+            if (tg.alive) this.applyDamageRaw(u, tg, Math.max(1, burst), { dot: 'decay' });
+          });
+        }
+      }
+      if (u.cls === 'ranger' && kind === 'basic' && this.markOn(tg, 'prey', foeSide)) {
+        this.comboDone(u, tg, 'hunt');
+        after.push(() => {
+          if (!tg.alive || !u.alive) return;
+          this.inCombo = true;
+          try {
+            this.strike(u, tg, { ...eff, mult: (eff.mult ?? 1) * COMBO.huntSecond }, kind, def);
+          } finally {
+            this.inCombo = false;
+          }
+        });
+      }
+    }
+    // добыча Охотницы и благословение Жрицы — постоянные усиления, без счёта связок
+    if (this.markOn(tg, 'prey', foeSide)) comboBonus += COMBO.hunt;
+    const blessed = this.markOn(u, 'bless', u.side);
+    if (blessed) comboBonus += COMBO.grace;
     const atk = this.effAtk(u);
     const k = eff.mult ?? 1;
     const pen = Math.min(this.S.penMax, Math.max(0, u.pen));
     const defF = this.B.defConst / (this.B.defConst + this.effDef(tg) * (1 - pen));
     let elem = elementMult(el, tg.element, this.B.elemAdv);
     const critChance = Math.min(this.S.critMax, u.crit + this.buffSum(u, 'crit'));
-    const isCrit = this.rng.chance(critChance);
+    const isCrit = forceCrit || this.rng.chance(critChance);
     const crit = isCrit ? Math.max(1, u.critDmg + this.buffSum(u, 'critDmg')) : 1;
     const vr = this.rng.float(this.B.varianceMin, this.B.varianceMax);
-    let bonus = 1 + (u.bonus[ELEM_KEY[el]] ?? 0) + this.buffSum(u, 'dmg');
+    let bonus = 1 + (u.bonus[ELEM_KEY[el]] ?? 0) + this.buffSum(u, 'dmg') + comboBonus;
     if (kind === 'basic') bonus += u.bonus.dmgBasic ?? 0;
     else if (kind === 'active') bonus += u.bonus.dmgSkill ?? 0;
     else bonus += u.bonus.dmgUlt ?? 0;
@@ -886,9 +1059,11 @@ class Battle {
     }
 
     const dealt = this.applyDamageRaw(u, tg, dmg, { crit: isCrit, br });
+    this.lastDealt = dealt;
+    for (const f of after) f();
     if (dealt > 0) {
-      // вампиризм
-      const ls = Math.min(this.S.lifestealMax, u.lifesteal) + (eff.lifesteal ?? 0) + (u.mechanic === 'bloodThirst' ? 1 : 0);
+      // вампиризм (благословлённая Жрицей лечится от ударов)
+      const ls = Math.min(this.S.lifestealMax, u.lifesteal) + (eff.lifesteal ?? 0) + (u.mechanic === 'bloodThirst' ? 1 : 0) + (blessed ? COMBO.graceHeal : 0);
       if (ls > 0 && u.alive) this.heal(u, u, Math.round(dealt * ls));
       // эффекты при попадании
       if (u.fx.bleedOnHit && this.rng.chance(u.fx.bleedOnHit.v ?? 0)) this.applyDot(u, tg, 'bleed', 0.3, 2);
@@ -1252,7 +1427,10 @@ class Battle {
       if (mine >= 4) return;
       const slot = 5 + this.units.filter((x) => x.side === owner.side && x.slot >= 5).length;
       const isVine = tmplId === 'vine';
-      const hpBase = owner.maxHp * mult * (owner.side === 0 ? 1.4 : 1);
+      const isWolf = tmplId === 'wolf';
+      // вожак стаи: волки Охотницы сильнее
+      const m = isWolf && owner.fx.packLeader ? mult * (1 + (owner.fx.packLeader.v ?? 0)) : mult;
+      const hpBase = owner.maxHp * m * (owner.side === 0 ? 1.4 : 1);
       const init: UnitInit = {
         side: owner.side,
         slot,
@@ -1264,9 +1442,9 @@ class Battle {
         melee: true,
         stats: {
           hp: Math.max(1, Math.round(hpBase)),
-          atk: Math.max(1, Math.round(owner.atk * mult * (isVine ? 0.2 : 1))),
+          atk: Math.max(1, Math.round(owner.atk * m * (isVine ? 0.2 : 1))),
           def: Math.round(owner.def * 0.8),
-          spd: 100,
+          spd: isWolf ? 118 : 100,
           crit: 0.05,
           critDmg: 1.5,
           acc: 0,
@@ -1278,9 +1456,10 @@ class Battle {
           energyRegen: 1,
           bonus: {},
         },
-        basic: { id: 'enemy.basic', rank: 1, mods: [] },
+        basic: { id: isWolf ? 'wolf.bite' : 'enemy.basic', rank: 1, mods: [] },
         skills: [],
-        fx: [],
+        // волк рвёт добычу: кровотечение
+        fx: isWolf ? [{ id: 'bleedOnHit', v: 0.3 }] : [],
         act: owner.act,
       };
       const u = this.addUnit(init, this.t);
@@ -1471,5 +1650,6 @@ function statusLabel(st: Status): string {
   if (st.type === 'cc') return st.cc ?? 'cc';
   if (st.type === 'taunt') return 'taunt';
   if (st.type === 'hot') return 'hot';
+  if (st.type === 'mark') return `mark:${st.mark}`;
   return `${st.type}:${st.stat}`;
 }

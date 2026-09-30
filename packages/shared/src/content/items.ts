@@ -31,28 +31,24 @@ export const ITEM_RARITY_COLORS = ['#9A9A9A', '#4FBF5A', '#3D7BE0', '#9B4DE0', '
 export const HERO_RARITY_COLORS: Record<string, string> = { R: '#3D7BE0', SR: '#9B4DE0', SSR: '#F08A24', UR: '#E03A3A' };
 
 export const WEAPON_CLASS: Record<string, ClassId> = {
-  sword: 'guardian',
-  axe: 'berserker',
-  bow: 'archer',
-  staff: 'sorceress',
-  wand: 'priestess',
-  scythe: 'necromancer',
+  sword: 'knight',
+  shield: 'knight',
   daggers: 'assassin',
-  lute: 'bard',
-  shield: 'guardian',
-  horn: 'berserker',
-  quiver: 'archer',
-  orb: 'sorceress',
-  tome: 'priestess',
-  grimoire: 'necromancer',
   dagger: 'assassin',
-  songbook: 'bard',
+  wand: 'priestess',
+  tome: 'priestess',
+  bow: 'ranger',
+  quiver: 'ranger',
+  staff: 'warlock',
+  grimoire: 'warlock',
+  crossbow: 'hunter',
+  horn: 'hunter',
 };
 
 export const ARMOR_CLASSES: Record<ArmorWeight, ClassId[]> = {
-  heavy: ['guardian', 'berserker'],
-  medium: ['archer', 'assassin', 'bard'],
-  light: ['sorceress', 'priestess', 'necromancer'],
+  heavy: ['knight'],
+  medium: ['assassin', 'ranger', 'hunter'],
+  light: ['priestess', 'warlock'],
 };
 
 export interface BaseItemDef {
@@ -68,23 +64,19 @@ export interface BaseItemDef {
 
 const WEAPON_NAMES: Record<string, [string, string][]> = {
   sword: [['Железный меч', 'Iron Sword'], ['Рыцарский клинок', "Knight's Blade"], ['Рунный меч', 'Runeblade'], ['Меч зари', 'Dawnsteel Sword']],
-  axe: [['Боевой топор', 'Battle Axe'], ['Секира берсерка', "Berserker's Greataxe"], ['Рунная секира', 'Rune Greataxe'], ['Топор Рагнарёка', 'Ragnarok Axe']],
   bow: [['Охотничий лук', 'Hunting Bow'], ['Длинный лук', 'Longbow'], ['Эльфийский лук', 'Elven Bow'], ['Лук небосвода', 'Skyvault Bow']],
-  staff: [['Посох ученицы', "Apprentice's Staff"], ['Посох стихий', 'Elemental Staff'], ['Кристальный посох', 'Crystal Staff'], ['Посох архимага', "Archmage's Staff"]],
+  staff: [['Посох ученицы', "Apprentice's Staff"], ['Посох углей', 'Ember Staff'], ['Посох проклятий', 'Staff of Hexes'], ['Посох Преисподней', 'Netherflame Staff']],
   wand: [['Жезл послушницы', "Acolyte's Wand"], ['Жезл света', 'Wand of Light'], ['Жемчужный жезл', 'Pearl Wand'], ['Жезл серафима', "Seraph's Wand"]],
-  scythe: [['Серп', 'Sickle'], ['Коса жнеца', "Reaper's Scythe"], ['Костяная коса', 'Bone Scythe'], ['Коса лунной смерти', 'Moondeath Scythe']],
+  crossbow: [['Лёгкий арбалет', 'Light Crossbow'], ['Арбалет зверолова', "Trapper's Crossbow"], ['Северный арбалет', 'Northern Crossbow'], ['Арбалет Вечной зимы', 'Crossbow of Endless Winter']],
   daggers: [['Парные ножи', 'Twin Knives'], ['Кинжалы тени', 'Shadow Daggers'], ['Клинки ночи', 'Nightblades'], ['Клыки Пустоты', 'Void Fangs']],
-  lute: [['Простая лютня', 'Simple Lute'], ['Лютня странницы', "Wanderer's Lute"], ['Серебряная лютня', 'Silver Lute'], ['Лютня сфер', 'Lute of the Spheres']],
 };
 const OFFHAND_NAMES: Record<string, [string, string][]> = {
   shield: [['Круглый щит', 'Round Shield'], ['Башенный щит', 'Tower Shield']],
-  horn: [['Боевой рог', 'War Horn'], ['Рог предков', 'Ancestral Horn']],
+  horn: [['Охотничий рог', 'Hunting Horn'], ['Рог стаи', 'Horn of the Pack']],
   quiver: [['Колчан', 'Quiver'], ['Колчан ветров', 'Quiver of Winds']],
-  orb: [['Сфера фокуса', 'Focus Orb'], ['Сфера бури', 'Storm Orb']],
   tome: [['Молитвенник', 'Prayer Book'], ['Фолиант откровений', 'Tome of Revelations']],
-  grimoire: [['Гримуар', 'Grimoire'], ['Книга мёртвых', 'Book of the Dead']],
+  grimoire: [['Гримуар', 'Grimoire'], ['Книга пепла', 'Book of Ash']],
   dagger: [['Стилет', 'Stiletto'], ['Кинжал убийцы', "Assassin's Dagger"]],
-  songbook: [['Песенник', 'Songbook'], ['Партитура героинь', 'Score of Heroines']],
 };
 const ARMOR_NAMES: Record<string, Record<ArmorWeight, [string, string][]>> = {
   helmet: {
@@ -117,13 +109,11 @@ const MISC_NAMES: Record<string, [string, string][]> = {
 
 const OFFHAND_MAIN: Record<string, StatKey[]> = {
   shield: ['def'],
-  horn: ['atk'],
+  horn: ['atk', 'hp'],
   quiver: ['atk'],
-  orb: ['atk'],
   tome: ['def', 'hp'],
   grimoire: ['atk'],
   dagger: ['atk'],
-  songbook: ['def', 'hp'],
 };
 
 export const BASE_ITEMS: BaseItemDef[] = [];
@@ -304,21 +294,21 @@ export interface UniqueDef {
 
 export const LEGENDARIES: UniqueDef[] = [
   { id: 'morningStar', name: { ru: 'Посох Утренней звезды', en: 'Staff of the Morning Star' }, slot: 'weapon', type: 'staff', fx: { id: 'echo', n: 5 } },
-  { id: 'bloodreaver', name: { ru: 'Секира Кровопийцы', en: 'Bloodreaver' }, slot: 'weapon', type: 'axe', fx: { id: 'healOnKill', v: 0.1 } },
+  { id: 'wolfsbane', name: { ru: 'Арбалет Волчьей ягоды', en: 'Wolfsbane Crossbow' }, slot: 'weapon', type: 'crossbow', fx: { id: 'healOnKill', v: 0.1 } },
   { id: 'windwhisper', name: { ru: 'Лук Шепчущего ветра', en: 'Windwhisper Bow' }, slot: 'weapon', type: 'bow', fx: { id: 'doubleStrike', v: 0.25 } },
   { id: 'oathkeeper', name: { ru: 'Хранитель клятвы', en: 'Oathkeeper' }, slot: 'weapon', type: 'sword', fx: { id: 'guardianAngel' } },
   { id: 'dawnWand', name: { ru: 'Жезл Рассвета', en: 'Wand of Dawn' }, slot: 'weapon', type: 'wand', fx: { id: 'overhealShield', v: 0.4 } },
-  { id: 'soulreaper', name: { ru: 'Жнец душ', en: 'Soulreaper' }, slot: 'weapon', type: 'scythe', fx: { id: 'energyOnKill', n: 25 } },
+  { id: 'soulreaper', name: { ru: 'Посох Жатвы душ', en: 'Soulreaper Staff' }, slot: 'weapon', type: 'staff', fx: { id: 'energyOnKill', n: 25 } },
   { id: 'twinFangs', name: { ru: 'Близнецы-клыки', en: 'Twin Fangs' }, slot: 'weapon', type: 'daggers', fx: { id: 'bleedOnHit', v: 0.4 } },
-  { id: 'lullabyLute', name: { ru: 'Лютня колыбельной', en: 'Lullaby Lute' }, slot: 'weapon', type: 'lute', fx: { id: 'critStun', v: 0.25 } },
+  { id: 'lullabyLute', name: { ru: 'Жезл Тихого света', en: 'Wand of Quiet Light' }, slot: 'weapon', type: 'wand', fx: { id: 'critStun', v: 0.25 } },
   { id: 'bastionShield', name: { ru: 'Щит Бастиона', en: 'Bastion Shield' }, slot: 'offhand', type: 'shield', fx: { id: 'thorns', v: 0.3 } },
-  { id: 'hornOfWar', name: { ru: 'Рог Войны', en: 'Horn of War' }, slot: 'offhand', type: 'horn', fx: { id: 'auraAtk', v: 0.06 } },
+  { id: 'hornOfWar', name: { ru: 'Рог Великой охоты', en: 'Horn of the Great Hunt' }, slot: 'offhand', type: 'horn', fx: { id: 'auraAtk', v: 0.06 } },
   { id: 'quiverOfStars', name: { ru: 'Колчан звёзд', en: 'Quiver of Stars' }, slot: 'offhand', type: 'quiver', fx: { id: 'chain', v: 0.4 } },
-  { id: 'phoenixOrb', name: { ru: 'Сфера феникса', en: 'Phoenix Orb' }, slot: 'offhand', type: 'orb', fx: { id: 'phoenix', v: 0.3 } },
+  { id: 'phoenixOrb', name: { ru: 'Гримуар феникса', en: 'Phoenix Grimoire' }, slot: 'offhand', type: 'grimoire', fx: { id: 'phoenix', v: 0.3 } },
   { id: 'tomeOfDawn', name: { ru: 'Фолиант Зари', en: 'Tome of Dawn' }, slot: 'offhand', type: 'tome', fx: { id: 'shieldOnUlt', v: 1.0 } },
   { id: 'necronomicon', name: { ru: 'Некрономикон', en: 'Necronomicon' }, slot: 'offhand', type: 'grimoire', fx: { id: 'dotSpread' } },
   { id: 'executioner', name: { ru: 'Кинжал палача', en: "Executioner's Dagger" }, slot: 'offhand', type: 'dagger', fx: { id: 'execute', v: 0.3 } },
-  { id: 'songOfHope', name: { ru: 'Песнь надежды', en: 'Song of Hope' }, slot: 'offhand', type: 'songbook', fx: { id: 'auraHeal', v: 0.15 } },
+  { id: 'songOfHope', name: { ru: 'Молитвенник надежды', en: 'Prayers of Hope' }, slot: 'offhand', type: 'tome', fx: { id: 'auraHeal', v: 0.15 } },
   { id: 'crownOfThorns', name: { ru: 'Терновый венец', en: 'Crown of Thorns' }, slot: 'helmet', fx: { id: 'thorns', v: 0.2 } },
   { id: 'aegisPlate', name: { ru: 'Латы Эгиды', en: 'Aegis Plate' }, slot: 'armor', fx: { id: 'startShield', v: 0.2 } },
   { id: 'furyGauntlets', name: { ru: 'Перчатки неистовства', en: 'Gauntlets of Frenzy' }, slot: 'gloves', fx: { id: 'killStack', v: 0.08, n: 5 } },
@@ -333,9 +323,9 @@ export const LEGENDARIES: UniqueDef[] = [
   { id: 'firstBloodRing', name: { ru: 'Кольцо первой крови', en: 'Ring of First Blood' }, slot: 'ring', fx: { id: 'firstStrike', v: 0.5 } },
   // ——— новые легендарки ———
   { id: 'foxfireBow', name: { ru: 'Лук лисьего огня', en: 'Foxfire Bow' }, slot: 'weapon', type: 'bow', fx: { id: 'burnOnHit', v: 0.4 } },
-  { id: 'tidecaller', name: { ru: 'Посох Зова прилива', en: 'Tidecaller Staff' }, slot: 'weapon', type: 'staff', fx: { id: 'startEnergy', n: 40 } },
+  { id: 'tidecaller', name: { ru: 'Арбалет Полярной ночи', en: 'Polar Night Crossbow' }, slot: 'weapon', type: 'crossbow', fx: { id: 'startEnergy', n: 40 } },
   { id: 'snowfang', name: { ru: 'Снежные клыки', en: 'Snowfangs' }, slot: 'weapon', type: 'daggers', fx: { id: 'frozenVuln', v: 0.35 } },
-  { id: 'arenaAxe', name: { ru: 'Секира любимицы арены', en: "Crowd-Pleaser's Axe" }, slot: 'weapon', type: 'axe', fx: { id: 'killStack', v: 0.1, n: 5 } },
+  { id: 'arenaAxe', name: { ru: 'Меч любимицы арены', en: "Crowd-Pleaser's Sword" }, slot: 'weapon', type: 'sword', fx: { id: 'killStack', v: 0.1, n: 5 } },
   { id: 'gladiatorShield', name: { ru: 'Щит гладиатора', en: "Gladiator's Shield" }, slot: 'offhand', type: 'shield', fx: { id: 'tauntStart', n: 2 } },
   { id: 'harlequinMask', name: { ru: 'Маска арлекина', en: 'Harlequin Mask' }, slot: 'helmet', fx: { id: 'auraCrit', v: 0.08 } },
   { id: 'coinBelt', name: { ru: 'Пояс звенящих монет', en: 'Belt of Jingling Coins' }, slot: 'belt', fx: { id: 'auraSpd', n: 4 } },
@@ -355,22 +345,18 @@ export interface MythicDef {
 }
 
 export const MYTHICS: MythicDef[] = [
-  { id: 'myth_guardian_a', cls: 'guardian', name: { ru: 'Вечный бастион', en: 'Eternal Bastion' }, desc: { ru: 'Ультимейт также лечит отряд на 10% HP стража', en: 'Ultimate also heals the party for 10% of her HP' }, target: 'ult', mod: { addEffects: [{ t: 'heal', target: 'allyAll', mult: 0.1, scale: 'hp' }] } },
-  { id: 'myth_guardian_b', cls: 'guardian', name: { ru: 'Щитовой натиск', en: 'Shield Rush' }, desc: { ru: 'Базовая атака даёт щит на 5% HP', en: 'Basic attack grants a shield of 5% HP' }, target: 'basic', mod: { addEffects: [{ t: 'shield', target: 'self', mult: 0.05, scale: 'hp' }] } },
-  { id: 'myth_berserker_a', cls: 'berserker', name: { ru: 'Круговой замах', en: 'Sweeping Swing' }, desc: { ru: 'Базовая атака бьёт весь передний ряд', en: 'Basic attack hits the whole front row' }, target: 'basic', mod: { addEffects: [{ t: 'dmg', target: 'enemyFront', mult: 0.5 }] } },
-  { id: 'myth_berserker_b', cls: 'berserker', name: { ru: 'Бесконечное буйство', en: 'Endless Rampage' }, desc: { ru: 'Ультимейт наносит 2 дополнительных удара', en: 'Ultimate strikes 2 extra times' }, target: 'ult', mod: { extraHits: 2 } },
-  { id: 'myth_archer_a', cls: 'archer', name: { ru: 'Двойная стрела', en: 'Twin Arrow' }, desc: { ru: 'Базовая атака выпускает две стрелы', en: 'Basic attack fires two arrows' }, target: 'basic', mod: { extraHits: 1 } },
-  { id: 'myth_archer_b', cls: 'archer', name: { ru: 'Отравленный дождь', en: 'Venom Rain' }, desc: { ru: 'Ультимейт отравляет на 3 хода', en: 'Ultimate poisons for 3 turns' }, target: 'ult', mod: { addEffects: [{ t: 'dot', dot: 'poison', mult: 0.6, turns: 3 }] } },
-  { id: 'myth_sorceress_a', cls: 'sorceress', name: { ru: 'Ледяной метеор', en: 'Frost Meteor' }, desc: { ru: 'Ультимейт замораживает с шансом 30%', en: 'Ultimate freezes with 30% chance' }, target: 'ult', mod: { addEffects: [{ t: 'cc', cc: 'freeze', chance: 0.3, turns: 1 }] } },
-  { id: 'myth_sorceress_b', cls: 'sorceress', name: { ru: 'Раздвоенная молния', en: 'Forked Bolt' }, desc: { ru: 'Базовая атака поражает ещё одну цель', en: 'Basic attack hits one more target' }, target: 'basic', mod: { addEffects: [{ t: 'dmg', target: 'enemyRandom', mult: 0.7 }] } },
+  { id: 'myth_knight_a', cls: 'knight', name: { ru: 'Вечный бастион', en: 'Eternal Bastion' }, desc: { ru: 'Ультимейт также лечит отряд на 10% HP Рыцаря', en: "Ultimate also heals the party for 10% of the Knight's HP" }, target: 'ult', mod: { addEffects: [{ t: 'heal', target: 'allyAll', mult: 0.1, scale: 'hp' }] } },
+  { id: 'myth_knight_b', cls: 'knight', name: { ru: 'Щитовой натиск', en: 'Shield Rush' }, desc: { ru: 'Базовая атака даёт щит на 5% HP', en: 'Basic attack grants a shield of 5% HP' }, target: 'basic', mod: { addEffects: [{ t: 'shield', target: 'self', mult: 0.05, scale: 'hp' }] } },
+  { id: 'myth_assassin_a', cls: 'assassin', name: { ru: 'Удар милосердия', en: 'Coup de Grâce' }, desc: { ru: 'Базовая атака +40% урона', en: 'Basic attack +40% damage' }, target: 'basic', mod: { multBonus: 0.4, addEffects: [] } },
+  { id: 'myth_assassin_b', cls: 'assassin', name: { ru: 'Метка бездны', en: 'Abyssal Mark' }, desc: { ru: 'Ультимейт поражает ещё одну цель', en: 'Ultimate hits one more target' }, target: 'ult', mod: { extraHits: 1 } },
   { id: 'myth_priestess_a', cls: 'priestess', name: { ru: 'Сияющее исцеление', en: 'Radiant Healing' }, desc: { ru: 'Ультимейт также даёт щит', en: 'Ultimate also grants a shield' }, target: 'ult', mod: { addEffects: [{ t: 'shield', mult: 1.0 }] } },
   { id: 'myth_priestess_b', cls: 'priestess', name: { ru: 'Воскрешение', en: 'Resurrection' }, desc: { ru: 'Ультимейт воскрешает павшую союзницу с 30% HP', en: 'Ultimate revives a fallen ally with 30% HP' }, target: 'ult', mod: { addEffects: [{ t: 'revive', target: 'allyDead', pct: 0.3 }] } },
-  { id: 'myth_necromancer_a', cls: 'necromancer', name: { ru: 'Легион костей', en: 'Bone Legion' }, desc: { ru: 'Ультимейт призывает ещё 2 скелетов', en: 'Ultimate summons 2 more skeletons' }, target: 'ult', mod: { addEffects: [{ t: 'summon', target: 'self', unit: 'skeleton', count: 2, mult: 0.5 }] } },
-  { id: 'myth_necromancer_b', cls: 'necromancer', name: { ru: 'Чумная коса', en: 'Plague Scythe' }, desc: { ru: 'Базовая атака отравляет', en: 'Basic attack poisons' }, target: 'basic', mod: { addEffects: [{ t: 'dot', dot: 'poison', mult: 0.4, turns: 2 }] } },
-  { id: 'myth_assassin_a', cls: 'assassin', name: { ru: 'Удар милосердия', en: 'Coup de Grâce' }, desc: { ru: 'Базовая атака +40% урона и казнь', en: 'Basic attack +40% damage and executes' }, target: 'basic', mod: { multBonus: 0.4, addEffects: [] } },
-  { id: 'myth_assassin_b', cls: 'assassin', name: { ru: 'Метка бездны', en: 'Abyssal Mark' }, desc: { ru: 'Ультимейт поражает ещё одну цель', en: 'Ultimate hits one more target' }, target: 'ult', mod: { extraHits: 1 } },
-  { id: 'myth_bard_a', cls: 'bard', name: { ru: 'Бесконечная песнь', en: 'Endless Song' }, desc: { ru: 'Ультимейт даёт отряду ещё 30 энергии', en: 'Ultimate grants 30 more energy to the party' }, target: 'ult', mod: { addEffects: [{ t: 'energy', amount: 30 }] } },
-  { id: 'myth_bard_b', cls: 'bard', name: { ru: 'Громовой аккорд', en: 'Thunder Chord' }, desc: { ru: 'Базовая атака оглушает с шансом 20%', en: 'Basic attack stuns with 20% chance' }, target: 'basic', mod: { addEffects: [{ t: 'cc', cc: 'stun', chance: 0.2, turns: 1 }] } },
+  { id: 'myth_ranger_a', cls: 'ranger', name: { ru: 'Двойная стрела', en: 'Twin Arrow' }, desc: { ru: 'Базовая атака выпускает две стрелы', en: 'Basic attack fires two arrows' }, target: 'basic', mod: { extraHits: 1 } },
+  { id: 'myth_ranger_b', cls: 'ranger', name: { ru: 'Отравленный дождь', en: 'Venom Rain' }, desc: { ru: 'Ультимейт отравляет на 3 хода', en: 'Ultimate poisons for 3 turns' }, target: 'ult', mod: { addEffects: [{ t: 'dot', dot: 'poison', mult: 0.6, turns: 3 }] } },
+  { id: 'myth_warlock_a', cls: 'warlock', name: { ru: 'Проклятый огонь', en: 'Cursed Fire' }, desc: { ru: 'Ультимейт проклинает всех врагов', en: 'Ultimate hexes every enemy' }, target: 'ult', mod: { addEffects: [{ t: 'mark', mark: 'curse', turns: 2 }] } },
+  { id: 'myth_warlock_b', cls: 'warlock', name: { ru: 'Раздвоенная искра', en: 'Forked Spark' }, desc: { ru: 'Базовая атака поражает ещё одну цель', en: 'Basic attack hits one more target' }, target: 'basic', mod: { addEffects: [{ t: 'dmg', target: 'enemyRandom', mult: 0.7 }] } },
+  { id: 'myth_hunter_a', cls: 'hunter', name: { ru: 'Вожак', en: 'Alpha' }, desc: { ru: 'Ультимейт призывает ещё одного волка', en: 'Ultimate summons one more wolf' }, target: 'ult', mod: { addEffects: [{ t: 'summon', target: 'self', unit: 'wolf', count: 1, mult: 0.45 }] } },
+  { id: 'myth_hunter_b', cls: 'hunter', name: { ru: 'Меченые болты', en: 'Marked Bolts' }, desc: { ru: 'Базовая атака метит добычу с шансом 30%', en: 'Basic attack marks prey with 30% chance' }, target: 'basic', mod: { addEffects: [{ t: 'mark', mark: 'prey', turns: 2, chance: 0.3 }] } },
 ];
 export const MYTHIC_MAP: Record<string, MythicDef> = Object.fromEntries(MYTHICS.map((x) => [x.id, x]));
 

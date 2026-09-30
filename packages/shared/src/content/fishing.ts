@@ -47,13 +47,13 @@ export const FISH: FishDef[] = [
 export const FISH_MAP: Record<string, FishDef> = Object.fromEntries(FISH.map((f) => [f.id, f]));
 
 /**
- * Редкость: шанс поклёвки, сила рыбы в мини-игре (0–1), золото в минутах дохода, кристаллы и осколки.
+ * Редкость: шанс поклёвки, сила рыбы в мини-игре (0–1), золото в минутах дохода, кристаллы и Эмблемы.
  */
-export const FISH_RARITY: Record<FishRarity, { name: L10n; color: string; weight: number; power: number; goldMin: number; dust: number; crystals: number; shards: number }> = {
-  common: { name: L('Обычная', 'Common'), color: '#c8c0b8', weight: 62, power: 0.3, goldMin: 8, dust: 15, crystals: 0, shards: 0 },
-  rare: { name: L('Редкая', 'Rare'), color: '#5ab8f0', weight: 26, power: 0.5, goldMin: 20, dust: 40, crystals: 5, shards: 0 },
-  epic: { name: L('Эпическая', 'Epic'), color: '#b04de0', weight: 10, power: 0.72, goldMin: 45, dust: 90, crystals: 15, shards: 0 },
-  legend: { name: L('Легендарная', 'Legendary'), color: '#ffc040', weight: 2, power: 0.92, goldMin: 120, dust: 200, crystals: 50, shards: 5 },
+export const FISH_RARITY: Record<FishRarity, { name: L10n; color: string; weight: number; power: number; goldMin: number; dust: number; crystals: number; emblems: number }> = {
+  common: { name: L('Обычная', 'Common'), color: '#c8c0b8', weight: 62, power: 0.3, goldMin: 8, dust: 15, crystals: 0, emblems: 0 },
+  rare: { name: L('Редкая', 'Rare'), color: '#5ab8f0', weight: 26, power: 0.5, goldMin: 20, dust: 40, crystals: 5, emblems: 0 },
+  epic: { name: L('Эпическая', 'Epic'), color: '#b04de0', weight: 10, power: 0.72, goldMin: 45, dust: 90, crystals: 15, emblems: 1 },
+  legend: { name: L('Легендарная', 'Legendary'), color: '#ffc040', weight: 2, power: 0.92, goldMin: 120, dust: 200, crystals: 50, emblems: 4 },
 };
 
 /** Наживка: бесплатная в день, запас, покупка за золото (раз в день ограничено). */
@@ -63,10 +63,10 @@ export const FISH_BUY = { bait: 3, perDay: 5, goldMin: 25 };
 /** Идеальный улов (рыба ни разу не вышла из зоны) — +50% золота. */
 export const FISH_PERFECT = 0.5;
 /** Коллекция: сколько видов поймано → награда (один раз). */
-export const FISH_COLLECTION: { species: number; crystals: number; scrolls?: number; hearts?: number }[] = [
+export const FISH_COLLECTION: { species: number; crystals: number; emblems?: number; hearts?: number }[] = [
   { species: 5, crystals: 100 },
-  { species: 10, crystals: 200, scrolls: 2 },
-  { species: 15, crystals: 500, scrolls: 3, hearts: 1 },
+  { species: 10, crystals: 200, emblems: 2 },
+  { species: 15, crystals: 500, emblems: 3, hearts: 1 },
 ];
 /** Спутница водной стихии приманивает редкую рыбу. */
 export const FISH_WATER_BONUS = 1.35;

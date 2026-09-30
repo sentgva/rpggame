@@ -11,14 +11,13 @@ import {
   SET_MAP,
   SKIN_MAP,
   TREES,
-  parseGem, BOND_STAT } from '../content';
+  parseGem, BOND_STAT, ROSTER } from '../content';
 import type { SkillMod } from '../content/effects';
 import type {
   ClassId,
   Element,
   EquipSlot,
   FinalStats,
-  HeroRarity,
   HeroineState,
   Item,
   PlayerState,
@@ -58,8 +57,21 @@ export function accountXpToNext(cfg: Config, lvl: number): number {
   return Math.floor(cfg.account.xpBase * Math.pow(lvl, cfg.account.xpExp));
 }
 
-export function maxStars(cfg: Config, rarity: HeroRarity): number {
-  return cfg.hero.maxStars[rarity];
+/** Высший ранг героини (до пробуждения). */
+export function maxRank(cfg: Config): number {
+  return cfg.hero.maxRank;
+}
+
+/** Цена следующего ранга: Эмблемы и минуты дохода золота; null — ранг высший. */
+export function rankCost(cfg: Config, h: Pick<HeroineState, 'stars'>): { emblems: number; goldMin: number } | null {
+  const i = h.stars - 1;
+  if (h.stars >= cfg.hero.maxRank || i < 0) return null;
+  return { emblems: cfg.hero.rankEmblems[i], goldMin: cfg.hero.rankGold[i] };
+}
+
+/** Ранг фирменного умения растёт с уровнем героини: 1 + уровень/25 (до 5). */
+export function sigRank(h: Pick<HeroineState, 'lvl'>): number {
+  return Math.min(5, 1 + Math.floor(h.lvl / 25));
 }
 
 // ——— предметы ———
@@ -160,7 +172,6 @@ export interface HeroBuild {
   id: string;
   cls: ClassId;
   element: Element;
-  rarity: HeroRarity;
   lvl: number;
   stars: number;
   stats: FinalStats;
@@ -183,14 +194,12 @@ export interface BuildContext {
 }
 
 const AWAKEN_FX: Record<ClassId, SpecialEffect> = {
-  guardian: { id: 'startShield', v: 0.4 },
-  berserker: { id: 'killStack', v: 0.15, n: 5 },
-  archer: { id: 'doubleStrike', v: 0.35 },
-  sorceress: { id: 'echo', n: 3 },
-  priestess: { id: 'guardianAngel' },
-  necromancer: { id: 'summonOnAllyDeath', n: 4 },
+  knight: { id: 'startShield', v: 0.4 },
   assassin: { id: 'execute', v: 0.6 },
-  bard: { id: 'startEnergy', n: 50 },
+  priestess: { id: 'guardianAngel' },
+  ranger: { id: 'doubleStrike', v: 0.35 },
+  warlock: { id: 'echo', n: 3 },
+  hunter: { id: 'packLeader', v: 0.5 },
 };
 
 /** Бонусы созвездия аккаунта (для всего отряда). */
@@ -247,7 +256,7 @@ export function legionMult(cfg: Config, s: Pick<PlayerState, 'ascension'>): numb
 export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: BuildContext = {}): HeroBuild {
   const def = HEROINE_MAP[h.id];
   const cls = CLASSES[def.cls];
-  const rarityMult = cfg.stat.rarityMult[def.rarity];
+  const heroMult = cfg.stat.heroMult;
   const lvlMult = 1 + cfg.stat.levelGrowth * (h.lvl - 1);
   const starMult = 1 + cfg.stat.starGrowth * (h.stars - 1);
   // Уровень и звёзды усиливают и базу, и снаряжение: иначе к середине игры экспоненциальный
@@ -257,7 +266,8 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
   const legion = legionMult(cfg, s);
 
   const add: Stats = {};
-  const fx: SpecialEffect[] = [];
+  // особые эффекты класса (волк у охотницы и т. п.)
+  const fx: SpecialEffect[] = [...(cls.fx ?? [])];
   const sets: Record<string, number> = {};
 
   // снаряжение
@@ -325,26 +335,14 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
     crit: ascensionValue(s, 'crit'),
   });
 
-  // синергия отряда
-  if (ctx.party) {
-    const members = ctx.party.map((id) => HEROINE_MAP[id]).filter(Boolean);
-    const sameElem = members.filter((x) => x.element === def.element).length;
-    if (sameElem >= 3) addStats(add, { atkPct: 0.1 });
-    const sameCls = members.filter((x) => x.cls === def.cls).length;
-    if (sameCls >= 2) addStats(add, cls.synergy);
-    // синергия других классов, у которых ≥2 героини, действует на весь отряд
-    const counts: Record<string, number> = {};
-    for (const x of members) counts[x.cls] = (counts[x.cls] ?? 0) + 1;
-    for (const [c, n] of Object.entries(counts)) if (n >= 2 && c !== def.cls) addStats(add, CLASSES[c as ClassId].synergy);
-  }
   addStats(add, ctx.extra);
   if (ctx.extraFx) fx.push(...ctx.extraFx);
 
   const base = cls.base;
   const stats: FinalStats = {
-    hp: Math.round((base.hp * rarityMult + (add.hp ?? 0)) * m * legion * (1 + (add.hpPct ?? 0))),
-    atk: Math.round((base.atk * rarityMult + (add.atk ?? 0)) * m * legion * (1 + (add.atkPct ?? 0))),
-    def: Math.round((base.def * rarityMult + (add.def ?? 0)) * m * (1 + (add.defPct ?? 0))),
+    hp: Math.round((base.hp * heroMult + (add.hp ?? 0)) * m * legion * (1 + (add.hpPct ?? 0))),
+    atk: Math.round((base.atk * heroMult + (add.atk ?? 0)) * m * legion * (1 + (add.atkPct ?? 0))),
+    def: Math.round((base.def * heroMult + (add.def ?? 0)) * m * (1 + (add.defPct ?? 0))),
     spd: Math.round(base.spd + (add.spd ?? 0)),
     crit: cfg.stat.critBase + (base.crit ?? 0) + (add.crit ?? 0),
     critDmg: cfg.stat.critDmgBase + (base.critDmg ?? 0) + (add.critDmg ?? 0),
@@ -368,7 +366,8 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
   const basicMods = classMods.filter((x) => x.target === 'basic').map((x) => ({ mod: { ...x.mod, skill: cls.basic }, rank: 1 }));
   const ultMods = classMods.filter((x) => x.target === 'ult').map((x) => ({ mod: { ...x.mod, skill: ultId }, rank: 1 }));
 
-  const skills: SkillSlot[] = [];
+  // фирменное умение класса — всегда первым, дальше — изученные в древе
+  const skills: SkillSlot[] = [{ id: cls.sig, rank: sigRank(h) + rankBonus, mods: modsFor(cls.sig) }];
   for (const sid of h.skills) {
     if (!sid) continue;
     const r = learnedSkills.get(sid);
@@ -380,7 +379,6 @@ export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: 
     id: h.id,
     cls: def.cls,
     element: def.element,
-    rarity: def.rarity,
     lvl: h.lvl,
     stars: h.stars,
     stats,
@@ -447,9 +445,9 @@ export function equippedIndex(s: PlayerState): Record<string, { hero: string; sl
   return idx;
 }
 
+/** Отряд — все героини Легиона, что уже присоединились (в порядке строя). */
 export function activeParty(s: PlayerState): string[] {
-  const preset = s.party.presets[s.party.active] ?? [];
-  return preset.filter((x): x is string => !!x && !!s.heroines[x]);
+  return ROSTER.filter((id) => !!s.heroines[id]);
 }
 
 export function partyPower(cfg: Config, s: PlayerState): number {
@@ -457,11 +455,6 @@ export function partyPower(cfg: Config, s: PlayerState): number {
   return party.reduce((sum, id) => sum + buildHeroine(cfg, s, s.heroines[id], { party }).power, 0);
 }
 
-export function partySlots(cfg: Config, s: PlayerState): number {
-  let n = 1;
-  for (const [lvl, slots] of cfg.account.partySlots) if (s.account.lvl >= lvl) n = slots;
-  return n;
-}
 
 export function inventoryCap(cfg: Config, s: PlayerState): number {
   return Math.min(cfg.inventory.max, s.invCap + constellationStats(s.constellation).inv);

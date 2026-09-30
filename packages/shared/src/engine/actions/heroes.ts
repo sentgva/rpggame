@@ -1,7 +1,7 @@
 import { HEROINE_MAP, SKIN_MAP, TIER_REQ, TREES, TREE_NODE_MAP } from '../../content';
 import type { Action } from '../apply';
-import { addHeroine, assert, requireUnlocked, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
-import { branchPoints, goldToNext, levelCap, partySlots, skillPoints, spentPoints, xpToNext } from '../stats';
+import { assert, goldPerMin, requireUnlocked, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
+import { branchPoints, goldToNext, levelCap, maxRank, rankCost, skillPoints, spentPoints, xpToNext } from '../stats';
 
 function hero(ctx: Ctx, a: Action) {
   const id = vStr(a.id, 'id');
@@ -35,41 +35,26 @@ export const heroActions = {
     return { lvl: h.lvl, done };
   },
 
-  'hero.star': (ctx: Ctx, a: Action) => {
+  /** Ранг героини: Эмблемы + золото (минуты дохода). Ранг поднимает потолок уровня и множитель характеристик. */
+  'hero.rank': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'stars');
+    requireUnlocked(ctx, 'ranks');
     const h = hero(ctx, a);
-    const def = HEROINE_MAP[h.id];
-    assert(h.stars < cfg.hero.maxStars[def.rarity], 'maxStars');
-    const need = cfg.hero.starShards[h.stars - 1] ?? 999999;
-    assert((s.shards[h.id] ?? 0) >= need, 'notEnough', { cur: 'shards' });
-    s.shards[h.id] -= need;
+    const cost = rankCost(cfg, h);
+    assert(cost, 'maxRank');
+    spend(ctx, { emblems: cost.emblems, gold: Math.ceil(goldPerMin(cfg, s) * cost.goldMin) });
     h.stars++;
-    ctx.events.push({ name: 'hero_star', props: { hero: h.id, stars: h.stars } });
-    return { stars: h.stars };
+    track(ctx, 'heroRank', 1);
+    ctx.events.push({ name: 'hero_rank', props: { hero: h.id, rank: h.stars } });
+    return { rank: h.stars };
   },
 
-  'hero.recruit': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
-    const id = vStr(a.id, 'id');
-    const def = HEROINE_MAP[id];
-    assert(def, 'noHero');
-    assert(!s.heroines[id], 'owned');
-    const need = cfg.hero.recruitShards[def.rarity];
-    assert((s.shards[id] ?? 0) >= need, 'notEnough', { cur: 'shards' });
-    s.shards[id] -= need;
-    addHeroine(ctx, id);
-    return { id };
-  },
-
+  /** Пробуждение на высшем ранге: потолок уровня 200 и особый эффект класса. */
   'hero.awaken': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
+    const { cfg } = ctx;
     const h = hero(ctx, a);
-    const def = HEROINE_MAP[h.id];
-    assert(def.rarity === 'UR' && h.stars >= 6 && !h.awakened, 'cannotAwaken');
-    assert((s.shards[h.id] ?? 0) >= cfg.hero.awakenShards, 'notEnough', { cur: 'shards' });
-    spend(ctx, { crystals: cfg.hero.awakenCrystals });
-    s.shards[h.id] -= cfg.hero.awakenShards;
+    assert(h.stars >= maxRank(cfg) && !h.awakened, 'cannotAwaken');
+    spend(ctx, { emblems: cfg.hero.awakenEmblems, crystals: cfg.hero.awakenCrystals });
     h.awakened = true;
     ctx.events.push({ name: 'hero_awaken', props: { hero: h.id } });
     return {};
@@ -161,37 +146,4 @@ export const heroActions = {
     h.skills = next;
     return {};
   },
-
-  'party.set': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
-    const preset = vInt(a.preset, 0, s.party.presets.length - 1, 'preset');
-    assert(Array.isArray(a.slots) && a.slots.length === 5, 'badParam', { name: 'slots' });
-    const slots: (string | null)[] = [];
-    for (const x of a.slots as unknown[]) {
-      if (x === null) slots.push(null);
-      else {
-        const id = vStr(x, 'hero');
-        assert(s.heroines[id], 'noHero');
-        assert(!slots.includes(id), 'badParam', { name: 'slots' });
-        assert(!onExpedition(ctx, id), 'onExpedition');
-        slots.push(id);
-      }
-    }
-    const count = slots.filter(Boolean).length;
-    assert(count >= 1, 'emptyParty');
-    assert(count <= partySlots(cfg, s), 'partyFull');
-    s.party.presets[preset] = slots;
-    return {};
-  },
-
-  'party.use': (ctx: Ctx, a: Action) => {
-    const { s } = ctx;
-    const preset = vInt(a.preset, 0, s.party.presets.length - 1, 'preset');
-    const slots = s.party.presets[preset];
-    assert(slots.some(Boolean), 'emptyParty');
-    assert(!slots.some((id) => id && onExpedition(ctx, id)), 'onExpedition');
-    s.party.active = preset;
-    return {};
-  },
 };
-

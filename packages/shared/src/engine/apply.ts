@@ -14,7 +14,6 @@ import { encounterActions, rollEncounter } from './actions/encounters';
 import { bondActions } from './actions/bond';
 import { artifactActions } from './actions/artifacts';
 import { festivalActions } from './actions/festival';
-import { tourneyActions } from './actions/tourney';
 import { mineActions } from './actions/mine';
 import { photoActions } from './actions/photo';
 import { fishingActions } from './actions/fishing';
@@ -43,7 +42,6 @@ export const HANDLERS: Record<string, Handler> = {
   ...bondActions,
   ...artifactActions,
   ...festivalActions,
-  ...tourneyActions,
   ...mineActions,
   ...photoActions,
   ...fishingActions,
@@ -97,16 +95,17 @@ export function applyAction(state: PlayerState, action: Action, opt: ApplyOption
   return { state: s, result: result ?? {}, events: ctx.events };
 }
 
-/** Ручные ульты: { manual: true, inputs: [{ t, u }] } в любом боевом действии. */
+/** Ручное управление: { manual: true, inputs: [{ t, u, s? }] } в любом боевом действии (s = 1 — фирменное умение). */
 export function battleControl(a: Action): Ctx['control'] {
   if (a.manual !== true) return undefined;
   const raw = a.inputs === undefined ? [] : a.inputs;
-  if (!Array.isArray(raw) || raw.length > 80) throw new GameError('badParam', { name: 'inputs' });
+  if (!Array.isArray(raw) || raw.length > 200) throw new GameError('badParam', { name: 'inputs' });
   const inputs = raw.map((x) => {
-    const o = x as { t?: unknown; u?: unknown };
+    const o = x as { t?: unknown; u?: unknown; s?: unknown };
     if (!Number.isInteger(o?.t) || !Number.isInteger(o?.u) || (o.t as number) < 0 || (o.t as number) > 3_600_000 || (o.u as number) < -1 || (o.u as number) > 99)
       throw new GameError('badParam', { name: 'inputs' });
-    return { t: o.t as number, u: o.u as number };
+    if (o.s !== undefined && o.s !== 1) throw new GameError('badParam', { name: 'inputs' });
+    return o.s === 1 ? { t: o.t as number, u: o.u as number, s: 1 as const } : { t: o.t as number, u: o.u as number };
   });
   return { manual: true, inputs };
 }
@@ -123,7 +122,7 @@ export function tick(ctx: Ctx) {
       login.last = today;
       login.total++;
     }
-    s.day = { key: today, quickFree: false, quickAd: false, quick: 0, ads: 0, freeSummon: false, keys: {}, arena: 0, arenaBought: 0, gift: false };
+    s.day = { key: today, quickFree: false, quickAd: false, quick: 0, ads: 0, keys: {}, arena: 0, arenaBought: 0, gift: false };
     s.quests.dayKey = today;
     s.quests.daily = {};
     s.quests.dailyClaimed = [];

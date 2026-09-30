@@ -36,7 +36,7 @@ export interface Ctx {
   server: boolean;
   events: GameEvent[];
   /** Ручное управление боем этого действия: ульты по командам игрока. */
-  control?: { manual: boolean; inputs: { t: number; u: number }[] };
+  control?: { manual: boolean; inputs: { t: number; u: number; s?: 1 }[] };
 }
 
 export function assert(cond: unknown, code: string, params?: Record<string, string | number>): asserts cond {
@@ -173,7 +173,7 @@ export function newUid(s: PlayerState): string {
 export function partyClasses(s: PlayerState): ClassId[] {
   const p = activeParty(s);
   const cls = p.map((id) => HEROINE_MAP[id]?.cls).filter(Boolean) as ClassId[];
-  return cls.length ? cls : ['sorceress'];
+  return cls.length ? cls : ['warlock'];
 }
 
 export function lootBonus(s: PlayerState): number {
@@ -295,15 +295,10 @@ export function addHeroine(ctx: Ctx, id: string): boolean {
   const { s, cfg } = ctx;
   if (s.heroines[id]) return false;
   const def = HEROINE_MAP[id];
-  s.heroines[id] = {
-    id,
-    lvl: 1,
-    stars: cfg.hero.startStars[def.rarity],
-    tree: {},
-    skills: [null, null],
-    gear: {},
-  };
-  ctx.events.push({ name: 'hero_get', props: { hero: id, rarity: def.rarity } });
+  if (!def) return false;
+  void cfg;
+  s.heroines[id] = { id, lvl: 1, stars: 1, tree: {}, skills: [null, null], gear: {} };
+  ctx.events.push({ name: 'hero_join', props: { hero: id } });
   return true;
 }
 
@@ -343,6 +338,8 @@ export function metric(s: PlayerState, key: string): number {
       return s.progress.maxGlobalEver;
     case 'heroCount':
       return Object.keys(s.heroines).length;
+    case 'rankTotal':
+      return Object.values(s.heroines).reduce((n, h) => n + h.stars, 0);
     case 'maxHeroLevel':
       return Math.max(0, ...Object.values(s.heroines).map((h) => h.lvl));
     case 'towerFloor':
@@ -388,17 +385,8 @@ export function grantReward(ctx: Ctx, r: Reward): Reward {
     give(ctx, r.cur);
     out.cur = r.cur;
   }
-  if (r.shards) {
-    for (const [id, n] of Object.entries(r.shards)) ctx.s.shards[id] = (ctx.s.shards[id] ?? 0) + n;
-    out.shards = r.shards;
-  }
   if (r.heroes) {
-    for (const id of r.heroes) {
-      if (!addHeroine(ctx, id)) {
-        const def = HEROINE_MAP[id];
-        ctx.s.shards[id] = (ctx.s.shards[id] ?? 0) + ctx.cfg.hero.dupeShards[def.rarity];
-      }
-    }
+    for (const id of r.heroes) addHeroine(ctx, id);
     out.heroes = r.heroes;
   }
   if (r.items) {

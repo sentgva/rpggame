@@ -26,7 +26,8 @@ import {
   isUnlocked,
   levelCap,
   partyPower,
-  partySlots,
+  activeParty,
+  maxRank,
   stageFromGlobal,
   targetStage,
   bossUnits,
@@ -82,37 +83,7 @@ function mark(key: string) {
 }
 
 function party(): string[] {
-  return s.party.presets[s.party.active].filter(Boolean) as string[];
-}
-
-/** Лучший отряд по силе с учётом ролей: минимум 1 танк/берсерк впереди. */
-function arrangeParty() {
-  const slots = partySlots(cfg, s);
-  const ranked = Object.values(s.heroines)
-    .filter((h) => !s.modes.expeditions.some((e) => e.heroes.includes(h.id)))
-    .map((h) => ({ id: h.id, p: buildHeroine(cfg, s, h).power, cls: HEROINE_MAP[h.id].cls }))
-    .sort((a, b) => b.p - a.p);
-  const pick: string[] = [];
-  const front = ranked.find((x) => x.cls === 'guardian') ?? ranked.find((x) => x.cls === 'berserker');
-  if (front) pick.push(front.id);
-  const healer = ranked.find((x) => x.cls === 'priestess');
-  if (healer && pick.length < slots) pick.push(healer.id);
-  for (const x of ranked) if (pick.length < slots && !pick.includes(x.id)) pick.push(x.id);
-  const fronts = pick.filter((id) => ['guardian', 'berserker'].includes(HEROINE_MAP[id].cls));
-  const backs = pick.filter((id) => !fronts.includes(id));
-  const arr: (string | null)[] = [null, null, null, null, null];
-  const f = fronts.slice(0, 2);
-  const rest = [...fronts.slice(2), ...backs];
-  f.forEach((id, i) => (arr[i] = id));
-  let bi = 2;
-  for (const id of rest) {
-    if (bi > 4) {
-      const empty = arr.findIndex((x) => x === null);
-      if (empty < 0) break;
-      arr[empty] = id;
-    } else arr[bi++] = id;
-  }
-  act('party.set', { preset: 0, slots: arr });
+  return activeParty(s);
 }
 
 function learnTrees() {
@@ -148,19 +119,19 @@ function claimAll() {
   for (const q of [...DAILY_QUESTS, ...WEEKLY_QUESTS]) act('quest.claim', { id: q.id });
   DAILY_CHESTS.forEach((_, i) => act('quest.chest', { kind: 'daily', index: i }));
   WEEKLY_CHESTS.forEach((_, i) => act('quest.chest', { kind: 'weekly', index: i }));
-  act('login.claim', { hero: 'astrid' });
+  act('login.claim');
   act('ach.claim', { id: 'all' });
   act('mail.claim', { id: 'all' });
 }
 
-function summon() {
-  while (s.cur.scrolls >= 1) act('summon', { count: 1, pay: 'scrolls' });
-  while (s.cur.crystals >= cfg.summon.cost10) act('summon', { count: 10, pay: 'crystals' });
-  // осколки → звёзды и новые героини
-  for (const id of Object.keys(s.shards)) {
-    if (!s.heroines[id]) act('hero.recruit', { id });
-    else while (act('hero.star', { id }));
+/** Ранги: Эмблемы — в самую отстающую героиню; излишек кристаллов — в лавку эмблем. */
+function ranks() {
+  for (const o of ['em_5', 'em_25', 'em_80']) while (s.cur.crystals >= 3000 && act('shop.buy', { offer: o }));
+  for (let guard = 0; guard < 30; guard++) {
+    const ids = party().filter((id) => s.heroines[id].stars < maxRank(cfg)).sort((a, b) => s.heroines[a].stars - s.heroines[b].stars);
+    if (!ids.length || !act('hero.rank', { id: ids[0] })) break;
   }
+  for (const id of party()) act('hero.awaken', { id });
 }
 
 function pushStages(maxAttempts = 25) {
@@ -180,7 +151,7 @@ function pushStages(maxAttempts = 25) {
       wallLogged = t.n;
       const en = bossUnits(cfg, t);
       const hp = en.reduce((a, u) => a + u.stats.hp, 0);
-      const hs = heroUnits(cfg, s, s.party.presets[s.party.active]);
+      const hs = heroUnits(cfg, s, party());
       const dmg = Object.entries(b.battle.dmgDone as Record<string, number>).reduce((a, [k, v]) => (Number(k) < hs.length ? a + v : a), 0);
       const alive = Object.values(b.battle.heroHp as Record<string, number>).filter((v) => v > 0).length;
       const atk = hs.reduce((a, u) => a + u.stats.atk, 0);
@@ -218,12 +189,11 @@ function expeditions() {
   if (!isUnlocked({ s, cfg }, 'expeditions')) return;
   for (const e of [...s.modes.expeditions]) act('expedition.claim', { id: e.id });
   const board: string[] = act('expedition.board')?.board ?? [];
-  const inParty = new Set(party());
   for (const qid of board) {
     const q = EXPEDITION_MAP[qid];
     const busy = new Set(s.modes.expeditions.flatMap((e) => e.heroes));
     const avail = Object.values(s.heroines)
-      .filter((h) => !inParty.has(h.id) && !busy.has(h.id) && h.stars >= q.minStars)
+      .filter((h) => !busy.has(h.id) && h.stars >= q.minStars)
       .map((h) => h.id);
     const pick: string[] = [];
     const need = avail.find((id) => (!q.cls || HEROINE_MAP[id].cls === q.cls) && (!q.element || HEROINE_MAP[id].element === q.element));
@@ -272,8 +242,7 @@ function session() {
   act('chest.collect');
   act('chest.quick', { method: 'free' });
   claimAll();
-  summon();
-  arrangeParty();
+  ranks();
   act('item.autoEquip');
   learnTrees();
   spendGold();

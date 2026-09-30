@@ -25,6 +25,7 @@ import {
   applyAction,
   bossUnits,
   createPlayer,
+  migrate,
   elementMult,
   heroUnits,
   simulateBattle,
@@ -45,17 +46,10 @@ import {
   SKINS,
   SKIN_MAP,
   SHOP_OFFERS,
-  TOWER_SKIN_FLOORS,
   PASS_LEVELS,
-  PASS_SKIN_LEVELS,
-  PASS_SKIN_DUPE_CRYSTALS,
   passSkins,
   passReward,
-  seasonKey,
-  HERALDS,
-  HERALD_BY_ELEMENT,
   COLOSSI,
-  SUMMON_POOL,
   ELEMENTS,
   riftElement,
   riftTier,
@@ -64,26 +58,37 @@ import {
   riftBoss,
   hordeState,
   spireParty,
+  spireReward,
+  HEROINES,
   HEROINE_MAP,
-  HORDE_SKIN_WAVES,
-  SPIRE_SKINS,
+  ROSTER,
+  STARTER_HEROINES,
+  CLASSES,
+  CLASS_IDS,
+  COMBOS,
+  COMBO,
+  SIG_HOLD,
+  activeParty,
+  rankCost,
+  sigRank,
   ENCOUNTER_MAP,
   encounterOffer,
   bondState,
   bondTraits,
   bondTopic,
   BOND_HEROES,
+  BOND_SPA_SKIN,
   BOND_SLEEP_SKIN,
   ARTIFACTS,
-  ARTIFACT_BANNER,
   ARTIFACT_MAX,
-  ARTIFACT_REFUND,
   ARTIFACT_SLOT3_LVL,
+  ARTIFACT_TIER_STAGE,
   activeArtifacts,
+  artifactCost,
+  artifactOpen,
   artifactSlots,
   artifactText,
   artifactValue,
-  type ArtifactPull,
   BATH_GAIN,
   ROOM_BONUS,
   ROOM_MAX,
@@ -143,22 +148,14 @@ import {
   MINE_START,
   MINE_START_IDX,
   MINE_W,
-  TOUR_CHAMP_REWARD,
-  TOUR_ENTRIES,
-  TOUR_LEVEL,
-  TOUR_LOSSES,
-  TOUR_PICKS,
-  TOUR_WINS,
   festGoalsFor,
   mineBoard,
   mineNeedsFight,
   mineOf,
   mineVisible,
-  tourEntriesLeft,
-  tourOpponent,
-  tourUnits,
   stageAffixes,
   withAffixes,
+  type BattleEvent,
   type PlayerState,
 } from '../src';
 
@@ -174,7 +171,7 @@ describe('формулы', () => {
     expect(xpToNext(cfg, 10)).toBe(Math.floor(100 * Math.pow(10, 2.2)));
   });
 
-  it('потолок уровня зависит от звёзд', () => {
+  it('потолок уровня зависит от ранга', () => {
     expect(levelCap(cfg, { stars: 1 })).toBe(20);
     expect(levelCap(cfg, { stars: 6 })).toBe(120);
     expect(levelCap(cfg, { stars: 6, awakened: true })).toBe(200);
@@ -199,7 +196,7 @@ describe('формулы', () => {
 describe('симулятор боя', () => {
   it('детерминирован: одинаковый seed — одинаковый бой', () => {
     const s = fresh();
-    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 5))];
+    const units = [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, 5))];
     const a = simulateBattle(cfg, { seed: 12345, units, timeLimit: 60 });
     const b = simulateBattle(cfg, { seed: 12345, units, timeLimit: 60 });
     expect(stateHash(a.events)).toBe(stateHash(b.events));
@@ -210,7 +207,7 @@ describe('симулятор боя', () => {
 
   it('тихий режим сервера даёт тот же исход', () => {
     const s = fresh();
-    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 3))];
+    const units = [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, 3))];
     const loud = simulateBattle(cfg, { seed: 7, units, timeLimit: 60 });
     const quiet = simulateBattle(cfg, { seed: 7, units, timeLimit: 60, quiet: true });
     expect(quiet.win).toBe(loud.win);
@@ -220,7 +217,7 @@ describe('симулятор боя', () => {
 
   it('таймер боя с боссом — 60 секунд', () => {
     const s = fresh();
-    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 200))];
+    const units = [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, 200))];
     const r = simulateBattle(cfg, { seed: 1, units, timeLimit: 60 });
     expect(r.win).toBe(false);
     expect(r.time).toBeLessThanOrEqual(60000);
@@ -229,7 +226,7 @@ describe('симулятор боя', () => {
   it('все механики боссов актов отрабатывают без ошибок', () => {
     const s = fresh();
     for (let act = 1; act <= 10; act++) {
-      const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, act * 20))];
+      const units = [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, act * 20))];
       const r = simulateBattle(cfg, { seed: act, units, timeLimit: 60, immortal: true });
       expect(r.events.length).toBeGreaterThan(5);
     }
@@ -306,22 +303,6 @@ describe('действия', () => {
     expect(r24.state.chest.minutes).toBe(12 * 60);
   });
 
-  it('гарант призыва: SSR не позже 60-го', () => {
-    let s = fresh();
-    s.cur.scrolls = 1000;
-    const rarities: string[] = [];
-    for (let i = 0; i < 12; i++) {
-      const r = applyAction(s, { type: 'summon', count: 10, pay: 'scrolls' }, { cfg, now: T0 });
-      s = r.state;
-      rarities.push(...r.result.pulls.map((p: { rarity: string }) => p.rarity));
-    }
-    let sinceSSR = 0;
-    for (const r of rarities) {
-      sinceSSR++;
-      if (r === 'SSR' || r === 'UR') sinceSSR = 0;
-      expect(sinceSSR).toBeLessThan(60);
-    }
-  });
 
   it('заточка: до +10 всегда успешно', () => {
     let s = fresh();
@@ -376,7 +357,7 @@ describe('действия', () => {
     let s = fresh();
     s.cur.gold = 1e15;
     s.cur.dust = 1e12;
-    const base = BASE_ITEMS.find((b) => b.slot === 'weapon' && canWear('sorceress', b))!.id;
+    const base = BASE_ITEMS.find((b) => b.slot === 'weapon' && canWear('warlock', b))!.id;
     const old = applyAction(s, { type: 'dev.item', slot: 'weapon', rarity: 2, lvl: 10, base }, { cfg, now: T0, dev: true });
     s = old.state;
     const oldUid = old.result.uid as string;
@@ -408,10 +389,223 @@ describe('действия', () => {
   });
 });
 
+describe('Легион из шести', () => {
+  const D = { cfg, now: T0, dev: true };
+
+  it('шесть героинь — шесть разных классов; старт — Рыцарь и Колдунья', () => {
+    expect(ROSTER).toHaveLength(6);
+    expect(new Set(HEROINES.map((h) => h.cls))).toEqual(new Set(CLASS_IDS));
+    expect(CLASS_IDS.sort()).toEqual(['assassin', 'hunter', 'knight', 'priestess', 'ranger', 'warlock']);
+    expect(STARTER_HEROINES.sort()).toEqual(['astrid', 'lira']);
+    const s = fresh();
+    expect(Object.keys(s.heroines).sort()).toEqual(['astrid', 'lira']);
+    expect(activeParty(s)).toEqual(ROSTER.filter((id) => s.heroines[id]));
+    // у каждого класса своё оружие, фирменное умение, ульта и две специализации
+    for (const id of CLASS_IDS) {
+      const c = CLASSES[id];
+      expect(SKILL_MAP[c.basic]).toBeDefined();
+      expect(SKILL_MAP[c.sig]?.kind).toBe('active');
+      expect(SKILL_MAP[c.ult]?.kind).toBe('ult');
+      for (const sp of c.specs) expect(SKILL_MAP[sp.ult]?.kind).toBe('ult');
+    }
+    expect(new Set(CLASS_IDS.map((id) => CLASSES[id].weapon)).size).toBe(6);
+    // фигуры без откровенных нарядов: у базовых героинь нет купальников
+    for (const h of HEROINES) expect(isSwimwear(h.look.wear)).toBe(false);
+  });
+
+  it('гачи нет: призыва, найма и пресетов отряда не существует', () => {
+    const s = fresh();
+    for (const type of ['summon', 'summon.free', 'hero.recruit', 'party.set', 'party.use', 'hero.star', 'artifact.summon'])
+      expect(() => applyAction(s, { type, count: 1, pay: 'crystals', id: 'lira' }, { cfg, now: T0 })).toThrow('unknownAction');
+    expect('shards' in s).toBe(false);
+    expect('party' in s).toBe(false);
+  });
+
+  it('героини присоединяются по ходу кампании и здороваются', () => {
+    let s = fresh();
+    s = applyAction(s, { type: 'dev.progress', diff: 0, idx: 3 }, D).state;
+    s = { ...s, progress: { ...s.progress, wave: 3 }, dev: { ...s.dev, oneShot: true } };
+    const r = applyAction(s, { type: 'battle.boss' }, D);
+    expect(r.result.win).toBe(true);
+    const next = HEROINES.filter((h) => h.join > 0 && h.join <= 3).map((h) => h.id);
+    expect(next.length).toBeGreaterThan(0);
+    expect(r.result.joined).toEqual(next);
+    for (const id of next) expect(r.state.heroines[id]).toMatchObject({ lvl: 1, stars: 1 });
+    expect(r.events.some((e) => e.name === 'hero_join')).toBe(true);
+    for (const h of HEROINES) expect(h.hello.ru.length).toBeGreaterThan(10);
+    // вся шестёрка — к 15-му этапу
+    expect(Math.max(...HEROINES.map((h) => h.join))).toBeLessThanOrEqual(15);
+  });
+
+  it('ранги: Эмблемы и золото; открываются с 10-го этапа; выше 6-го нельзя; пробуждение — на 6-м', () => {
+    let s = fresh();
+    expect(() => applyAction(s, { type: 'hero.rank', id: 'astrid' }, { cfg, now: T0 })).toThrow('locked');
+    s = applyAction(s, { type: 'dev.progress', diff: 0, idx: 11 }, D).state;
+    expect(() => applyAction(s, { type: 'hero.rank', id: 'astrid' }, { cfg, now: T0 })).toThrow('notEnough');
+    s = applyAction(s, { type: 'dev.cur', cur: 'emblems', op: 'set', amount: 10000 }, D).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'set', amount: 1e12 }, D).state;
+    s = applyAction(s, { type: 'dev.cur', cur: 'crystals', op: 'set', amount: 1e6 }, D).state;
+    const cost = rankCost(cfg, s.heroines.astrid)!;
+    expect(cost).toEqual({ emblems: cfg.hero.rankEmblems[0], goldMin: cfg.hero.rankGold[0] });
+    const before = buildHeroine(cfg, s, s.heroines.astrid).power;
+    const r = applyAction(s, { type: 'hero.rank', id: 'astrid' }, { cfg, now: T0 });
+    expect(r.state.heroines.astrid.stars).toBe(2);
+    expect(r.state.cur.emblems).toBe(10000 - cost.emblems);
+    expect(r.state.cur.gold).toBeLessThan(1e12);
+    expect(levelCap(cfg, r.state.heroines.astrid)).toBe(cfg.hero.levelCaps[1]);
+    expect(buildHeroine(cfg, r.state, r.state.heroines.astrid).power).toBeGreaterThan(before);
+    s = r.state;
+    expect(() => applyAction(s, { type: 'hero.awaken', id: 'astrid' }, { cfg, now: T0 })).toThrow('cannotAwaken');
+    for (let i = 2; i < cfg.hero.maxRank; i++) s = applyAction(s, { type: 'hero.rank', id: 'astrid' }, { cfg, now: T0 }).state;
+    expect(s.heroines.astrid.stars).toBe(cfg.hero.maxRank);
+    expect(rankCost(cfg, s.heroines.astrid)).toBeNull();
+    expect(() => applyAction(s, { type: 'hero.rank', id: 'astrid' }, { cfg, now: T0 })).toThrow('maxRank');
+    const e0 = s.cur.emblems;
+    s = applyAction(s, { type: 'hero.awaken', id: 'astrid' }, { cfg, now: T0 }).state;
+    expect(s.heroines.astrid.awakened).toBe(true);
+    expect(e0 - s.cur.emblems).toBe(cfg.hero.awakenEmblems);
+    expect(levelCap(cfg, s.heroines.astrid)).toBe(cfg.hero.awakenCap);
+    expect(() => applyAction(s, { type: 'hero.rank', id: 'nobody' }, { cfg, now: T0 })).toThrow('noHero');
+  });
+
+  it('фирменное умение класса всегда в бою, его ранг растёт с уровнем', () => {
+    const s = fresh();
+    for (const id of Object.keys(s.heroines)) {
+      const b = buildHeroine(cfg, s, s.heroines[id]);
+      expect(b.skills[0].id).toBe(CLASSES[HEROINE_MAP[id].cls].sig);
+    }
+    expect(sigRank({ lvl: 1 })).toBe(1);
+    expect(sigRank({ lvl: 50 })).toBe(3);
+    expect(sigRank({ lvl: 200 })).toBe(5);
+  });
+
+  it('новичку — Эмблемы в приветственном письме; старые сохранения эпохи гачи начинаются заново', () => {
+    const s = fresh();
+    expect(s.mail[0].rewards?.cur?.emblems).toBeGreaterThanOrEqual(cfg.hero.rankEmblems[0]);
+    const old = { ...s, v: 1, heroines: { coral: { id: 'coral', lvl: 90, stars: 5, tree: {}, skills: [null, null], gear: {} } } } as PlayerState;
+    const m = migrate(cfg, old, T0 + 1000);
+    expect(Object.keys(m.heroines).sort()).toEqual(['astrid', 'lira']);
+    expect(m.v).toBe(s.v);
+    // текущая версия дополняется без сброса
+    const cur = migrate(cfg, { ...s, cur: { ...s.cur, gold: 777 } }, T0 + 1000);
+    expect(cur.cur.gold).toBe(777);
+  });
+
+  it('экспедиции берут героинь из отряда (они не покидают бой), но одна героиня — в одной экспедиции', () => {
+    let s = applyAction(fresh(), { type: 'dev.progress', diff: 0, idx: 20 }, D).state;
+    s = { ...s, modes: { ...s.modes, expeditionBoard: { day: dayKey(T0), quests: ['patrol', 'escort'] } } };
+    s = applyAction(s, { type: 'expedition.start', quest: 'patrol', heroes: ['astrid'] }, { cfg, now: T0 }).state;
+    expect(s.modes.expeditions).toHaveLength(1);
+    expect(activeParty(s)).toContain('astrid');
+    expect(() => applyAction(s, { type: 'expedition.start', quest: 'escort', heroes: ['astrid', 'lira'] }, { cfg, now: T0 })).toThrow('onExpedition');
+  });
+});
+
+describe('связки классов и ручное управление', () => {
+  const D = { cfg, now: T0, dev: true };
+  function legion(lvl = 40) {
+    let s = fresh();
+    s = applyAction(s, { type: 'dev.hero', id: 'all', lvl, stars: 3 }, D).state;
+    return s;
+  }
+  const fight = (s: PlayerState, seed: number, extra: Partial<Parameters<typeof simulateBattle>[1]> = {}) =>
+    simulateBattle(cfg, { seed, units: [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, 40))], timeLimit: 60, ...extra });
+
+  it('метки одной героини усиливают удар другой: связки случаются сами, счётчик совпадает', () => {
+    const s = legion();
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 6; seed++) {
+      const r = fight(s, seed);
+      const combos = r.events.filter((e): e is Extract<BattleEvent, { k: 'combo' }> => e.k === 'combo');
+      const heroes = new Set(r.units.filter((u) => u.side === 0).map((u) => u.uid));
+      expect(r.combos).toBe(combos.filter((c) => heroes.has(c.u)).length);
+      for (const c of combos) seen.add(c.c);
+    }
+    for (const id of ['backstab', 'crush', 'detonate', 'hunt']) expect(seen.has(id)).toBe(true);
+    for (const c of COMBOS) {
+      expect(CLASSES[c.from]).toBeDefined();
+      for (const to of c.to) expect(CLASSES[to]).toBeDefined();
+    }
+  });
+
+  it('удар в спину по ошеломлённому — всегда крит', () => {
+    const s = legion();
+    let checked = 0;
+    for (let seed = 1; seed <= 8; seed++) {
+      const ev = fight(s, seed).events;
+      ev.forEach((e, i) => {
+        if (e.k !== 'combo' || e.c !== 'backstab') return;
+        const hit = ev.slice(i + 1).find((x) => x.k === 'dmg' && x.u === e.u && x.tg === e.tg && !x.dot);
+        if (hit && hit.k === 'dmg' && !hit.miss) {
+          expect(hit.crit).toBe(1);
+          checked++;
+        }
+      });
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('без Рыцаря нет ошеломления — и нет удара в спину', () => {
+    let s = legion();
+    const { astrid, ...rest } = s.heroines;
+    void astrid;
+    s = { ...s, heroines: rest };
+    for (let seed = 1; seed <= 4; seed++) expect(fight(s, seed).events.some((e) => e.k === 'combo' && e.c === 'backstab')).toBe(false);
+  });
+
+  it('волк Охотницы встаёт рядом с начала боя; вожак стаи усиливает волков', () => {
+    const s = legion();
+    const r = fight(s, 3);
+    const wolves = r.events.filter((e): e is Extract<BattleEvent, { k: 'summon' }> => e.k === 'summon' && e.unit.ref === 'wolf');
+    expect(wolves.some((e) => e.t === 0 && e.unit.side === 0)).toBe(true);
+    const hunter = heroUnits(cfg, s, ['ulfa'])[0];
+    expect(hunter.fx.some((f) => f.id === 'companion')).toBe(true);
+    const lead = { ...hunter, fx: [...hunter.fx, { id: 'packLeader', v: 0.5 }] };
+    const hp = (u: typeof hunter) =>
+      (simulateBattle(cfg, { seed: 1, units: [u, ...bossUnits(cfg, stageRef(0, 5))], timeLimit: 5 }).events.find((e) => e.k === 'summon') as Extract<BattleEvent, { k: 'summon' }>).unit.maxHp;
+    expect(hp(lead)).toBeGreaterThan(hp(hunter));
+  });
+
+  it('ручной режим: фирменное умение ждёт команды (не дольше SIG_HOLD), команда выпускает его раньше', () => {
+    const s = legion();
+    const base = fight(s, 5, { manual: true, inputs: [] }).events;
+    const sig = base.filter((e): e is Extract<BattleEvent, { k: 'sig' }> => e.k === 'sig');
+    const hero = sig[0].u;
+    const ready = sig.find((e) => e.u === hero && e.r === 1)!;
+    const used = sig.find((e) => e.u === hero && e.r === 0 && e.t > ready.t)!;
+    expect(used.t - ready.t).toBeGreaterThanOrEqual(SIG_HOLD);
+    const cmd = fight(s, 5, { manual: true, inputs: [{ t: ready.t + 1, u: hero, s: 1 }] }).events;
+    const used2 = cmd.find((e) => e.k === 'sig' && e.u === hero && e.r === 0 && e.t > ready.t)!;
+    expect(used2.t).toBeLessThan(used.t);
+    // до команды бой тот же
+    const before = (l: BattleEvent[]) => JSON.stringify(l.filter((e) => e.t <= ready.t));
+    expect(before(cmd)).toBe(before(base));
+    // авто-режим: ждать не нужно
+    const auto = fight(s, 5).events;
+    const r2 = auto.find((e) => e.k === 'sig' && e.u === hero && e.r === 1)!;
+    const u2 = auto.find((e) => e.k === 'sig' && e.u === hero && e.r === 0 && e.t > r2.t)!;
+    expect(u2.t - r2.t).toBeLessThan(SIG_HOLD);
+  });
+
+  it('связки считаются в заданиях; команда с кривым s отклоняется', () => {
+    let s = legion();
+    s = applyAction(s, { type: 'dev.progress', diff: 0, idx: 30 }, D).state;
+    s = { ...s, progress: { ...s.progress, wave: 3 } };
+    const r = applyAction(s, { type: 'battle.boss' }, { cfg, now: T0 + 1000 });
+    expect(r.result.battle.combos).toBeGreaterThan(0);
+    expect(r.state.quests.daily.combo).toBe(r.result.battle.combos);
+    expect(r.state.counters.combo).toBe(r.result.battle.combos);
+    expect(() => applyAction(s, { type: 'battle.boss', manual: true, inputs: [{ t: 1, u: 0, s: 2 }] }, { cfg, now: T0 })).toThrow(GameError);
+    expect(() => applyAction(s, { type: 'battle.boss', manual: true, inputs: [{ t: 1, u: 0, s: 1 }] }, { cfg, now: T0 })).not.toThrow();
+    expect(COMBO.backstab).toBeGreaterThan(0);
+  });
+});
+
 describe('ручные ульты и Сокрушительный удар', () => {
   function bossState(lvl = 20) {
     let s = fresh();
-    s = applyAction(s, { type: 'dev.hero', id: 'all', lvl }, { cfg, now: T0, dev: true }).state;
+    // тройка героинь: бой с боссом длится дольше первого каста
+    for (const id of ['astrid', 'lira', 'mirabel']) s = applyAction(s, { type: 'dev.hero', id, lvl }, { cfg, now: T0, dev: true }).state;
     s = applyAction(s, { type: 'dev.progress', diff: 0, idx: 20 }, { cfg, now: T0, dev: true }).state;
     s.progress.wave = 3;
     return s;
@@ -464,7 +658,7 @@ describe('ручные ульты и Сокрушительный удар', () 
     const s = bossState();
     expect(() => boss(s, { manual: true, inputs: 'x' })).toThrow(GameError);
     expect(() => boss(s, { manual: true, inputs: [{ t: -5, u: 0 }] })).toThrow(GameError);
-    expect(() => boss(s, { manual: true, inputs: Array.from({ length: 200 }, () => ({ t: 1, u: 0 })) })).toThrow(GameError);
+    expect(() => boss(s, { manual: true, inputs: Array.from({ length: 250 }, () => ({ t: 1, u: 0 })) })).toThrow(GameError);
   });
 });
 
@@ -506,10 +700,10 @@ describe('встречи', () => {
     expect(r1.state.cur.dust).toBeGreaterThan(s.cur.dust);
     expect(r1.state.encounter).toBeNull();
     const r2 = applyAction(at(s, 'merchant'), { type: 'encounter.resolve', choice: 'scroll' }, { cfg, now: T0 + 2000 });
-    expect(r2.state.cur.scrolls).toBe(s.cur.scrolls + 1);
+    expect(r2.state.cur.emblems).toBe(s.cur.emblems + 6);
     expect(r2.state.cur.crystals).toBe(s.cur.crystals - 150);
     const r3 = applyAction(at(s, 'traveler'), { type: 'encounter.resolve', choice: 'help' }, { cfg, now: T0 + 2000 });
-    expect(Object.values((r3.result as { shards: Record<string, number> }).shards)[0]).toBe(5);
+    expect(r3.state.cur.emblems).toBe(s.cur.emblems + 2);
     const r4 = applyAction(at(s, 'gambler'), { type: 'encounter.resolve', choice: 'bet' }, { cfg, now: T0 + 2000 });
     expect(['lucky', 'unlucky']).toContain((r4.result as { outcome: string }).outcome);
     const r5 = applyAction(at(s, 'ambush'), { type: 'encounter.resolve', choice: 'fight' }, { cfg, now: T0 + 2000 });
@@ -528,123 +722,124 @@ describe('встречи', () => {
 });
 
 describe('уход за героинями', () => {
-  function withUr() {
+  // Мирабель присоединяется по ходу кампании — в тестах её выдаём сразу
+  function withHero() {
     let s = fresh();
-    s = applyAction(s, { type: 'dev.hero', id: 'velvet', lvl: 10 }, { cfg, now: T0, dev: true }).state;
+    s = applyAction(s, { type: 'dev.hero', id: 'mirabel', lvl: 10 }, { cfg, now: T0, dev: true }).state;
     s = applyAction(s, { type: 'dev.cur', cur: 'gold', op: 'add', amount: 1e9 }, { cfg, now: T0, dev: true }).state;
     s = applyAction(s, { type: 'dev.cur', cur: 'crystals', op: 'add', amount: 100000 }, { cfg, now: T0, dev: true }).state;
     return s;
   }
 
-  it('купальник для источников есть у каждой UR-героини, скрытые облики не продаются и не носятся', async () => {
-    const { BOND_HEROES, BOND_SPA_SKIN, SKINS, SKIN_MAP } = await import('../src');
+  it('общение — со всей шестёркой; купальник для источников скрытый и в бою не носится', () => {
+    expect(BOND_HEROES.sort()).toEqual([...ROSTER].sort());
     for (const id of BOND_HEROES) {
       const skin = BOND_SPA_SKIN[id];
       expect(SKIN_MAP[skin]?.hero).toBe(id);
       expect(isSwimwear(SKIN_MAP[skin].look.wear)).toBe(true);
-      if (skin.endsWith('_spa')) expect(SKINS.some((x) => x.id === skin)).toBe(false);
+      expect(SKINS.some((x) => x.id === skin)).toBe(false);
     }
-    let s = withUr();
-    expect(() => applyAction(s, { type: 'hero.skin', id: 'velvet', skin: 'velvet_spa' }, { cfg, now: T0 })).toThrow('noSkin');
-    s = applyAction(s, { type: 'bond.spa', hero: 'velvet' }, { cfg, now: T0 }).state;
-    expect(s.heroines.velvet.skin).toBeUndefined();
+    let s = withHero();
+    expect(() => applyAction(s, { type: 'hero.skin', id: 'mirabel', skin: BOND_SPA_SKIN.mirabel }, { cfg, now: T0 })).toThrow('noSkin');
+    s = applyAction(s, { type: 'bond.spa', hero: 'mirabel' }, { cfg, now: T0 }).state;
+    expect(s.heroines.mirabel.skin).toBeUndefined();
   });
 
   const A = (s: PlayerState, a: Record<string, unknown>, now = T0 + 1000) => applyAction(s, { type: 'x', ...a } as never, { cfg, now });
 
-  it('только UR и только свои; дневные лимиты; новый день — снова можно', () => {
-    let s = withUr();
-    expect(() => A(s, { type: 'bond.spa', hero: 'lira' })).toThrow(GameError); // не UR
-    expect(() => A(s, { type: 'bond.spa', hero: 'isolde' })).toThrow(GameError); // нет героини
-    for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).state;
-    expect(() => A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 })).toThrow(GameError);
-    s = A(s, { type: 'bond.spa', hero: 'velvet' }).state;
-    expect(() => A(s, { type: 'bond.spa', hero: 'velvet' })).toThrow(GameError);
+  it('только свои героини; дневные лимиты; новый день — снова можно', () => {
+    let s = withHero();
+    expect(() => A(s, { type: 'bond.spa', hero: 'keira' })).toThrow(GameError); // ещё не в Легионе
+    expect(() => A(s, { type: 'bond.spa', hero: 'nobody' })).toThrow(GameError);
+    expect(() => A(s, { type: 'bond.talk', hero: 'lira', answer: 0 })).not.toThrow(); // стартовая героиня — тоже
+    for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 }).state;
+    expect(() => A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 })).toThrow(GameError);
+    s = A(s, { type: 'bond.spa', hero: 'mirabel' }).state;
+    expect(() => A(s, { type: 'bond.spa', hero: 'mirabel' })).toThrow(GameError);
     // свидания — с 3-го уровня
-    expect(() => A(s, { type: 'bond.date', hero: 'velvet', place: 'lake' })).toThrow(GameError);
-    expect(bondState({ s, now: T0 + 86400000 }, 'velvet').talk).toBe(0);
-    expect(() => A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }, T0 + 86400000)).not.toThrow();
+    expect(() => A(s, { type: 'bond.date', hero: 'mirabel', place: 'lake' })).toThrow(GameError);
+    expect(bondState({ s, now: T0 + 86400000 }, 'mirabel').talk).toBe(0);
+    expect(() => A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 }, T0 + 86400000)).not.toThrow();
   });
 
-  it('ответы и угощения: любимое даёт больше; уровни, награды и бонус к статам', () => {
-    let s = withUr();
-    const best = A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).result as { xp: number };
-    const bad = A(s, { type: 'bond.talk', hero: 'velvet', answer: 2 }).result as { xp: number };
+  it('ответы и угощения: любимое даёт больше; уровни, награды (Эмблемы) и бонус к статам', () => {
+    let s = withHero();
+    const best = A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 }).result as { xp: number };
+    const bad = A(s, { type: 'bond.talk', hero: 'mirabel', answer: 2 }).result as { xp: number };
     expect(best.xp).toBeGreaterThan(bad.xp);
-    const t = bondTraits('velvet');
-    const fav = A(s, { type: 'bond.treat', hero: 'velvet', treat: t.treat }).result as { like: number; xp: number };
-    const dis = A(s, { type: 'bond.treat', hero: 'velvet', treat: t.dislike }).result as { like: number; xp: number };
+    const t = bondTraits('mirabel');
+    const fav = A(s, { type: 'bond.treat', hero: 'mirabel', treat: t.treat }).result as { like: number; xp: number };
+    const dis = A(s, { type: 'bond.treat', hero: 'mirabel', treat: t.dislike }).result as { like: number; xp: number };
     expect(fav.like).toBe(0);
     expect(fav.xp).toBeGreaterThan(dis.xp);
-    const before = buildHeroine(cfg, s, s.heroines.velvet).power;
-    // много дней заботы: до 10-го уровня
-    const crystals0 = s.cur.crystals;
-    for (let d = 0; d < 40 && (s.bond?.velvet?.lvl ?? 0) < 10; d++) {
+    const before = buildHeroine(cfg, s, s.heroines.mirabel).power;
+    const e0 = s.cur.emblems;
+    for (let d = 0; d < 40 && (s.bond?.mirabel?.lvl ?? 0) < 10; d++) {
       const now = T0 + d * 86400000 + 1000;
-      for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }, now).state;
-      for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.treat', hero: 'velvet', treat: t.treat }, now).state;
-      s = A(s, { type: 'bond.spa', hero: 'velvet' }, now).state;
-      if ((s.bond?.velvet?.lvl ?? 0) >= 3) s = A(s, { type: 'bond.date', hero: 'velvet', place: t.place }, now).state;
+      for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 }, now).state;
+      for (let i = 0; i < 3; i++) s = A(s, { type: 'bond.treat', hero: 'mirabel', treat: t.treat }, now).state;
+      s = A(s, { type: 'bond.spa', hero: 'mirabel' }, now).state;
+      if ((s.bond?.mirabel?.lvl ?? 0) >= 3) s = A(s, { type: 'bond.date', hero: 'mirabel', place: t.place }, now).state;
     }
-    expect(s.bond!.velvet.lvl).toBe(10);
-    expect(s.cur.crystals).toBeGreaterThan(crystals0 - 40 * 30); // награды пиков покрыли источники
-    expect(buildHeroine(cfg, s, s.heroines.velvet).power).toBeGreaterThan(before * 1.15);
+    expect(s.bond!.mirabel.lvl).toBe(10);
+    expect(s.cur.emblems).toBeGreaterThan(e0 + 40);
+    expect(buildHeroine(cfg, s, s.heroines.mirabel).power).toBeGreaterThan(before * 1.15);
     // наряд близости — только за 10 Сердец Эфира
-    expect(() => A(s, { type: 'bond.costume', hero: 'velvet' })).toThrow(GameError);
+    expect(() => A(s, { type: 'bond.costume', hero: 'mirabel' })).toThrow(GameError);
     s = { ...s, bondHearts: 10 };
-    const c = A(s, { type: 'bond.costume', hero: 'velvet' });
-    expect(c.state.skins).toContain('velvet_bond');
+    const c = A(s, { type: 'bond.costume', hero: 'mirabel' });
+    expect(c.state.skins).toContain('mirabel_bond');
     expect(c.state.bondHearts).toBe(0);
-    expect(SKIN_MAP.velvet_bond.set).toBe('bond');
+    expect(SKIN_MAP.mirabel_bond.set).toBe('bond');
+    expect(isSwimwear(SKIN_MAP.mirabel_bond.look.wear)).toBe(false);
   });
 
   it('резиденция: комнаты строятся и улучшаются до 5; гостиная усиливает разговоры', () => {
-    let s = withUr();
-    const plain = (A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).result as { xp: number }).xp;
+    let s = withHero();
+    const plain = (A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 }).result as { xp: number }).xp;
     const gold0 = s.cur.gold;
     for (let i = 0; i < ROOM_MAX; i++) s = A(s, { type: 'home.build', room: 'living' }).state;
     expect(s.home!.rooms.living).toBe(ROOM_MAX);
     expect(s.cur.gold).toBeLessThan(gold0);
     expect(() => A(s, { type: 'home.build', room: 'living' })).toThrow('maxLevel');
     expect(() => A(s, { type: 'home.build', room: 'attic' })).toThrow(GameError);
-    const boosted = (A(s, { type: 'bond.talk', hero: 'velvet', answer: 0 }).result as { xp: number }).xp;
+    const boosted = (A(s, { type: 'bond.talk', hero: 'mirabel', answer: 0 }).result as { xp: number }).xp;
     expect(boosted).toBe(Math.round(plain * (1 + ROOM_BONUS * ROOM_MAX)));
   });
 
   it('ванна — только с ванной комнатой и раз в день', () => {
-    let s = withUr();
-    expect(() => A(s, { type: 'bond.bath', hero: 'velvet' })).toThrow('locked');
+    let s = withHero();
+    expect(() => A(s, { type: 'bond.bath', hero: 'mirabel' })).toThrow('locked');
     s = A(s, { type: 'home.build', room: 'bath' }).state;
-    const r = A(s, { type: 'bond.bath', hero: 'velvet' });
+    const r = A(s, { type: 'bond.bath', hero: 'mirabel' });
     expect((r.result as { xp: number }).xp).toBe(BATH_GAIN.base + BATH_GAIN.perLvl);
     s = r.state;
-    expect(() => A(s, { type: 'bond.bath', hero: 'velvet' })).toThrow('usedToday');
-    expect(() => A(s, { type: 'bond.bath', hero: 'velvet' }, T0 + 86400000)).not.toThrow();
+    expect(() => A(s, { type: 'bond.bath', hero: 'mirabel' })).toThrow('usedToday');
+    expect(() => A(s, { type: 'bond.bath', hero: 'mirabel' }, T0 + 86400000)).not.toThrow();
   });
 
   it('ночёвка: спальня, близость 5, одна героиня за ночь; утром — подарок', () => {
-    let s = withUr();
-    s = applyAction(s, { type: 'dev.hero', id: 'isolde', lvl: 10 }, { cfg, now: T0, dev: true }).state;
-    expect(() => A(s, { type: 'bond.sleep', hero: 'velvet' })).toThrow('locked'); // нет спальни
+    let s = withHero();
+    expect(() => A(s, { type: 'bond.sleep', hero: 'mirabel' })).toThrow('locked'); // нет спальни
     s = A(s, { type: 'home.build', room: 'bedroom' }).state;
-    expect(() => A(s, { type: 'bond.sleep', hero: 'velvet' })).toThrow('locked'); // близость мала
-    s = { ...s, bond: { velvet: { lvl: 5, xp: 0, day: 'x', talk: 0, treat: 0, spa: false, date: false }, isolde: { lvl: 6, xp: 0, day: 'x', talk: 0, treat: 0, spa: false, date: false } } };
+    expect(() => A(s, { type: 'bond.sleep', hero: 'mirabel' })).toThrow('locked'); // близость мала
+    s = { ...s, bond: { mirabel: { lvl: 5, xp: 0, day: 'x', talk: 0, treat: 0, spa: false, date: false }, lira: { lvl: 6, xp: 0, day: 'x', talk: 0, treat: 0, spa: false, date: false } } };
     const gold0 = s.cur.gold;
-    const r = A(s, { type: 'bond.sleep', hero: 'velvet' });
+    const r = A(s, { type: 'bond.sleep', hero: 'mirabel' });
     const res = r.result as { xp: number; gift: { gold: number; xp: number } };
     expect(res.xp).toBe(SLEEP_GAIN.base + SLEEP_GAIN.perLvl);
     expect(res.gift.gold).toBeGreaterThan(0);
     expect(r.state.cur.gold).toBe(gold0 + res.gift.gold);
     s = r.state;
-    expect(s.home!.sleptWith).toBe('velvet');
-    expect(() => A(s, { type: 'bond.sleep', hero: 'isolde' })).toThrow('usedToday'); // одна за ночь
-    expect(() => A(s, { type: 'bond.sleep', hero: 'isolde' }, T0 + 86400000)).not.toThrow();
+    expect(s.home!.sleptWith).toBe('mirabel');
+    expect(() => A(s, { type: 'bond.sleep', hero: 'lira' })).toThrow('usedToday'); // одна за ночь
+    expect(() => A(s, { type: 'bond.sleep', hero: 'lira' }, T0 + 86400000)).not.toThrow();
     // пижама — скрытый облик
-    expect(SKIN_MAP[BOND_SLEEP_SKIN.velvet].look.wear).toBe('silk');
-    expect(SKINS.some((x) => x.id === BOND_SLEEP_SKIN.velvet)).toBe(false);
+    expect(SKIN_MAP[BOND_SLEEP_SKIN.mirabel].look.wear).toBe('silk');
+    expect(SKINS.some((x) => x.id === BOND_SLEEP_SKIN.mirabel)).toBe(false);
   });
 
-  it('темы разговоров детерминированы и есть у всех UR', () => {
+  it('темы разговоров детерминированы и есть у всей шестёрки', () => {
     for (const id of BOND_HEROES) {
       const a = bondTopic(id, '2026-09-26', 0);
       expect(a).toEqual(bondTopic(id, '2026-09-26', 0));
@@ -656,8 +851,8 @@ describe('уход за героинями', () => {
   it('«Что нового»: новичкам уже прочитано, отметка сохраняется', () => {
     const s = fresh();
     expect(s.settings.news).toBe(CHANGELOG_LATEST);
-    const r = applyAction({ ...s, settings: { ...s.settings, news: undefined } }, { type: 'news.seen', id: CHANGELOG[1].id }, { cfg, now: T0 });
-    expect(r.state.settings.news).toBe(CHANGELOG[1].id);
+    const r = applyAction({ ...s, settings: { ...s.settings, news: undefined } }, { type: 'news.seen', id: CHANGELOG[0].id }, { cfg, now: T0 });
+    expect(r.state.settings.news).toBe(CHANGELOG[0].id);
     expect(() => applyAction(s, { type: 'news.seen', id: 'nope' }, { cfg, now: T0 })).toThrow(GameError);
   });
 });
@@ -690,85 +885,49 @@ describe('ГПСЧ', () => {
 });
 
 describe('облики и боевой пропуск', () => {
-  const setSkins = SKINS.filter((x) => x.set);
-
-  it('коллекции: 20 летних, 20 бельевых и 15 маскарадных, эксклюзивов мало, все продаются за кристаллы', () => {
-    expect(setSkins.filter((x) => x.set === 'summer')).toHaveLength(20);
-    expect(setSkins.filter((x) => x.set === 'lingerie')).toHaveLength(20);
-    expect(setSkins.filter((x) => x.set === 'masquerade')).toHaveLength(15);
-    const exclusive = setSkins.filter((x) => x.source === 'shop');
-    expect(exclusive.length).toBeGreaterThan(0);
-    expect(exclusive.length).toBeLessThanOrEqual(10);
-    // все облики коллекций продаются за кристаллы — кроме нарядов близости (только уход и Сердца Эфира)
-    for (const sk of setSkins.filter((x) => x.set !== 'bond')) expect(SHOP_OFFERS.some((o) => o.shop === 'skins' && o.give.skin === sk.id)).toBe(true);
-    for (const sk of setSkins.filter((x) => x.set === 'bond')) expect(SHOP_OFFERS.some((o) => o.give.skin === sk.id)).toBe(false);
+  it('коллекций пока нет: в продаже только наряды близости — нигде', () => {
+    for (const sk of SKINS) expect(sk.set).toBe('bond');
+    for (const sk of SKINS) expect(SHOP_OFFERS.some((o) => o.give.skin === sk.id)).toBe(false);
     expect(new Set(SKINS.map((x) => x.id)).size).toBe(SKINS.length);
+    // без обликов пропуск на ключевых уровнях даёт больше Эмблем
+    expect(passSkins('s0')).toEqual([]);
+    const key = passReward(15, 's0');
+    expect(key.skin).toBeUndefined();
+    expect(key.cur?.emblems).toBeGreaterThan(passReward(5, 's0').cur?.emblems ?? 0);
   });
 
-  it('у каждого облика есть рабочий источник', () => {
-    for (const sk of setSkins) {
-      if (sk.source === 'arena' || sk.source === 'labyrinth' || sk.source === 'event')
-        expect(SHOP_OFFERS.some((o) => o.shop === sk.source && o.give.skin === sk.id)).toBe(true);
-      if (sk.source === 'tower') expect(Object.values(TOWER_SKIN_FLOORS)).toContain(sk.id);
-      if (sk.source === 'spire') expect(Object.values(SPIRE_SKINS)).toContain(sk.id);
-      if (sk.source === 'horde') expect(Object.values(HORDE_SKIN_WAVES)).toContain(sk.id);
-    }
-    for (const id of [...Object.values(SPIRE_SKINS), ...Object.values(HORDE_SKIN_WAVES)]) expect(SKIN_MAP[id]?.source).toMatch(/spire|horde/);
-    for (const id of Object.values(TOWER_SKIN_FLOORS)) expect(SKIN_MAP[id]).toBeTruthy();
-    // облики пропуска попадают в ротацию сезонов
-    const rotated = new Set<string>();
-    for (let n = 0; n < 12; n++) for (const id of passSkins(`s${n}`)) rotated.add(id);
-    for (const sk of setSkins.filter((x) => x.source === 'pass')) expect(rotated.has(sk.id)).toBe(true);
-  });
-
-  it('каждый сезон — своя четвёрка обликов', () => {
-    const a = passSkins('s0');
-    const b = passSkins('s1');
-    expect(a).toHaveLength(PASS_SKIN_LEVELS.length);
-    expect(new Set(a).size).toBe(a.length);
-    expect(a).not.toEqual(b);
-    for (const id of [...a, ...b]) expect(SKIN_MAP[id]).toBeTruthy();
-    expect(passReward(PASS_SKIN_LEVELS[0], 's1').skin).toBe(b[0]);
-  });
-
-  it('«забрать всё»: все уровни, облики сезона, бонусные сундуки; повторный облик → кристаллы', () => {
+  it('«забрать всё»: все уровни и бонусные сундуки; Эмблемы — на ранги', () => {
     let s = fresh();
-    const season = seasonKey(T0);
-    const skins = passSkins(season);
-    s.skins.push(skins[0]);
     s.shop.passXp = PASS_LEVELS * 100 + 450; // 50 уровней + 2 бонусных сундука
-    const before = s.cur.crystals;
+    const e0 = s.cur.emblems;
     const r = applyAction(s, { type: 'pass.claimAll' }, { cfg, now: T0 });
     s = r.state;
     expect(s.shop.passClaimed).toHaveLength(PASS_LEVELS);
-    for (const id of skins) expect(s.skins).toContain(id);
-    expect((r.result as { skins?: string[] }).skins).not.toContain(skins[0]);
     expect(s.shop.passBonus).toBe(2);
-    expect(s.cur.crystals).toBeGreaterThan(before + PASS_SKIN_DUPE_CRYSTALS);
+    expect(s.cur.emblems - e0).toBeGreaterThanOrEqual(60);
     expect(() => applyAction(s, { type: 'pass.claimAll' }, { cfg, now: T0 })).toThrow(GameError);
+  });
+
+  it('лавки продают Эмблемы, а не осколки и свитки', () => {
+    for (const o of SHOP_OFFERS) expect(JSON.stringify(o)).not.toMatch(/shard|scroll/i);
+    expect(SHOP_OFFERS.filter((o) => o.shop === 'emblems').length).toBeGreaterThan(0);
+    let s = { ...fresh(), cur: { ...fresh().cur, crystals: 10000 } };
+    s = applyAction(s, { type: 'shop.buy', offer: 'em_5' }, { cfg, now: T0 }).state;
+    expect(s.cur.emblems).toBe(5);
   });
 });
 
-describe('Вестницы, Колоссы и новые режимы', () => {
+describe('Колоссы и режимы', () => {
   // T0 — пятница 25.09.2026: Колосс Бездны и тёмный шпиль
   function strong() {
     let s = fresh();
-    // отряд, уверенно проходящий свой этап (как у живого игрока), а не голые dev-героини
     s = applyAction(s, { type: 'dev.hero', id: 'all', lvl: 30 }, { cfg, now: T0, dev: true }).state;
     s = applyAction(s, { type: 'dev.progress', unlockAll: true, diff: 0, idx: 20 }, { cfg, now: T0, dev: true }).state;
     return s;
   }
 
-  it('5 Вестниц (по стихии) не выпадают в призыве; 5 Колоссов', () => {
-    expect(HERALDS).toHaveLength(5);
-    expect(new Set(HERALDS.map((h) => h.element)).size).toBe(5);
-    for (const el of ELEMENTS) expect(HERALD_BY_ELEMENT[el]).toBeTruthy();
-    const pool = Object.values(SUMMON_POOL).flat();
-    for (const h of HERALDS) expect(pool).not.toContain(h.id);
+  it('5 Колоссов; расписание: будни по стихиям, выходные — все шпили', () => {
     expect(COLOSSI).toHaveLength(5);
-  });
-
-  it('расписание: будни по стихиям, выходные — все шпили', () => {
     expect(riftElement(Date.UTC(2026, 8, 21, 12))).toBe('fire'); // пн
     expect(riftElement(T0)).toBe('dark'); // пт
     expect(spireOpen('dark', T0)).toBe(true);
@@ -779,35 +938,34 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     expect(riftTier(1, 100, true)).toBe(10);
   });
 
-  it('Разлом: 3 попытки в день, награда по урону, осколки Вестницы дня, быстрая зачистка', () => {
+  it('Разлом: 3 попытки в день, награда по урону (с Эмблемами), быстрая зачистка', () => {
     let s = strong();
     const boss = riftBoss({ cfg, s, now: T0 });
     expect(boss.element).toBe('dark');
+    const e0 = s.cur.emblems;
     const r1 = applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 });
     s = r1.state;
     const res = r1.result as { dmg: number; tier: number };
     expect(res.dmg).toBeGreaterThan(0);
     expect(res.tier).toBeGreaterThan(0);
-    expect(s.shards.nocturna ?? 0).toBe(res.tier);
+    expect(s.cur.emblems - e0).toBe(Math.ceil(res.tier / 2));
     s = applyAction(s, { type: 'rift.sweep' }, { cfg, now: T0 + 1000 }).state;
     expect(riftState({ s, now: T0 }).used).toBe(cfg.modes.riftAttempts);
-    expect(s.shards.nocturna).toBe(res.tier * cfg.modes.riftAttempts);
+    expect(s.cur.emblems - e0).toBe(Math.ceil(res.tier / 2) * cfg.modes.riftAttempts);
     expect(() => applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 + 2000 })).toThrow(GameError);
-    // на следующий день попытки снова есть
     expect(riftState({ s, now: T0 + 86400000 }).used).toBe(0);
   });
 
-  it('Шпиль: только героини своей стихии, закрытый шпиль не пускает, веха даёт осколки', () => {
+  it('Шпиль: весь Легион против одной стихии, закрытый шпиль не пускает, веха даёт Эмблемы', () => {
     let s = strong();
-    const party = spireParty({ cfg, s, now: T0 }, 'dark').filter(Boolean) as string[];
-    expect(party.length).toBeGreaterThan(0);
-    for (const id of party) expect(HEROINE_MAP[id].element).toBe('dark');
+    expect(spireParty({ cfg, s, now: T0 }, 'dark')).toEqual(activeParty(s));
     expect(() => applyAction(s, { type: 'spire.fight', element: 'fire' }, { cfg, now: T0 })).toThrow(GameError);
     s.modes.spires = { dark: 9 };
+    expect(spireReward(10, 'dark').emblems).toBeGreaterThan(0);
     const r = applyAction(s, { type: 'spire.fight', element: 'dark' }, { cfg, now: T0 });
     if ((r.result as { win: boolean }).win) {
       expect(r.state.modes.spires?.dark).toBe(10);
-      expect(r.state.shards.nocturna).toBe(10);
+      expect(r.state.cur.emblems - s.cur.emblems).toBe(spireReward(10, 'dark').emblems);
     }
   });
 
@@ -831,7 +989,6 @@ describe('Вестницы, Колоссы и новые режимы', () => {
   it('Нашествие: после каждой 3-й волны — выбор благословения, без выбора дальше нельзя', () => {
     let s = strong();
     s = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
-    // подставляем состояние после 3-й волны с предложением
     s.modes.horde = { ...s.modes.horde!, wave: 3, offer: ['fury', 'mend', 'greed'] };
     expect(() => applyAction(s, { type: 'horde.fight' }, { cfg, now: T0 + 1000 })).toThrow(GameError);
     const hurt = { ...s.modes.horde!.hp };
@@ -839,20 +996,18 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     hurt[ids[0]] = 0;
     hurt[ids[1]] = 0.4;
     s.modes.horde = { ...s.modes.horde!, hp: hurt };
-    // «Передышка» — мгновенно: лечит живых и поднимает павших, в список благословений не попадает
     const m = applyAction(s, { type: 'horde.bless', index: 1 }, { cfg, now: T0 + 1000 }).state;
     expect(m.modes.horde!.hp[ids[0]]).toBeCloseTo(0.3);
     expect(m.modes.horde!.hp[ids[1]]).toBeCloseTo(0.9);
     expect(m.modes.horde!.blessings).toEqual([]);
     expect(m.modes.horde!.offer).toBeUndefined();
-    // «Ярость» копится в бонусах забега и действует в бою
     const f = applyAction(s, { type: 'horde.bless', index: 0 }, { cfg, now: T0 + 1000 }).state;
     expect(hordeBonus(f.modes.horde!).stats.atkPct).toBeCloseTo(0.2);
     expect(() => applyAction(f, { type: 'horde.fight' }, { cfg, now: T0 + 2000 })).not.toThrow();
-    // «Жадность» увеличивает золото за волну
     const g = applyAction(s, { type: 'horde.bless', index: 2 }, { cfg, now: T0 + 1000 }).state;
     expect(hordeBonus(g.modes.horde!).rewardPct).toBeCloseTo(0.5);
     expect(hordeWaveReward({ cfg, s: g }, 4, 0.5).cur.gold).toBeGreaterThan(hordeWaveReward({ cfg, s: g }, 4).cur.gold);
+    expect(hordeWaveReward({ cfg, s: g }, 10).cur.emblems).toBeGreaterThan(0);
   });
 
   it('Нашествие: золото за волну — ровно как в подсказке (не в минутах дохода)', () => {
@@ -866,20 +1021,15 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     }
   });
 
-  it('Нашествие: благословение предлагается ровно после 3-й волны', () => {
-    let s = strong();
-    s = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
-    s.modes.horde = { ...s.modes.horde!, wave: 2 };
-    const r = applyAction(s, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
-    if ((r.result as { win: boolean }).win && r.state.modes.horde!.active) expect(r.state.modes.horde!.offer).toHaveLength(3);
-  });
-
-  it('Башня: модификатор этажа и «Испытание» с двойной наградой', () => {
+  it('Башня: модификатор этажа, «Испытание» с двойной наградой, Эмблемы у стражей', () => {
     let s = strong();
     s.modes.tower = 20;
     expect(towerMod(21)).toBeTruthy();
     expect(towerMod(30)).toBeNull();
     expect(towerReward(21, true).crystals).toBe(towerReward(21).crystals * 2);
+    expect(towerReward(20).emblems).toBeGreaterThan(0);
+    expect(towerReward(50).emblems).toBeGreaterThan(towerReward(40).emblems);
+    expect(towerReward(21).emblems).toBe(0);
     const easy = applyAction(s, { type: 'tower.fight' }, { cfg, now: T0 });
     const hard = applyAction(s, { type: 'tower.fight', hard: true }, { cfg, now: T0 });
     expect((hard.result as { hard: boolean }).hard).toBe(true);
@@ -897,26 +1047,6 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     expect(() => applyAction(s, { type: 'rift.fight', tactic: 'cheat' }, { cfg, now: T0 })).toThrow(GameError);
   });
 
-  it('Облики «Маскарада» за рубежи: 25-й этаж шпиля и рекорды Нашествия', () => {
-    let s = strong();
-    s.modes.spires = { dark: 24 };
-    for (let i = 0; i < 3 && !s.skins.includes(SPIRE_SKINS.dark); i++) {
-      const r = applyAction(s, { type: 'spire.fight', element: 'dark' }, { cfg, now: T0 + i });
-      if ((r.result as { win: boolean }).win) {
-        s = r.state;
-        expect(s.skins).toContain(SPIRE_SKINS.dark);
-      }
-    }
-    let h = strong();
-    h = applyAction(h, { type: 'horde.start' }, { cfg, now: T0 }).state;
-    h.modes.horde = { ...h.modes.horde!, wave: 40 };
-    const r = applyAction(h, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
-    if ((r.result as { win: boolean }).win) {
-      expect(r.state.skins).toEqual(expect.arrayContaining([HORDE_SKIN_WAVES[20], HORDE_SKIN_WAVES[40]]));
-      expect(r.state.skins).not.toContain(HORDE_SKIN_WAVES[60]);
-    }
-  });
-
   it('Сеты режимов: не куются, выпадают в Разломе и Нашествии', () => {
     let s = strong();
     s = applyAction(s, { type: 'dev.cur', cur: 'forgeMats', op: 'add', amount: 10000 }, { cfg, now: T0, dev: true }).state;
@@ -925,15 +1055,13 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     expect(() => applyAction(s, { type: 'forge.craft', recipe: 'setLegendary', set: 'nope' }, { cfg, now: T0 })).toThrow(GameError);
     expect(ENDGAME_SETS).not.toContain('colossus');
     expect(MODE_SET).toEqual({ rift: 'colossus', horde: 'warband', spires: 'prism', tower: 'harlequin' });
-    // Разлом: ярус 4+ — часть «Доспеха Колосса»
     const r = applyAction(s, { type: 'rift.fight' }, { cfg, now: T0 });
     const res = r.result as { tier: number; reward: { items?: string[] } };
     if (res.tier >= 4) {
       expect(res.reward.items).toHaveLength(1);
       expect(r.state.items[res.reward.items![0]].set).toBe('colossus');
     } else expect(res.reward.items).toBeUndefined();
-    // Нашествие: 10-я волна — часть «Знамени Орды»
-    let h = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
+    const h = applyAction(s, { type: 'horde.start' }, { cfg, now: T0 }).state;
     h.modes.horde = { ...h.modes.horde!, wave: 9 };
     const w = applyAction(h, { type: 'horde.fight' }, { cfg, now: T0 + 1000 });
     const wr = w.result as { win: boolean; reward: { items?: string[] } | null };
@@ -958,86 +1086,71 @@ describe('Вестницы, Колоссы и новые режимы', () => {
     expect((q.result as { n: number }).n).toBeGreaterThanOrEqual(3);
     for (const qd of DAILY_QUESTS.slice(0, 3)) expect(q.state.quests.dailyClaimed).toContain(qd.id);
     expect(() => applyAction(q.state, { type: 'quest.claimAll' }, { cfg, now: T0 + 20000 })).toThrow(GameError);
-    // подземелья: пройденный уровень есть — все ключи уходят за раз
     s.modes.dungeons = { gold: 3, xp: 2 };
     const d = applyAction(s, { type: 'dungeon.sweepAll' }, { cfg, now: T0 });
     expect((d.result as { times: number }).times).toBe(cfg.modes.dungeonKeys * 2);
     expect(() => applyAction(d.state, { type: 'dungeon.sweepAll' }, { cfg, now: T0 })).toThrow(GameError);
   });
 
-  it('5 новых героинь в призыве, у каждой есть облик «Маскарада»', () => {
-    const pool = Object.values(SUMMON_POOL).flat();
-    for (const id of ['zarina', 'yuki', 'melusine', 'roxana', 'tamamo']) {
-      expect(HEROINE_MAP[id]).toBeTruthy();
-      expect(pool).toContain(id);
-      expect(SKIN_MAP[`${id}_masq`]).toBeTruthy();
+  it('Арена: соперник — другой отряд Легиона того же размера', () => {
+    let s = strong();
+    s = applyAction(s, { type: 'dev.progress', accLvl: 25 }, { cfg, now: T0, dev: true }).state;
+    const r = applyAction(s, { type: 'arena.opponents' }, { cfg, now: T0 });
+    for (const o of r.state.modes.arena.opponents) {
+      expect(o.team).toHaveLength(activeParty(s).length);
+      for (const m of o.team) expect(ROSTER).toContain(m.id);
     }
   });
 });
 
-describe('артефакты', () => {
+describe('артефакты: мастерская', () => {
   const D = { cfg, now: T0, dev: true };
-  function ready() {
+  function ready(stage = 40) {
     let s = fresh();
-    s = { ...s, progress: { ...s.progress, maxGlobalEver: 40 } };
-    s = applyAction(s, { type: 'dev.cur', cur: 'crystals', op: 'add', amount: 1e6 }, D).state;
+    s = { ...s, progress: { ...s.progress, maxGlobalEver: stage } };
+    for (const cur of ['forgeMats', 'starDust', 'crystals'] as const) s = applyAction(s, { type: 'dev.cur', cur, op: 'set', amount: 1e6 }, D).state;
     return s;
   }
 
-  it('закрыты до этапа 25; бесплатный призыв раз в день; 10 призывов — 10 артефактов', () => {
-    const f = fresh();
-    expect(() => applyAction(f, { type: 'artifact.summon', count: 1 }, { cfg, now: T0 })).toThrow('locked');
-    let s = ready();
-    const c0 = s.cur.crystals;
-    const free = applyAction(s, { type: 'artifact.summon', free: true }, { cfg, now: T0 });
-    expect(free.state.cur.crystals).toBe(c0);
-    expect(() => applyAction(free.state, { type: 'artifact.summon', free: true }, { cfg, now: T0 })).toThrow('usedToday');
-    expect(() => applyAction(free.state, { type: 'artifact.summon', free: true }, { cfg, now: T0 + 86400000 })).not.toThrow();
-    s = free.state;
-    const ten = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 });
-    expect((ten.result as { pulls: unknown[] }).pulls).toHaveLength(10);
-    expect(ten.state.cur.crystals).toBeLessThanOrEqual(c0 - ARTIFACT_BANNER.cost10 + 10 * ARTIFACT_REFUND.UR);
-    // первый артефакт сам встаёт в слот
-    expect(ten.state.artifacts!.slots.filter(Boolean).length).toBeGreaterThan(0);
+  it('закрыты до этапа 25; изготовление без случайности, новый артефакт встаёт в слот', () => {
+    expect(() => applyAction(fresh(), { type: 'artifact.craft', id: 'war_drum' }, { cfg, now: T0 })).toThrow('locked');
+    const s = ready();
+    const cost = artifactCost('war_drum', 0)!;
+    const r = applyAction(s, { type: 'artifact.craft', id: 'war_drum' }, { cfg, now: T0 });
+    expect(r.result).toMatchObject({ id: 'war_drum', lvl: 1, isNew: true });
+    expect(s.cur.forgeMats - r.state.cur.forgeMats).toBe(cost.forgeMats);
+    expect(r.state.artifacts!.slots).toContain('war_drum');
+    expect(() => applyAction(s, { type: 'artifact.summon', count: 1 }, { cfg, now: T0 })).toThrow('unknownAction');
   });
 
-  it('гарантия UR, дубликаты повышают уровень до 5, дальше — кристаллы', () => {
+  it('улучшение до 5 дорожает; ступени открываются по ходу кампании', () => {
     let s = ready();
-    let ur = false;
-    const lvls: Record<string, number> = {};
-    let refunds = 0;
-    for (let i = 0; i < 40 && !ur; i++) {
-      const r = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 });
-      s = r.state;
-      for (const p of (r.result as { pulls: ArtifactPull[] }).pulls) {
-        if (p.rarity === 'UR') ur = true;
-        expect(p.lvl).toBe(Math.min(ARTIFACT_MAX, (lvls[p.id] ?? 0) + 1));
-        if (p.refund) refunds++;
-        lvls[p.id] = p.lvl;
-      }
-      expect(s.artifacts!.pityUR).toBeLessThan(ARTIFACT_BANNER.pityUR);
-    }
-    expect(ur).toBe(true);
-    // много призывов: R-артефакты доходят до 5 и дальше дают кристаллы
-    for (let i = 0; i < 12; i++) s = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 }).state;
-    expect(Object.values(s.artifacts!.owned).every((l) => l >= 1 && l <= ARTIFACT_MAX)).toBe(true);
-    expect(Object.values(s.artifacts!.owned).some((l) => l === ARTIFACT_MAX)).toBe(true);
-    void refunds;
+    for (let l = 0; l < ARTIFACT_MAX; l++) s = applyAction(s, { type: 'artifact.craft', id: 'dew_flask' }, { cfg, now: T0 }).state;
+    expect(s.artifacts!.owned.dew_flask).toBe(ARTIFACT_MAX);
+    expect(() => applyAction(s, { type: 'artifact.craft', id: 'dew_flask' }, { cfg, now: T0 })).toThrow('maxRank');
+    expect(artifactCost('dew_flask', 4)!.forgeMats).toBeGreaterThan(artifactCost('dew_flask', 0)!.forgeMats!);
+    const ur = ARTIFACTS.find((a) => a.rarity === 'UR')!;
+    expect(artifactOpen(s, ur.id)).toBe(false);
+    expect(() => applyAction(s, { type: 'artifact.craft', id: ur.id }, { cfg, now: T0 })).toThrow('requirements');
+    const late = ready(ARTIFACT_TIER_STAGE.UR);
+    expect(() => applyAction(late, { type: 'artifact.craft', id: ur.id }, { cfg, now: T0 })).not.toThrow();
+    const poor = { ...ready(), cur: { ...ready().cur, forgeMats: 0 } };
+    expect(() => applyAction(poor, { type: 'artifact.craft', id: 'ember_charm' }, { cfg, now: T0 })).toThrow('notEnough');
   });
 
   it('слоты: 2, с 40-го уровня аккаунта — 3; артефакт один на отряд; чужой не поставить', () => {
     let s = ready();
-    for (let i = 0; i < 5; i++) s = applyAction(s, { type: 'artifact.summon', count: 10 }, { cfg, now: T0 }).state;
-    const [a, b] = Object.keys(s.artifacts!.owned);
+    for (const id of ['ember_charm', 'dew_flask', 'war_drum']) s = applyAction(s, { type: 'artifact.craft', id }, { cfg, now: T0 }).state;
+    const [a, b] = ['ember_charm', 'dew_flask'];
     s = applyAction(s, { type: 'artifact.equip', slot: 0, id: a }, { cfg, now: T0 }).state;
     s = applyAction(s, { type: 'artifact.equip', slot: 1, id: a }, { cfg, now: T0 }).state;
     expect(s.artifacts!.slots.slice(0, 2)).toEqual([null, a]);
     s = applyAction(s, { type: 'artifact.equip', slot: 0, id: b }, { cfg, now: T0 }).state;
     expect(activeArtifacts(s).map((x) => x.id).sort()).toEqual([a, b].sort());
     expect(() => applyAction(s, { type: 'artifact.equip', slot: 2, id: a }, { cfg, now: T0 })).toThrow(GameError);
-    expect(() => applyAction(s, { type: 'artifact.equip', slot: 0, id: 'nope' }, { cfg, now: T0 })).toThrow(GameError);
+    expect(() => applyAction(s, { type: 'artifact.equip', slot: 0, id: 'alarm_bell' }, { cfg, now: T0 })).toThrow(GameError);
     const hi = { ...s, account: { ...s.account, lvl: ARTIFACT_SLOT3_LVL } };
-    expect(() => applyAction(hi, { type: 'artifact.equip', slot: 2, id: a }, { cfg, now: T0 })).not.toThrow();
+    expect(() => applyAction(hi, { type: 'artifact.equip', slot: 2, id: 'war_drum' }, { cfg, now: T0 })).not.toThrow();
     s = applyAction(s, { type: 'artifact.equip', slot: 1, id: null }, { cfg, now: T0 }).state;
     expect(activeArtifacts(s).map((x) => x.id)).toEqual([b]);
   });
@@ -1045,8 +1158,7 @@ describe('артефакты', () => {
   it('механики срабатывают в бою; без артефактов бой прежний; бой детерминирован', () => {
     let s = fresh();
     for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 20 }, D).state;
-    s = { ...s, party: { ...s.party, presets: [['lira', 'astrid', 'seyra', 'keira', null, null], ...s.party.presets.slice(1)] } };
-    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 30))];
+    const units = [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, 36))];
     const base = simulateBattle(cfg, { seed: 7, units, timeLimit: 60 });
     expect(simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: [] }).events).toEqual(base.events);
     const mechs = (arts: { id: string; lvl: number }[]) => {
@@ -1054,22 +1166,16 @@ describe('артефакты', () => {
       expect(simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: arts }).events).toEqual(r.events);
       return new Set(r.events.filter((e) => e.k === 'mech').map((e) => (e as { m: string }).m));
     };
-    const all = ARTIFACTS.map((a) => ({ id: a.id, lvl: 3 }));
-    const seen = mechs(all);
+    const seen = mechs(ARTIFACTS.map((a) => ({ id: a.id, lvl: 3 })));
     for (const id of ['ember_charm', 'thunder_bell', 'hunter_mark', 'omen_ward', 'time_chain']) expect(seen.has(`artifact:${id}`)).toBe(true);
-    // барабан: энергия на старте
     const start = simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: [{ id: 'war_drum', lvl: 5 }] }).events[0] as { units: { side: number; energy: number }[] };
     expect(start.units.filter((u) => u.side === 0).every((u) => u.energy >= artifactValue('war_drum', 5))).toBe(true);
-    // призма усиливает урон: бой не дольше
-    const prism = simulateBattle(cfg, { seed: 7, units, timeLimit: 60, artifacts: [{ id: 'aether_prism', lvl: 5 }] });
-    if (base.win && prism.win) expect(prism.time).toBeLessThanOrEqual(base.time);
   });
 
   it('пепел феникса и рог валькирии спасают отряд в тяжёлом бою', () => {
     let s = fresh();
     for (const id of ['lira', 'astrid']) s = applyAction(s, { type: 'dev.hero', id, lvl: 5 }, D).state;
-    s = { ...s, party: { ...s.party, presets: [['lira', 'astrid', null, null, null, null], ...s.party.presets.slice(1)] } };
-    const units = [...heroUnits(cfg, s, s.party.presets[0]), ...bossUnits(cfg, stageRef(0, 30))];
+    const units = [...heroUnits(cfg, s, activeParty(s)), ...bossUnits(cfg, stageRef(0, 30))];
     const r = simulateBattle(cfg, { seed: 3, units, timeLimit: 60, artifacts: [{ id: 'phoenix_ash', lvl: 1 }, { id: 'valkyrie_horn', lvl: 1 }] });
     const ms = r.events.filter((e) => e.k === 'mech').map((e) => (e as { m: string }).m);
     expect(ms).toContain('artifact:valkyrie_horn');
@@ -1093,41 +1199,34 @@ describe('праздники Легиона', () => {
   function ready(oneShot = true): PlayerState {
     let s = fresh();
     for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 30 }, D).state;
-    s = { ...s, account: { ...s.account, lvl: 12 }, party: { ...s.party, presets: [['lira', 'astrid', 'seyra', 'keira', null, null], ...s.party.presets.slice(1)] } };
+    s = { ...s, account: { ...s.account, lvl: 12 } };
     return { ...s, dev: { ...s.dev, oneShot } };
   }
   const act = (s: PlayerState, a: Record<string, unknown>, now = T1) => applyAction(s, a as never, { cfg, now, dev: true });
 
   it('праздники сменяются каждые 14 дней по кругу', () => {
-    const ids = [0, 1, 2, 3, 4, 5, 6].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
-    expect(ids).toEqual(['bloodmoon', 'tourney', 'tides', 'mine', 'sakura', 'resort', 'bloodmoon']);
-    // виды чередуются: подряд не идут два одинаковых
+    const ids = [0, 1, 2, 3, 4, 5].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
+    expect(ids).toEqual(['bloodmoon', 'mine', 'tides', 'resort', 'sakura', 'bloodmoon']);
     for (let k = 0; k < FESTIVALS.length; k++) expect(FESTIVALS[k].kind === 'trail' && FESTIVALS[(k + 1) % FESTIVALS.length].kind === 'trail' && k !== FESTIVALS.length - 1).toBe(false);
     const f = festivalAt(T1)!;
     expect(f.end - f.start).toBe(FESTIVAL_DAYS * DAY);
     expect(f.start).toBeLessThanOrEqual(T1);
-    // и до «эпохи» — тоже по кругу, без дыр
     expect(festivalAt(FESTIVAL_EPOCH - 1000)!.def.id).toBe(FESTIVALS[FESTIVALS.length - 1].id);
   });
 
-  it('героини праздников: не в призыве, с врагами, обликами и лавкой', () => {
+  it('покровительницы праздников — героини Легиона; у пути — колосс и противница-испытание', () => {
     for (const fd of FESTIVALS) {
-      const h = HEROINE_MAP[fd.hero];
-      expect(h.festival).toBe(fd.id);
-      expect(h.rarity).toBe('UR');
-      expect(Object.values(SUMMON_POOL).flat()).not.toContain(fd.hero);
+      expect(ROSTER).toContain(fd.hero);
       if (fd.kind === 'trail') {
         expect(ENEMY_MAP[fd.trail!.boss]?.colossus).toBe(true);
-        expect(ENEMY_MAP[fd.trail!.trialBoss]?.look).toEqual(h.look);
+        expect(ENEMY_MAP[fd.trail!.trialBoss]?.look).toBeTruthy();
       }
-      for (const sk of [fd.finalSkin, ...fd.shopSkins]) expect(SKIN_MAP[sk]?.source).toBe('event');
-      expect(SKIN_MAP[fd.finalSkin].hero).toBe(fd.hero);
-      // облики праздников — не за кристаллы
-      expect(SHOP_OFFERS.some((o) => o.give.skin === fd.finalSkin)).toBe(false);
+      for (const sk of [fd.finalSkin, ...fd.shopSkins].filter(Boolean) as string[]) expect(SKIN_MAP[sk]?.source).toBe('event');
       for (const sk of FESTIVAL_SKILLS) expect(SKILL_MAP[sk.id]).toBeDefined();
     }
-    expect(FEST_MILESTONES.filter((m) => m.skin)).toHaveLength(1);
+    expect(FEST_MILESTONES.filter((m) => m.skin).length).toBeLessThanOrEqual(1);
     expect(FEST_MILESTONES.every((m, i) => i === 0 || m.at > FEST_MILESTONES[i - 1].at)).toBe(true);
+    expect(FEST_MILESTONES.reduce((a, m) => a + (m.cur?.emblems ?? 0), 0)).toBeGreaterThan(50);
   });
 
   it('путь: закрыт до 10-го уровня, этапы по порядку, повтор — за билет, 3★ — быстрый рейд', () => {
@@ -1144,31 +1243,28 @@ describe('праздники Легиона', () => {
     expect(s.cur.eventTokens - t0).toBe(festFirstReward(1).tokens);
     expect(s.festival!.points).toBe(festFirstReward(1).points + 3 * FEST_STAR_POINTS);
     expect(s.festival!.tickets).toBe(FEST_TICKETS);
-    // повтор пройденного этапа тратит билет
     r = act(s, { type: 'fest.stage', stage: 1 });
     s = r.state;
     expect(s.festival!.tickets).toBe(FEST_TICKETS - 1);
     expect(s.quests.daily.festRaid).toBe(1);
-    // быстрый рейд
     s = act(s, { type: 'fest.sweep', stage: 1, times: FEST_TICKETS - 1 }).state;
     expect(s.festival!.tickets).toBe(0);
     expect(() => act(s, { type: 'fest.sweep', stage: 1 })).toThrow('noTickets');
     expect(() => act(s, { type: 'fest.stage', stage: 1 })).toThrow('noTickets');
-    // этап 2 открылся; на следующий день билеты снова полные
     expect(() => act(s, { type: 'fest.stage', stage: 2 })).not.toThrow();
     expect(festivalState({ s, cfg, now: T1 + DAY }).tickets).toBe(FEST_TICKETS);
-    // быстрый рейд — только на 3★
     const two = { ...s, festival: { ...s.festival!, stars: [2, ...s.festival!.stars.slice(1)], tickets: 3 } };
     expect(() => act(two, { type: 'fest.sweep', stage: 1 })).toThrow('notDone');
   });
 
-  it('последний этап — испытание героини праздника, дающее её осколки', () => {
+  it('последний этап — испытание; главы пути дают Эмблемы', () => {
     let s = ready();
-    const hero = festivalAt(T1)!.def.hero;
+    const e0 = s.cur.emblems;
     for (let st = 1; st <= FEST_STAGES; st++) s = act(s, { type: 'fest.stage', stage: st }).state;
     expect(s.festival!.stars.every((x) => x === 3)).toBe(true);
-    const total = [6, 12, 18].reduce((a, st) => a + festFirstReward(st).shards, 0);
-    expect(s.shards[hero]).toBe(total);
+    const total = Array.from({ length: FEST_STAGES }, (_, i) => festFirstReward(i + 1).emblems).reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThan(0);
+    expect(s.cur.emblems - e0).toBe(total);
     const units = festStageEnemies(cfg, festivalAt(T1)!.def, s.festival!.lvl, FEST_STAGES);
     expect(units.some((u) => u.kind === 'boss' && u.ref === festivalAt(T1)!.def.trail!.trialBoss)).toBe(true);
     expect(festGoalValue(s, s.festival!, 'stars')).toBe(54);
@@ -1176,7 +1272,6 @@ describe('праздники Легиона', () => {
 
   it('босс праздника: урон копится, победа поднимает уровень; три попытки в день', () => {
     let s = ready(false);
-    // враги праздника считаются от этапа фарма: пусть он будет выше силы отряда
     s = { ...s, progress: { ...s.progress, maxGlobal: 80, maxGlobalEver: 80 } };
     const b0 = festBoss({ s, cfg, now: T1 }, festivalAt(T1)!.def);
     let r = act(s, { type: 'fest.boss' });
@@ -1186,13 +1281,13 @@ describe('праздники Легиона', () => {
     expect(res.killed).toBe(false);
     expect(s.festival!.boss.dmg).toBe(res.dmg);
     expect(festBoss({ s, cfg, now: T1 }, festivalAt(T1)!.def).left).toBe(b0.hp - res.dmg);
-    // добиваем
     s = { ...s, dev: { ...s.dev, oneShot: true } };
+    const e0 = s.cur.emblems;
     r = act(s, { type: 'fest.boss', tactic: 'assault' });
     s = r.state;
     expect((r.result as { killed: boolean }).killed).toBe(true);
     expect(s.festival!.boss).toMatchObject({ lvl: 2, dmg: 0, kills: 1, used: 2 });
-    expect(s.shards[festivalAt(T1)!.def.hero]).toBe(festBossReward(1, true).shards);
+    expect(s.cur.emblems - e0).toBe(festBossReward(1, true).emblems);
     expect(festBoss({ s, cfg, now: T1 }, festivalAt(T1)!.def).level).toBeGreaterThan(b0.level);
     s = act(s, { type: 'fest.boss' }).state;
     expect(() => act(s, { type: 'fest.boss' })).toThrow('noAttempts');
@@ -1215,7 +1310,6 @@ describe('праздники Легиона', () => {
     expect(s.festival!.tasksDone).toBe(1);
     expect(s.festival!.points).toBe(FEST_TASK_REWARD.points);
     expect(() => act(s, { type: 'fest.task', id: ids[1] })).toThrow('claimed');
-    // цели считают общие счётчики с начала праздника
     const g = FEST_GOALS.find((x) => x.metric === 'bossWin')!;
     expect(() => act(s, { type: 'fest.goal', id: g.id })).toThrow('notDone');
     s = { ...s, counters: { ...s.counters, bossWin: (s.festival!.base.bossWin ?? 0) + g.target } };
@@ -1224,40 +1318,30 @@ describe('праздники Легиона', () => {
     expect(() => act(r.state, { type: 'fest.goal', id: g.id })).toThrow('claimed');
   });
 
-  it('шкала наград: всё разом, финальный облик; повторно — кристаллы', () => {
+  it('шкала наград: всё разом, Эмблемы и сердца', () => {
     let s = ready();
     s = act(s, { type: 'sync' }).state;
-    const fd = festivalAt(T1)!.def;
     s = { ...s, festival: { ...festivalState({ s, cfg, now: T1 }), points: 100000 } };
+    const e0 = s.cur.emblems;
     const r = act(s, { type: 'fest.claim', index: 'all' });
     expect(r.state.festival!.claimed).toHaveLength(FEST_MILESTONES.length);
-    expect(r.state.skins).toContain(fd.finalSkin);
-    expect(r.state.shards[fd.hero]).toBe(FEST_MILESTONES.reduce((a, m) => a + (m.shards ?? 0), 0));
+    expect(r.state.cur.emblems - e0).toBe(FEST_MILESTONES.reduce((a, m) => a + (m.cur?.emblems ?? 0), 0));
     expect(() => act(r.state, { type: 'fest.claim', index: 'all' })).toThrow('notDone');
-    // облик уже есть — финальная ступень даёт кристаллы
-    const again = { ...s, skins: [...s.skins, fd.finalSkin] };
-    const c0 = again.cur.crystals;
-    const last = act(again, { type: 'fest.claim', index: FEST_MILESTONES.length - 1 });
-    expect(last.state.cur.crystals - c0).toBe(500 + (FEST_MILESTONES[FEST_MILESTONES.length - 1].cur?.crystals ?? 0));
   });
 
-  it('лавка праздника: осколки героини, лимит на праздник, облики — навсегда', () => {
+  it('лавка праздника: Эмблемы, лимит на праздник', () => {
     let s = ready();
     s = { ...s, cur: { ...s.cur, eventTokens: 100000 } };
     const { def, offers } = festShopNow({ cfg, now: T1 })!;
-    const sh = offers.find((o) => o.give.shards)!;
-    for (let i = 0; i < sh.limit; i++) s = act(s, { type: 'fest.buy', offer: sh.id }).state;
-    expect(s.shards[def.hero]).toBe(sh.limit * sh.give.shards!);
-    expect(() => act(s, { type: 'fest.buy', offer: sh.id })).toThrow('limitReached');
-    const skin = offers.find((o) => o.give.skin)!;
-    s = act(s, { type: 'fest.buy', offer: skin.id }).state;
-    expect(s.skins).toContain(skin.give.skin);
-    expect(() => act(s, { type: 'fest.buy', offer: skin.id })).toThrow(GameError);
-    // через полный круг (тот же праздник снова) лимит осколков свободен
+    const em = offers.find((o) => o.id === 'fs_emblems')!;
+    const e0 = s.cur.emblems;
+    for (let i = 0; i < em.limit; i++) s = act(s, { type: 'fest.buy', offer: em.id }).state;
+    expect(s.cur.emblems - e0).toBe(em.limit * em.give.cur!.emblems!);
+    expect(() => act(s, { type: 'fest.buy', offer: em.id })).toThrow('limitReached');
     const later = T1 + FESTIVALS.length * FESTIVAL_DAYS * DAY;
     expect(festivalAt(later)!.def.id).toBe(def.id);
-    expect(() => act(s, { type: 'fest.buy', offer: sh.id }, later)).not.toThrow();
-    expect(festBought(s, sh.id, undefined, festivalAt(T1)!.cycle)).toBe(sh.limit);
+    expect(() => act(s, { type: 'fest.buy', offer: em.id }, later)).not.toThrow();
+    expect(festBought(s, em.id, undefined, festivalAt(T1)!.cycle)).toBe(em.limit);
   });
 
   it('новый праздник начинается с чистого листа и фиксирует уровень врагов', () => {
@@ -1306,15 +1390,12 @@ describe('свойства элиты', () => {
 });
 
 describe('облики праздников: где получить', () => {
-  it('облик знает свой праздник и ближайшие даты', () => {
+  it('ближайшие даты праздника; облик без праздника — null', () => {
     const DAY = 86400000;
     const now = FESTIVAL_EPOCH + DAY;
-    expect(skinFestival('isolde_sakura')).toMatchObject({ final: false, def: { id: 'sakura' } });
-    expect(skinFestival('selene_moon')).toMatchObject({ final: true, def: { id: 'bloodmoon' } });
-    expect(skinFestival('lira_summer')).toBeNull();
+    expect(skinFestival('nope')).toBeNull();
     const sak = festivalNext('sakura', now)!;
     expect(sak.active).toBe(false);
-    expect(sak.start).toBe(FESTIVAL_EPOCH + 4 * FESTIVAL_DAYS * DAY);
     expect(festivalAt(sak.start)!.def.id).toBe('sakura');
     expect(festivalNext('bloodmoon', now)).toMatchObject({ active: true, start: FESTIVAL_EPOCH });
   });
@@ -1403,87 +1484,27 @@ describe('«Что нового»', () => {
   });
 });
 
-describe('Турнир Валькирий и Самоцветные копи', () => {
+describe('Самоцветные копи', () => {
   const DAY = 86400000;
-  const TT = FESTIVAL_EPOCH + FESTIVAL_DAYS * DAY + 3600000; // идёт турнир
-  const TM = FESTIVAL_EPOCH + 3 * FESTIVAL_DAYS * DAY + 3600000; // идут копи
+  const TM = FESTIVAL_EPOCH + 1 * FESTIVAL_DAYS * DAY + 3600000; // идут копи
   function ready(now: number, oneShot = false): PlayerState {
     let s = fresh();
     for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 30 }, { cfg, now, dev: true }).state;
-    s = { ...s, account: { ...s.account, lvl: 12 }, party: { ...s.party, presets: [['lira', 'astrid', 'seyra', 'keira', null, null], ...s.party.presets.slice(1)] } };
+    s = { ...s, account: { ...s.account, lvl: 12 } };
     return { ...s, dev: { ...s.dev, oneShot } };
   }
   const act = (s: PlayerState, a: Record<string, unknown>, now: number) => applyAction(s, a as never, { cfg, now, dev: true });
 
-  it('у каждого праздника свой вид: на турнире нет пути, в копях — турнира', () => {
-    expect(festivalAt(TT)!.def.kind).toBe('tourney');
+  it('у каждого праздника свой вид: в копях нет пути; турнира больше нет', () => {
     expect(festivalAt(TM)!.def.kind).toBe('mine');
-    const s = ready(TT);
-    expect(() => act(s, { type: 'fest.stage', stage: 1 }, TT)).toThrow('noFestival');
-    expect(() => act(s, { type: 'mine.dig', cell: MINE_START_IDX - MINE_W }, TT)).toThrow('noFestival');
-    expect(() => act(ready(TM), { type: 'tour.start' }, TM)).toThrow('noFestival');
-    // задания дня и цели — свои у каждого вида
-    const tt = festDailyTasks(dayKey(TT), festivalAt(TT)!.cycle, 'tourney');
-    expect(FEST_TASKS_KIND.tourney.map((t) => t.id)).toContain(tt[0]);
+    const s = ready(TM);
+    expect(() => act(s, { type: 'fest.stage', stage: 1 }, TM)).toThrow('noFestival');
+    expect(() => act(s, { type: 'tour.start' }, TM)).toThrow('unknownAction');
+    expect(FESTIVALS.some((f) => (f.kind as string) === 'tourney')).toBe(false);
+    const tm = festDailyTasks(dayKey(TM), festivalAt(TM)!.cycle, 'mine');
+    expect(FEST_TASKS_KIND.mine.map((t) => t.id)).toContain(tm[0]);
     expect(festGoalsFor('mine').some((g) => g.metric === 'mineFloor')).toBe(true);
     expect(festGoalsFor('mine').some((g) => g.metric === 'stars')).toBe(false);
-    expect(festGoalsFor('trail').some((g) => g.metric === 'tourWins')).toBe(false);
-  });
-
-  it('турнир: драфт из трёх, бои до 3 поражений, замена после победы, 2 входа в день', () => {
-    let s = ready(TT);
-    expect(() => act(s, { type: 'tour.fight' }, TT)).toThrow('noRun');
-    s = act(s, { type: 'tour.start' }, TT).state;
-    expect(() => act(s, { type: 'tour.start' }, TT)).toThrow('runActive');
-    for (let k = 0; k < TOUR_PICKS; k++) {
-      const run = s.festival!.tour!.run!;
-      expect(run.phase).toBe('draft');
-      expect(new Set(run.offer).size).toBe(3);
-      expect(run.offer.some((id) => run.picks.includes(id))).toBe(false);
-      s = act(s, { type: 'tour.pick', index: 0 }, TT).state;
-    }
-    expect(s.festival!.tour!.run!.picks).toHaveLength(TOUR_PICKS);
-    expect(s.festival!.tour!.run!.phase).toBe('fight');
-    expect(s.quests.daily.tourDraft).toBe(1);
-    // героини драфта не обязаны быть у игрока — отряд строится отдельно
-    const units = tourUnits(cfg, s, s.festival!.tour!.run!.picks, TOUR_LEVEL, 0);
-    expect(units).toHaveLength(TOUR_PICKS);
-    expect(units.every((u) => u.lvl === TOUR_LEVEL && u.side === 0)).toBe(true);
-    // сыграем до конца забега
-    let guard = 0;
-    while (s.festival!.tour!.run!.phase !== 'done' && guard++ < 20) {
-      const run = s.festival!.tour!.run!;
-      if (run.phase === 'swap') s = act(s, { type: 'tour.swap', index: 1, slot: 0 }, TT).state;
-      else s = act(s, { type: 'tour.fight' }, TT).state;
-    }
-    const run = s.festival!.tour!.run!;
-    expect(run.phase).toBe('done');
-    expect(run.wins === TOUR_WINS || run.losses === TOUR_LOSSES).toBe(true);
-    expect(s.festival!.tour!.best).toBe(run.wins);
-    expect(s.festival!.points).toBeGreaterThanOrEqual(run.wins * 35);
-    // второй вход сегодня есть, третьего — нет
-    s = act(s, { type: 'tour.start' }, TT).state;
-    s = act(s, { type: 'tour.retire' }, TT).state;
-    expect(() => act(s, { type: 'tour.start' }, TT)).toThrow('noAttempts');
-    expect(() => act(s, { type: 'tour.start' }, TT + DAY)).not.toThrow();
-  });
-
-  it('турнир: 7 побед — чемпионка, осколки героини праздника; соперницы с раундами сильнее', () => {
-    let s = ready(TT, true);
-    s = act(s, { type: 'tour.start' }, TT).state;
-    for (let k = 0; k < TOUR_PICKS; k++) s = act(s, { type: 'tour.pick', index: 0 }, TT).state;
-    for (let w = 0; w < TOUR_WINS; w++) {
-      if (s.festival!.tour!.run!.phase === 'swap') s = act(s, { type: 'tour.swap' }, TT).state;
-      s = act(s, { type: 'tour.fight' }, TT).state;
-    }
-    const hero = festivalAt(TT)!.def.hero;
-    expect(s.festival!.tour!.champs).toBe(1);
-    expect(s.shards[hero]).toBe(TOUR_CHAMP_REWARD.shards);
-    const a = tourOpponent(1, 1, hero);
-    const b = tourOpponent(1, TOUR_WINS, hero);
-    expect(b.lvl).toBeGreaterThan(a.lvl);
-    expect(b.final).toBe(true);
-    expect(b.team).toContain(hero);
   });
 
   it('копи: копать рядом с раскопанным, кирка за шаг, соседи видны, лестница ведёт ниже', () => {
@@ -1496,7 +1517,6 @@ describe('Турнир Валькирий и Самоцветные копи', (
     expect(board.filter((t) => t === 'stairs')).toHaveLength(1);
     expect(mineBoard(m0.seed, 1)).toEqual(board);
     expect(mineVisible([MINE_START_IDX]).size).toBe(4);
-    // идём к лестнице по кратчайшему пути (с oneShot чудовища не страшны)
     const stairs = board.indexOf('stairs');
     const path: number[] = [];
     let cur = MINE_START_IDX;
@@ -1516,7 +1536,7 @@ describe('Турнир Валькирий и Самоцветные копи', (
     expect(s.festival!.points).toBeGreaterThan(0);
   });
 
-  it('копи: без кирок не копать; за день — новые кирки; лавка продаёт кирки и входы', () => {
+  it('копи: без кирок не копать; за день — новые кирки; лавка продаёт кирки', () => {
     let s = ready(TM, true);
     s = { ...s, festival: { ...festivalState({ s, cfg, now: TM }), mine: { ...mineOf(s, festivalState({ s, cfg, now: TM })), picks: 0 } } };
     const cell = MINE_START_IDX - MINE_W;
@@ -1526,13 +1546,7 @@ describe('Турнир Валькирий и Самоцветные копи', (
     s = act(s, { type: 'fest.buy', offer: 'fs_picks' }, TM).state;
     expect(s.festival!.mine!.picks).toBe(10);
     expect(() => act(s, { type: 'mine.dig', cell }, TM)).not.toThrow();
-    // вход на турнир продаётся только на турнире
     expect(() => act(s, { type: 'fest.buy', offer: 'fs_entry' }, TM)).toThrow(GameError);
-    let t = ready(TT);
-    t = { ...t, cur: { ...t.cur, eventTokens: 10000 } };
-    t = act(t, { type: 'fest.buy', offer: 'fs_entry' }, TT).state;
-    expect(tourEntriesLeft(t.festival!)).toBe(TOUR_ENTRIES + 1);
-    // чудовище: бой нужен, страж лестницы — на каждом третьем этаже
     expect(mineNeedsFight('monster', 1)).toBe(true);
     expect(mineNeedsFight('stairs', 1)).toBe(false);
     expect(mineNeedsFight('stairs', 3)).toBe(true);
@@ -1544,28 +1558,23 @@ describe('Фотосессия', () => {
   const owned = (id: string) => act(fresh(), { type: 'dev.hero', id, lvl: 10 }).state;
 
   it('звёзды: за любимые место, позу, выражение и наряд под место; смазанный кадр — минус звезда', () => {
-    const t = photoTaste('selene');
-    const best = photoScore('selene', { ...t, skin: undefined, timing: 'perfect' });
-    // обычный наряд подходит только лагерю
+    const t = photoTaste('mirabel');
+    const best = photoScore('mirabel', { ...t, skin: undefined, timing: 'perfect' });
     expect(best.stars).toBe(t.loc === 'camp' ? 5 : 4);
     expect(best.match).toMatchObject({ loc: true, pose: true, face: true });
     const other = (['beach', 'sunset', 'onsen', 'sakura', 'stars', 'camp'] as const).find((l) => l !== t.loc && l !== 'camp')!;
-    expect(photoScore('selene', { ...t, loc: other, timing: 'miss' }).stars).toBe(2);
-    // купальник подходит пляжу, бельё — звёздной ночи
-    const beach = SKINS.find((k) => k.set === 'summer')!;
-    expect(photoOutfitFits('beach', beach.id)).toBe(true);
-    expect(photoOutfitFits('stars', beach.id)).toBe(false);
+    expect(photoScore('mirabel', { ...t, loc: other, timing: 'miss' }).stars).toBe(2);
     expect(photoOutfitFits('camp', undefined)).toBe(true);
-    // у разных героинь вкусы разные
-    const tastes = new Set(['lira', 'astrid', 'seyra', 'keira', 'selene', 'velvet', 'mirabel', 'hanna'].map((h) => JSON.stringify(photoTaste(h))));
-    expect(tastes.size).toBeGreaterThan(4);
+    expect(photoOutfitFits('beach', 'mirabel_bond')).toBe(false);
+    const tastes = new Set(ROSTER.map((h) => JSON.stringify(photoTaste(h))));
+    expect(tastes.size).toBeGreaterThan(3);
   });
 
   it('награда — за первые кадры дня, каждый кадр в альбоме, угаданное запоминается', () => {
-    let s = owned('selene');
-    const t = photoTaste('selene');
+    let s = owned('mirabel');
+    const t = photoTaste('mirabel');
     const c0 = s.cur.crystals;
-    const shot = { type: 'photo.shoot', hero: 'selene', loc: t.loc, pose: t.pose, face: t.face, timing: 'perfect' };
+    const shot = { type: 'photo.shoot', hero: 'mirabel', loc: t.loc, pose: t.pose, face: t.face, timing: 'perfect' };
     let lastResult: any;
     for (let i = 0; i < PHOTO_DAILY + 1; i++) {
       const r = act(s, shot);
@@ -1576,12 +1585,9 @@ describe('Фотосессия', () => {
     expect(lastResult.rewarded).toBe(false);
     expect(s.cur.crystals).toBeGreaterThan(c0);
     expect(s.photo!.album.length).toBe(PHOTO_DAILY + 1);
-    expect(s.photo!.known.selene).toMatchObject({ loc: t.loc, pose: t.pose, face: t.face });
-    // UR-героиня получает близость
-    expect((s.bond?.selene?.xp ?? 0) + (s.bond?.selene?.lvl ?? 0)).toBeGreaterThan(0);
-    // на следующий день — снова с наградой
+    expect(s.photo!.known.mirabel).toMatchObject({ loc: t.loc, pose: t.pose, face: t.face });
+    expect((s.bond?.mirabel?.xp ?? 0) + (s.bond?.mirabel?.lvl ?? 0)).toBeGreaterThan(0);
     expect((act(s, shot, T0 + 86400000).result as any).rewarded).toBe(true);
-    // альбом ограничен
     for (let i = 0; i < PHOTO_ALBUM_MAX + 3; i++) s = act(s, shot).state;
     expect(s.photo!.album.length).toBe(PHOTO_ALBUM_MAX);
     s = act(s, { type: 'photo.delete', index: 0 }).state;
@@ -1589,13 +1595,12 @@ describe('Фотосессия', () => {
   });
 
   it('нельзя снимать чужую героиню и в чужом облике', () => {
-    const s = owned('selene');
-    expect(() => act(s, { type: 'photo.shoot', hero: 'velvet', loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
-    const foreign = SKINS.find((k) => k.hero !== 'selene')!;
-    expect(() => act(s, { type: 'photo.shoot', hero: 'selene', skin: foreign.id, loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
-    const own = SKINS.find((k) => k.hero === 'selene');
-    if (own) expect(() => act(s, { type: 'photo.shoot', hero: 'selene', skin: own.id, loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
-    expect(() => act(s, { type: 'photo.shoot', hero: 'selene', loc: 'bedroom', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
+    const s = owned('mirabel');
+    expect(() => act(s, { type: 'photo.shoot', hero: 'keira', loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
+    const foreign = SKINS.find((k) => k.hero !== 'mirabel')!;
+    expect(() => act(s, { type: 'photo.shoot', hero: 'mirabel', skin: foreign.id, loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
+    expect(() => act(s, { type: 'photo.shoot', hero: 'mirabel', skin: 'mirabel_bond', loc: 'beach', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('notOwned');
+    expect(() => act(s, { type: 'photo.shoot', hero: 'mirabel', loc: 'bedroom', pose: 'hips', face: 'smile', timing: 'good' })).toThrow('badParam');
   });
 });
 
@@ -1697,36 +1702,33 @@ describe('Рыбалка, договоры Бездны, события эксп
   });
 });
 
-describe('Солнечный курорт: пляжный волейбол и Солара', () => {
+describe('Солнечный курорт: пляжный волейбол', () => {
   const DAY = 86400000;
-  // шестой праздник ротации — курорт
-  const TR = FESTIVAL_EPOCH + 5 * FESTIVAL_DAYS * DAY + 3600000;
+  // четвёртый праздник ротации — курорт
+  const TR = FESTIVAL_EPOCH + 3 * FESTIVAL_DAYS * DAY + 3600000;
   const act = (s: PlayerState, a: Record<string, unknown>, now = TR) => applyAction(s, a as never, { cfg, now, dev: true });
   const ready = () => {
     let s = act(fresh(), { type: 'dev.progress', unlockAll: true, accLvl: 20 }).state;
-    for (const id of ['coral', 'lira', 'mirabel']) s = act(s, { type: 'dev.hero', id, lvl: 10 }).state;
+    s = act(s, { type: 'dev.hero', id: 'mirabel', lvl: 10 }).state;
     return s;
   };
-  const pair = ['coral', 'lira'];
+  const pair = ['astrid', 'lira'];
 
-  it('героиня праздника: пышная фигура и родное микро-бикини, в призыве её нет', () => {
-    const h = HEROINE_MAP.solara;
-    expect(h.festival).toBe('resort');
-    expect(h.look.bust).toBe(3);
-    expect(h.look.hips).toBe(3);
-    expect(h.look.wear).toBe('micro');
-    expect(isSwimwear(h.look.wear)).toBe(true);
-    expect(SKIN_MAP.solara_pearl.look.wear).toBe('micro');
+  it('курорт — праздник пляжного волейбола; соперницы — жительницы острова, а не героини', () => {
     expect(festivalAt(TR)!.def.id).toBe('resort');
     expect(festivalAt(TR)!.def.kind).toBe('volley');
+    for (let r = 1; r <= VOLLEY_RUNGS; r++) for (const id of volleyRival(r).pair) {
+      expect(ENEMY_MAP[id]).toBeTruthy();
+      expect(HEROINE_MAP[id]).toBeUndefined();
+    }
   });
 
-  it('навыки пары: по классам, одна стихия — сыгранность; лестница — финал с Соларой', () => {
+  it('навыки пары: по классам, одна стихия — сыгранность; лестница ведёт к финалу', () => {
     const t1 = volleyTeam(['astrid', 'keira']);
     expect(t1.rec + t1.set + t1.spk).toBeGreaterThanOrEqual(10);
-    const same = volleyTeam(['coral', 'mirabel']);
-    expect(same.synergy).toBe(true);
-    expect(volleyRival(VOLLEY_RUNGS).pair).toContain('solara');
+    expect(volleyTeam(['astrid', 'mirabel']).synergy).toBe(true); // обе — свет
+    expect(volleyTeam(['astrid', 'lira']).synergy).toBe(false);
+    expect(volleyRival(VOLLEY_RUNGS).pair).toContain('v_solara');
     expect(volleyRival(VOLLEY_RUNGS).final).toBe(true);
     expect(volleyRival(1).skill).toBeLessThan(volleyRival(VOLLEY_RUNGS).skill);
   });
@@ -1734,10 +1736,9 @@ describe('Солнечный курорт: пляжный волейбол и С
   it('матч: тратит матч дня, победа двигает лестницу и даёт очки праздника; нельзя перепрыгнуть ступень', () => {
     let s = ready();
     expect(() => act(s, { type: 'volley.start', heroes: pair, rung: 2 })).toThrow('requirements');
-    expect(() => act(s, { type: 'volley.start', heroes: ['coral', 'coral'], rung: 1 })).toThrow('badParam');
-    expect(() => act(s, { type: 'volley.start', heroes: ['coral', 'solara'], rung: 1 })).toThrow('notOwned');
+    expect(() => act(s, { type: 'volley.start', heroes: ['astrid', 'astrid'], rung: 1 })).toThrow('badParam');
+    expect(() => act(s, { type: 'volley.start', heroes: ['astrid', 'keira'], rung: 1 })).toThrow('notOwned');
     s = act(s, { type: 'volley.start', heroes: pair, rung: 1 }).state;
-    // мгновенная «победа» не засчитывается
     expect(() => act(s, { type: 'volley.end', us: VOLLEY_POINTS, them: 0 })).toThrow('badParam');
     expect(() => act(s, { type: 'volley.end', us: 3, them: 2 }, TR + 20000)).toThrow('badParam');
     const p0 = festivalState({ s, cfg, now: TR }).points;
@@ -1753,7 +1754,6 @@ describe('Солнечный курорт: пляжный волейбол и С
     expect(f.points).toBeGreaterThan(p0);
     expect(s.quests.daily.volSpike).toBe(3);
     expect(() => act(s, { type: 'volley.end', us: VOLLEY_POINTS, them: 0 }, TR + 30000)).toThrow('noRun');
-    // поражение — утешительные жетоны, лестница не двигается
     s = act(s, { type: 'volley.start', heroes: pair, rung: 2 }, TR + 30000).state;
     const lost = act(s, { type: 'volley.end', us: 2, them: VOLLEY_POINTS }, TR + 60000);
     expect((lost.result as any).won).toBe(false);

@@ -32,7 +32,7 @@ export const ENCOUNTERS: EncounterDef[] = [
     name: { ru: 'Бродячая торговка', en: 'Wandering Merchant' },
     desc: { ru: 'Торговка с тележкой, полной диковин. Цены — ниже, чем в лагере, но предложение только сейчас.', en: 'A merchant with a cart full of curios. Cheaper than at camp — but only right now.' },
     choices: [
-      { id: 'scroll', label: { ru: 'Свиток призыва', en: 'Summon scroll' } },
+      { id: 'scroll', label: { ru: 'Связка эмблем', en: 'Bundle of emblems' } },
       { id: 'epic', label: { ru: 'Эпический предмет', en: 'Epic item' } },
       { id: 'leave', label: { ru: 'Не сейчас', en: 'Not now' } },
     ],

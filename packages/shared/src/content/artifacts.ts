@@ -1,10 +1,10 @@
-import type { L10n } from '../types';
+import type { Currency, L10n } from '../types';
 
 /**
- * Артефакты: механики на весь отряд, которые падают с отдельного баннера призыва.
+ * Артефакты: механики на весь отряд, которые Легион мастерит сам в Мастерской — без случайности.
  * Не статы, а правила боя: цепочки энергии, метки, молнии, заморозка времени…
  * Числа скромные — артефакты разнообразят бой, а не ломают баланс.
- * Дубликат повышает уровень (до 5), после максимума — возврат кристаллами.
+ * Чертежи редких ступеней открываются по ходу кампании; уровень (до 5) повышается за материалы кузницы и звёздную пыль.
  */
 export type ArtifactRarity = 'R' | 'SR' | 'SSR' | 'UR';
 
@@ -47,16 +47,31 @@ export const ARTIFACT_MAX = 5;
 export const ARTIFACT_RARITIES: ArtifactRarity[] = ['R', 'SR', 'SSR', 'UR'];
 export const ARTIFACT_RARITY_COLORS: Record<ArtifactRarity, string> = { R: '#8ab0d0', SR: '#6ac06a', SSR: '#c070f0', UR: '#f0c040' };
 
-/** Шансы баннера (%), гарантии и цены. */
-export const ARTIFACT_BANNER = {
-  rates: { R: 60, SR: 30, SSR: 8.5, UR: 1.5 } as Record<ArtifactRarity, number>,
-  pitySSR: 30,
-  pityUR: 90,
-  cost1: 200,
-  cost10: 1800,
+/** Названия ступеней артефактов в интерфейсе. */
+export const ARTIFACT_TIER_NAMES: Record<ArtifactRarity, L10n> = {
+  R: L('Походный', 'Field'),
+  SR: L('Искусный', 'Fine'),
+  SSR: L('Шедевр', 'Masterwork'),
+  UR: L('Реликвия', 'Relic'),
 };
-/** Возврат кристаллами за дубликат артефакта максимального уровня. */
-export const ARTIFACT_REFUND: Record<ArtifactRarity, number> = { R: 10, SR: 30, SSR: 80, UR: 200 };
+/** С какого этапа кампании (сквозной номер) открываются чертежи ступени. */
+export const ARTIFACT_TIER_STAGE: Record<ArtifactRarity, number> = { R: 0, SR: 60, SSR: 140, UR: 260 };
+/** Базовая цена изготовления ступени; улучшения дороже: ×1.6, ×2.4, ×3.4, ×4.8. */
+const CRAFT_BASE: Record<ArtifactRarity, Partial<Record<Currency, number>>> = {
+  R: { forgeMats: 15, starDust: 40 },
+  SR: { forgeMats: 40, starDust: 120 },
+  SSR: { forgeMats: 90, starDust: 300, crystals: 200 },
+  UR: { forgeMats: 180, starDust: 700, crystals: 600 },
+};
+const CRAFT_STEP = [1, 1.6, 2.4, 3.4, 4.8];
+
+/** Цена изготовления (lvl = 0) или улучшения с уровня lvl; null — максимум. */
+export function artifactCost(id: string, lvl: number): Partial<Record<Currency, number>> | null {
+  const d = ARTIFACT_MAP[id];
+  if (!d || lvl >= ARTIFACT_MAX) return null;
+  const k = CRAFT_STEP[Math.max(0, lvl)];
+  return Object.fromEntries(Object.entries(CRAFT_BASE[d.rarity]).map(([c, v]) => [c, Math.round((v as number) * k)]));
+}
 
 /** Сила артефакта на уровне lvl (1–5). */
 export function artifactValue(id: string, lvl: number): number {

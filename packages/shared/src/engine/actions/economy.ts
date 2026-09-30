@@ -1,9 +1,8 @@
-import { CHANGELOG, HEROINE_MAP, SHOP_OFFER_MAP, SUMMON_POOL } from '../../content';
-import type { HeroRarity, Item, PlayerSettings } from '../../types';
+import { CHANGELOG, SHOP_OFFER_MAP } from '../../content';
+import type { Item, PlayerSettings } from '../../types';
 import type { Action } from '../apply';
 import {
   addAccountXp,
-  addHeroine,
   addItem,
   assert,
   autoLevelParty,
@@ -105,26 +104,6 @@ export const economyActions = {
     return { x2Until: s.boosts.x2Until };
   },
 
-  /** Бесплатный призыв раз в день. */
-  'summon.free': (ctx: Ctx) => {
-    const { s } = ctx;
-    assert(!s.day.freeSummon, 'usedToday');
-    s.day.freeSummon = true;
-    return { pulls: doSummon(ctx, 1) };
-  },
-
-  summon: (ctx: Ctx, a: Action) => {
-    const { cfg } = ctx;
-    const count = vInt(a.count, 1, 10, 'count');
-    assert(count === 1 || count === 10, 'badParam', { name: 'count' });
-    const pay = vOneOf(a.pay, ['crystals', 'scrolls'] as const, 'pay');
-    if (pay === 'scrolls') spend(ctx, { scrolls: count * cfg.summon.scrollCost });
-    else spend(ctx, { crystals: count === 10 ? cfg.summon.cost10 : cfg.summon.cost1 });
-    const pulls = doSummon(ctx, count);
-    ctx.events.push({ name: 'summon', props: { count, pay } });
-    return { pulls };
-  },
-
   'shop.buy': (ctx: Ctx, a: Action) => {
     const { s } = ctx;
     const id = vStr(a.offer, 'offer');
@@ -135,22 +114,12 @@ export const economyActions = {
     const bought = s.shop.bought[key] ?? 0;
     if (offer.limit) assert(bought < offer.limit, 'limitReached');
     if (offer.give.skin) assert(!s.skins.includes(offer.give.skin), 'owned');
-    let heroForShards: string | undefined;
-    if (offer.give.shardsRarity) {
-      heroForShards = vStr(a.hero, 'hero');
-      const def = HEROINE_MAP[heroForShards];
-      assert(def && !def.boss && !def.herald && !def.festival && def.rarity === offer.give.shardsRarity, 'badParam', { name: 'hero' });
-    }
     spend(ctx, offer.cost);
     s.shop.bought[key] = bought + 1;
     const out: Record<string, unknown> = {};
     if (offer.give.cur) {
       give(ctx, offer.give.cur);
       out.cur = offer.give.cur;
-    }
-    if (heroForShards) {
-      s.shards[heroForShards] = (s.shards[heroForShards] ?? 0) + (offer.give.shards ?? 10);
-      out.shards = { [heroForShards]: offer.give.shards ?? 10 };
     }
     if (offer.give.skin) {
       s.skins.push(offer.give.skin);
@@ -262,47 +231,3 @@ function clamp01(v: unknown): number {
   const n = typeof v === 'number' && isFinite(v) ? v : 0;
   return Math.max(0, Math.min(1, n));
 }
-
-export interface SummonPull {
-  hero: string;
-  rarity: HeroRarity;
-  isNew: boolean;
-  shards: number;
-}
-
-/** Призыв с гарантом: SSR не позже 60-го, UR не позже 150-го. */
-export function doSummon(ctx: Ctx, count: number): SummonPull[] {
-  const { s, cfg, rng } = ctx;
-  const rates = cfg.summon.rates;
-  const out: SummonPull[] = [];
-  for (let i = 0; i < count; i++) {
-    s.summon.pitySSR++;
-    s.summon.pityUR++;
-    s.summon.total++;
-    let rarity: HeroRarity;
-    if (s.summon.pityUR >= cfg.summon.pityUR) rarity = 'UR';
-    else {
-      const r = rng.weighted([rates.R, rates.SR, rates.SSR, rates.UR]);
-      rarity = (['R', 'SR', 'SSR', 'UR'] as HeroRarity[])[r];
-      if (s.summon.pitySSR >= cfg.summon.pitySSR && (rarity === 'R' || rarity === 'SR')) {
-        rarity = rng.chance(rates.UR / (rates.SSR + rates.UR)) ? 'UR' : 'SSR';
-      }
-    }
-    if (rarity === 'UR') {
-      s.summon.pityUR = 0;
-      s.summon.pitySSR = 0;
-    } else if (rarity === 'SSR') s.summon.pitySSR = 0;
-    const hero = rng.pick(SUMMON_POOL[rarity]);
-    const isNew = addHeroine(ctx, hero);
-    let shards = 0;
-    if (!isNew) {
-      shards = cfg.hero.dupeShards[rarity];
-      s.shards[hero] = (s.shards[hero] ?? 0) + shards;
-    }
-    out.push({ hero, rarity, isNew, shards });
-    ctx.events.push({ name: 'summon_pull', props: { hero, rarity } });
-  }
-  track(ctx, 'summon', count);
-  return out;
-}
-
