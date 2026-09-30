@@ -34,3 +34,4 @@ export * from './fishing';
 export * from './affixes';
 export * from './mine';
 export * from './volley';
+export * from './campfire';

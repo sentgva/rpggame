@@ -99,6 +99,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'gold', name: { ru: 'Золотая лихорадка', en: 'Gold Rush' }, metric: 'goldEarned', tiers: tiers([1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15]), crystals: 7 },
   { id: 'kills', name: { ru: 'Гроза врагов', en: 'Scourge of Foes' }, metric: 'kills', tiers: tiers([10, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000]), crystals: 5 },
   { id: 'abyss', name: { ru: 'Взгляд в Бездну', en: 'Gaze into the Abyss' }, metric: 'abyssLevel', tiers: tiers([1, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]), crystals: 20, title: { ru: 'Дитя Бездны', en: 'Child of the Abyss' } },
+  { id: 'campfire', name: { ru: 'Вечера у костра', en: 'Campfire Evenings' }, metric: 'campfire', tiers: tiers([1, 5, 15, 30, 60, 100, 150, 250, 365]), crystals: 12, title: { ru: 'Душа привала', en: 'Heart of the Camp' } },
   { id: 'login', name: { ru: 'Верность', en: 'Loyalty' }, metric: 'loginDays', tiers: tiers([1, 3, 7, 14, 30, 60, 90, 120, 180, 240, 300, 365]), crystals: 10 },
   { id: 'accLevel', name: { ru: 'Командор', en: 'Commander' }, metric: 'accountLevel', tiers: tiers([5, 10, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200]), crystals: 10 },
 ];

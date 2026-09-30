@@ -67,6 +67,11 @@ function savedTab(): Tab {
   }
 }
 
+/** На баннере летнего праздника покровительница — в облике-награде (бикини летней коллекции). */
+function festSkin(def: FestivalDef): string | undefined {
+  return def.finalSkin && SKIN_MAP[def.finalSkin] ? def.finalSkin : undefined;
+}
+
 function themeVars(def: FestivalDef): CSSProperties {
   return { ['--fa' as string]: def.colors.accent, ['--fg' as string]: def.colors.glow, ['--fb0' as string]: def.colors.bg[0], ['--fb1' as string]: def.colors.bg[1] };
 }
@@ -198,11 +203,11 @@ function FestHeader({ def, f, now, end }: { def: FestivalDef; f: FestivalState; 
     openSheet(tl(def.name), () => (
       <div className={css.col} style={themeVars(def)}>
         <div className={st.loreHero}>
-          <HeroImg id={def.hero} className="pixel" width={140} height={140} />
+          <HeroImg id={def.hero} skin={festSkin(def)} unarmed={!!festSkin(def)} flirt={!!festSkin(def)} className="pixel" width={140} height={140} />
           <div>
-            <div className={css.tiny}>{t('fest.youGet')}</div>
+            <div className={css.tiny}>{t('fest.patron')}</div>
             <div className={st.loreName}>{tl(hero.name)}</div>
-            <div className={css.tiny}>{tl(hero.title)} · UR</div>
+            <div className={css.tiny}>{tl(hero.title)}</div>
             <div className={css.tiny} style={{ marginTop: 6, fontStyle: 'italic' }}>
               «{tl(hero.quote)}»
             </div>
@@ -211,14 +216,14 @@ function FestHeader({ def, f, now, end }: { def: FestivalDef; f: FestivalState; 
         <div className={css.tiny} style={{ lineHeight: 1.45 }}>
           {tl(def.lore)}
         </div>
-        <div className={css.tiny}>{t('fest.heroOnly', { name: tl(def.name) })}</div>
+        {festSkin(def) && <div className={css.tiny}>{t('fest.summerNote')}</div>}
       </div>
     ));
   return (
     <div className={st.header} style={{ backgroundImage: `url(${sceneUrl(def.id)})` }} onClick={lore}>
       <div className={st.headerShade} />
       <Particles kind={def.particle} />
-      <HeroImg id={def.hero} className={cx('pixel', st.headerHero)} />
+      <HeroImg id={def.hero} skin={festSkin(def)} unarmed={!!festSkin(def)} flirt={!!festSkin(def)} className={cx('pixel', st.headerHero)} />
       <div className={st.headerText}>
         <div className={st.kicker}>{t('mode.festival')}</div>
         <div className={st.festName}>{tl(def.name)}</div>
@@ -730,7 +735,7 @@ export function FestivalBanner({ onOpen }: { onOpen: () => void }) {
           )}
         </div>
       </div>
-      <HeroImg id={def.hero} className={cx('pixel', st.bannerHero)} />
+      <HeroImg id={def.hero} skin={festSkin(def)} unarmed={!!festSkin(def)} flirt={!!festSkin(def)} className={cx('pixel', st.bannerHero)} />
       {n > 0 && <span className={st.bannerBadge}>{n}</span>}
     </button>
   );
@@ -759,7 +764,7 @@ export function announceFestival() {
         <div className={st.announce} style={{ backgroundImage: `url(${sceneUrl(def.id)})` }}>
           <div className={st.bossShade} />
           <Particles kind={def.particle} />
-          <HeroImg id={def.hero} className={cx('pixel', st.announceHero)} />
+          <HeroImg id={def.hero} skin={festSkin(def)} unarmed={!!festSkin(def)} flirt={!!festSkin(def)} className={cx('pixel', st.announceHero)} />
           <div className={st.announceName}>{tl(def.name)}</div>
         </div>
         <div className={css.tiny} style={{ lineHeight: 1.45 }}>

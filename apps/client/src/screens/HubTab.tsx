@@ -1,4 +1,4 @@
-import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, PHOTO_DAILY, achievementClaimable, activeParty, bondState, isUnlocked, photoState } from '@idle/shared';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, PHOTO_DAILY, achievementClaimable, activeParty, bondState, campfireScene, campfireState, isUnlocked, photoState } from '@idle/shared';
 import { HeroImg } from '../components/HeroImg';
 import { openNews } from '../components/News';
 import { Icon, css, cx } from '../components/ui';
@@ -9,6 +9,7 @@ import { useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
 import { Achievements } from './hub/Achievements';
 import { Ascension } from './hub/Ascension';
+import { Campfire } from './hub/Campfire';
 import { Care } from './hub/Care';
 import { Constellation } from './hub/Constellation';
 import { DevPanel } from './hub/DevPanel';
@@ -55,6 +56,8 @@ export default function HubTab() {
       return <Story />;
     case 'care':
       return <Care hero={top.params?.hero} home={top.params?.home} />;
+    case 'campfire':
+      return <Campfire />;
     case 'festival':
       return <Festival />;
     case 'photo':
@@ -85,6 +88,7 @@ function HubRoot() {
     { id: 'constellation', icon: 'constellation', label: t('hub.constellation'), locked: !isUnlocked({ s, cfg }, 'constellation') },
     { id: 'ascension', icon: 'ascension', label: t('hub.ascension'), locked: !isUnlocked({ s, cfg }, 'ascension') },
     { id: 'care', icon: 'care', label: t('hub.care'), badge: careBadge },
+    { id: 'campfire', icon: 'fire', label: t('hub.campfire'), badge: !!campfireScene({ s, now }) && !campfireState({ s, now }).done },
     { id: 'photo', icon: 'camera', label: t('hub.photo'), badge: photoState({ s, now }).shots < PHOTO_DAILY && Object.keys(s.heroines).length > 0 },
     ...(social ? [{ id: 'guild', icon: 'guildCoins', label: t('hub.guild') }] : []),
     { id: 'story', icon: 'xp', label: t('hub.story') },
@@ -93,7 +97,7 @@ function HubRoot() {
   ];
   if (isDev) all.push({ id: 'dev', icon: 'dev', label: t('hub.dev') });
   // главное — крупно, остальное — сеткой ниже
-  const MAIN = ['care', 'workshop', 'quests', 'shop'];
+  const MAIN = ['campfire', 'care', 'workshop', 'quests'];
   const main = MAIN.map((id) => all.find((x) => x.id === id)!).filter(Boolean);
   const more = all.filter((x) => !MAIN.includes(x.id));
   const leader = activeParty(s)[0] ?? 'astrid';

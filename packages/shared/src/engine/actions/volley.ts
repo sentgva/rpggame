@@ -1,4 +1,4 @@
-import { VOLLEY_DAILY, VOLLEY_MIN_MS, VOLLEY_POINTS, VOLLEY_RUNGS, volleyFirstReward, volleyReward, volleyRival, volleyTeam } from '../../content';
+import { VOLLEY_DAILY, VOLLEY_MIN_MS, VOLLEY_POINTS, VOLLEY_RUNGS, beachSkinOf, volleyFirstReward, volleyReward, volleyRival, volleyTeam } from '../../content';
 import type { FestivalState } from '../../types';
 import type { Action } from '../apply';
 import { assert, give, requireUnlocked, track, vInt, vStrArr, type Ctx } from '../core';
@@ -32,7 +32,7 @@ export const volleyActions = {
     f.volley = { ...v, used: paid ? v.used : v.used + 1, bonus: paid ? v.bonus - 1 : v.bonus, match: { rung, heroes, at: now } };
     s.festival = f;
     track(ctx, 'volMatch', 1);
-    return { rival: volleyRival(rung), team: volleyTeam(heroes), left: volleyLeft(f), festival: f };
+    return { rival: volleyRival(rung), team: volleyTeam(heroes, Object.fromEntries(heroes.map((id) => [id, beachSkinOf(s, id)]))), left: volleyLeft(f), festival: f };
   },
 
   /**

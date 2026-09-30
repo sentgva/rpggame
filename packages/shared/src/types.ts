@@ -371,6 +371,14 @@ export interface VolleyState {
   match?: { rung: number; heroes: string[]; at: number };
 }
 
+/** Вечер у костра: день, разговор уже был, какая сцена, какие сцены уже видели. */
+export interface CampfireState {
+  day: string;
+  done: boolean;
+  scene?: string;
+  seen: string[];
+}
+
 export interface MineState {
   floor: number;
   seed: number;
@@ -428,6 +436,8 @@ export interface PlayerState {
   photo?: PhotoState;
   /** Рыбалка: наживка, клюнувшая рыба, коллекция. */
   fishing?: FishingState;
+  /** Вечер у костра: разговоры героинь. */
+  campfire?: CampfireState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

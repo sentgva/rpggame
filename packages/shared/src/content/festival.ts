@@ -74,20 +74,21 @@ export const FESTIVALS: FestivalDef[] = [
     shopSkins: [],
   },
   {
-    id: 'mine',
-    kind: 'mine',
-    name: L('Самоцветные копи', 'Gem Mines'),
-    tagline: L('Каждый удар кирки — шаг в неизвестность', 'Every swing of the pick is a step into the unknown'),
+    id: 'resort',
+    kind: 'volley',
+    name: L('Солнечный курорт', 'Sun Resort'),
+    tagline: L('Жаркое солнце, лагуна и пляжный волейбол', 'Hot sun, a lagoon and beach volleyball'),
     lore: L(
-      'Под Легионом нашли древние копи: чем глубже, тем ярче камни и злее их стражи. Лира уверяет, что слышит, как в скале поёт огонь, — и первой берётся за кирку.',
-      'Ancient mines were found beneath the Legion: the deeper you go, the brighter the stones and the fiercer their guardians. Lira swears she can hear fire singing in the rock — and is the first to pick up a pick.',
+      'Легион пригласили на тропический остров. Здесь устраивают турнир по пляжному волейболу: восемь пар соперниц, песок и солнце. Мирабель надеялась отдохнуть, но уже записала всех в команду.',
+      'The Legion is invited to a tropical island with a beach volleyball tournament: eight rival pairs, sand and sun. Mirabel hoped to rest, but has already signed everyone up.',
     ),
-    element: 'fire',
-    hero: 'lira',
-    mine: { acts: [8, 6, 10] },
-    colors: { bg: ['#0e0a14', '#3a1e4a'], accent: '#ff6a8a', glow: '#c05aff' },
-    particle: 'dust',
-    shopSkins: [],
+    element: 'light',
+    hero: 'mirabel',
+    colors: { bg: ['#2a1206', '#c0501e'], accent: '#ffd24a', glow: '#ff9a3a' },
+    particle: 'sun',
+    // летний праздник: бикини-коллекция — финал шкалы и лавка
+    finalSkin: 'mirabel_summer',
+    shopSkins: ['astrid_summer', 'lira_summer', 'seyra_summer', 'keira_summer', 'ulfa_summer'],
   },
   {
     id: 'tides',
@@ -111,18 +112,19 @@ export const FESTIVALS: FestivalDef[] = [
     shopSkins: [],
   },
   {
-    id: 'resort',
-    kind: 'volley',
-    name: L('Солнечный курорт', 'Sun Resort'),
-    tagline: L('Жаркое солнце, лагуна и пляжный волейбол', 'Hot sun, a lagoon and beach volleyball'),
+    id: 'mine',
+    kind: 'mine',
+    name: L('Самоцветные копи', 'Gem Mines'),
+    tagline: L('Каждый удар кирки — шаг в неизвестность', 'Every swing of the pick is a step into the unknown'),
     lore: L(
-      'Легион пригласили на тропический остров. Здесь устраивают турнир по пляжному волейболу: восемь пар соперниц, песок и солнце. Мирабель надеялась отдохнуть, но уже записала всех в команду.',
-      'The Legion is invited to a tropical island with a beach volleyball tournament: eight rival pairs, sand and sun. Mirabel hoped to rest, but has already signed everyone up.',
+      'Под Легионом нашли древние копи: чем глубже, тем ярче камни и злее их стражи. Лира уверяет, что слышит, как в скале поёт огонь, — и первой берётся за кирку.',
+      'Ancient mines were found beneath the Legion: the deeper you go, the brighter the stones and the fiercer their guardians. Lira swears she can hear fire singing in the rock — and is the first to pick up a pick.',
     ),
-    element: 'light',
-    hero: 'mirabel',
-    colors: { bg: ['#2a1206', '#c0501e'], accent: '#ffd24a', glow: '#ff9a3a' },
-    particle: 'sun',
+    element: 'fire',
+    hero: 'lira',
+    mine: { acts: [8, 6, 10] },
+    colors: { bg: ['#0e0a14', '#3a1e4a'], accent: '#ff6a8a', glow: '#c05aff' },
+    particle: 'dust',
     shopSkins: [],
   },
   {
@@ -153,7 +155,8 @@ const DAY = 86400000;
 /** Длительность праздника, дней. */
 export const FESTIVAL_DAYS = 14;
 /** Начало первого праздника (Кровавая Луна) — 26 сентября 2026, UTC. */
-export const FESTIVAL_EPOCH = Date.UTC(2026, 8, 26);
+/** Начало ротации: 12.09.2026 — «Кровавая Луна», с 26.09 — летний «Солнечный курорт». */
+export const FESTIVAL_EPOCH = Date.UTC(2026, 8, 12);
 
 /** Номер праздника (цикла) автоматической ротации на момент now. */
 export function festivalCycle(now: number): number {

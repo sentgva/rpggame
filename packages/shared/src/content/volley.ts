@@ -1,6 +1,6 @@
 import type { ClassId, L10n } from '../types';
 import { ENEMY_MAP, type EnemyDef } from './acts';
-import { HEROINE_MAP, type Look } from './heroines';
+import { HEROINE_MAP, SKIN_MAP, isSwimwear, type Look } from './heroines';
 
 /**
  * «Пляжный волейбол» Солнечного курорта (по мотивам Dead or Alive Xtreme Beach Volleyball): пара своих
@@ -35,16 +35,35 @@ export const VOLLEY_CLASS: Record<ClassId, VolleySkills> = {
   hunter: { rec: 2, set: 2, spk: 1 },
 };
 
-/** Навыки героини — по классу. */
-export function volleySkills(hero: string): VolleySkills {
-  return { ...VOLLEY_CLASS[HEROINE_MAP[hero].cls] };
+/** Пляжная форма: героиня в купальнике летней коллекции играет лучше (+1 ко всем навыкам). */
+export function volleyBeachForm(skin?: string): boolean {
+  const sk = skin ? SKIN_MAP[skin] : undefined;
+  return !!sk && sk.set === 'summer' && isSwimwear(sk.look.wear);
 }
 
-/** Навыки пары: сумма; одна стихия — сыгранность, +1 ко всему. */
-export function volleyTeam(heroes: string[]): VolleySkills & { synergy: boolean } {
+/** Облик героини на пляже: надетый купальник, иначе — её облик летней коллекции (если он есть). */
+export function beachSkinOf(s: { heroines: Record<string, { skin?: string }>; skins: string[] }, hero: string): string | undefined {
+  const cur = s.heroines[hero]?.skin;
+  if (isSwimwear(cur ? SKIN_MAP[cur]?.look.wear : HEROINE_MAP[hero]?.look.wear)) return cur;
+  return s.skins.find((k) => SKIN_MAP[k]?.hero === hero && isSwimwear(SKIN_MAP[k]?.look.wear)) ?? cur;
+}
+
+/** Навыки героини — по классу (+1 ко всему в пляжной форме). */
+export function volleySkills(hero: string, skin?: string): VolleySkills {
+  const k = { ...VOLLEY_CLASS[HEROINE_MAP[hero].cls] };
+  if (volleyBeachForm(skin)) {
+    k.rec++;
+    k.set++;
+    k.spk++;
+  }
+  return k;
+}
+
+/** Навыки пары: сумма; одна стихия — сыгранность, +1 ко всему. skins — облики героинь (пляжная форма). */
+export function volleyTeam(heroes: string[], skins: Record<string, string | undefined> = {}): VolleySkills & { synergy: boolean } {
   const out = { rec: 0, set: 0, spk: 0 };
   for (const id of heroes) {
-    const k = volleySkills(id);
+    const k = volleySkills(id, skins[id]);
     out.rec += k.rec;
     out.set += k.set;
     out.spk += k.spk;

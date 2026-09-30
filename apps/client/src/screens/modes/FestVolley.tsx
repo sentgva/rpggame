@@ -13,6 +13,8 @@ import {
   volleyReward,
   volleyRival,
   volleySkills,
+  beachSkinOf,
+  volleyBeachForm,
   volleyTeam,
   type FestivalDef,
   type FestivalState,
@@ -37,9 +39,7 @@ const PAIR_KEY = 'volley.pair';
 
 /** На пляже — в купальнике, если он у героини есть. */
 function beachSkin(s: PlayerState, id: string): string | undefined {
-  const cur = s.heroines[id]?.skin;
-  if (isSwimwear(cur ? SKIN_MAP[cur]?.look.wear : HEROINE_MAP[id]?.look.wear)) return cur;
-  return s.skins.find((k) => SKIN_MAP[k]?.hero === id && isSwimwear(SKIN_MAP[k]?.look.wear)) ?? cur;
+  return beachSkinOf(s, id);
 }
 
 function loadPair(s: PlayerState): string[] {
@@ -86,7 +86,7 @@ export function VolleyTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
     setPairRaw(p);
     savePair(p);
   };
-  const team = pair.length === 2 ? volleyTeam(pair) : null;
+  const team = pair.length === 2 ? volleyTeam(pair, Object.fromEntries(pair.map((id) => [id, beachSkin(s, id)]))) : null;
 
   const play = async (rung: number) => {
     if (pair.length !== 2) return pickPair(s, pair, setPair);
@@ -103,12 +103,16 @@ export function VolleyTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
         <div className={css.tiny} style={{ marginBottom: 8 }}>
           {t('volley.rules', { n: VOLLEY_POINTS })}
         </div>
+        <div className={css.tiny} style={{ marginBottom: 8, color: '#ffd24a' }}>
+          ☀ {t('volley.beachHint')}
+        </div>
         <div className={st.pairRow}>
           {pair.map((id) => (
             <div key={id} className={st.pairHero} style={{ borderColor: CLASS_COLOR[HEROINE_MAP[id].cls] }}>
               <HeroImg id={id} skin={beachSkin(s, id)} unarmed flirt className="pixel" width={64} height={64} />
               <b>{tl(HEROINE_MAP[id].name)}</b>
-              <Skills k={volleySkills(id)} />
+              <Skills k={volleySkills(id, beachSkin(s, id))} />
+              {volleyBeachForm(beachSkin(s, id)) && <span className={st.synergy}>☀ {t('volley.beachForm')}</span>}
             </div>
           ))}
           <div className={st.pairInfo}>
@@ -179,11 +183,11 @@ function pickPair(s: PlayerState, cur: string[], onPick: (p: string[]) => void) 
 function PairPicker({ s, cur, onPick }: { s: PlayerState; cur: string[]; onPick: (p: string[]) => void }) {
   const [picked, setPicked] = useState<string[]>(cur.filter((id) => s.heroines[id]));
   const ids = Object.keys(s.heroines).sort((a, b) => {
-    const ka = volleySkills(a);
-    const kb = volleySkills(b);
+    const ka = volleySkills(a, beachSkin(s, a));
+    const kb = volleySkills(b, beachSkin(s, b));
     return kb.rec + kb.set + kb.spk - (ka.rec + ka.set + ka.spk) || ROSTER.indexOf(a) - ROSTER.indexOf(b);
   });
-  const team = picked.length === 2 ? volleyTeam(picked) : null;
+  const team = picked.length === 2 ? volleyTeam(picked, Object.fromEntries(picked.map((id) => [id, beachSkin(s, id)]))) : null;
   return (
     <div className={css.col}>
       <div className={css.tiny}>{t('volley.pickHint')}</div>
@@ -199,7 +203,7 @@ function PairPicker({ s, cur, onPick }: { s: PlayerState; cur: string[]; onPick:
             >
               <HeroImg id={id} skin={beachSkin(s, id)} unarmed still className="pixel" width={48} height={48} />
               <span className={st.pickName}>{tl(HEROINE_MAP[id].name)}</span>
-              <Skills k={volleySkills(id)} />
+              <Skills k={volleySkills(id, beachSkin(s, id))} />
             </button>
           );
         })}

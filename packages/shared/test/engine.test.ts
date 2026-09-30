@@ -158,6 +158,12 @@ import {
   mineVisible,
   stageAffixes,
   withAffixes,
+  CAMPFIRE,
+  CAMP_BOND,
+  CAMP_MASTERY,
+  campCombos,
+  campfireScene,
+  campfireState,
   type BattleEvent,
   type PlayerState,
 } from '../src';
@@ -906,10 +912,20 @@ describe('ГПСЧ', () => {
 });
 
 describe('облики и боевой пропуск', () => {
-  it('коллекций пока нет: в продаже только наряды близости — нигде', () => {
-    for (const sk of SKINS) expect(sk.set).toBe('bond');
+  it('облики: летняя бикини-коллекция на всю шестёрку — только на курорте; наряды близости не продаются', () => {
+    const summer = SKINS.filter((x) => x.set === 'summer');
+    expect(summer.map((x) => x.hero).sort()).toEqual([...ROSTER].sort());
+    for (const sk of summer) {
+      expect(sk.source).toBe('event');
+      expect(isSwimwear(sk.look.wear)).toBe(true);
+      expect(skinFestival(sk.id)?.def.id).toBe('resort');
+    }
+    expect(skinFestival('mirabel_summer')?.final).toBe(true);
     for (const sk of SKINS) expect(SHOP_OFFERS.some((o) => o.give.skin === sk.id)).toBe(false);
+    for (const sk of SKINS.filter((x) => x.set !== 'summer')) expect(sk.set).toBe('bond');
     expect(new Set(SKINS.map((x) => x.id)).size).toBe(SKINS.length);
+    // базовые наряды героинь — закрытые: купальники есть только в обликах
+    for (const h of HEROINES) expect(isSwimwear(h.look.wear)).toBe(false);
     // без обликов пропуск на ключевых уровнях даёт больше Эмблем
     expect(passSkins('s0')).toEqual([]);
     const key = passReward(15, 's0');
@@ -1227,7 +1243,9 @@ describe('праздники Легиона', () => {
 
   it('праздники сменяются каждые 14 дней по кругу', () => {
     const ids = [0, 1, 2, 3, 4, 5].map((k) => festivalAt(FESTIVAL_EPOCH + k * FESTIVAL_DAYS * DAY + 1000)!.def.id);
-    expect(ids).toEqual(['bloodmoon', 'mine', 'tides', 'resort', 'sakura', 'bloodmoon']);
+    expect(ids).toEqual(['bloodmoon', 'resort', 'tides', 'mine', 'sakura', 'bloodmoon']);
+    // летний курорт идёт с 26.09.2026
+    expect(festivalAt(Date.UTC(2026, 8, 30))!.def.id).toBe('resort');
     for (let k = 0; k < FESTIVALS.length; k++) expect(FESTIVALS[k].kind === 'trail' && FESTIVALS[(k + 1) % FESTIVALS.length].kind === 'trail' && k !== FESTIVALS.length - 1).toBe(false);
     const f = festivalAt(T1)!;
     expect(f.end - f.start).toBe(FESTIVAL_DAYS * DAY);
@@ -1507,7 +1525,7 @@ describe('«Что нового»', () => {
 
 describe('Самоцветные копи', () => {
   const DAY = 86400000;
-  const TM = FESTIVAL_EPOCH + 1 * FESTIVAL_DAYS * DAY + 3600000; // идут копи
+  const TM = FESTIVAL_EPOCH + 3 * FESTIVAL_DAYS * DAY + 3600000; // идут копи
   function ready(now: number, oneShot = false): PlayerState {
     let s = fresh();
     for (const id of ['lira', 'astrid', 'seyra', 'keira']) s = applyAction(s, { type: 'dev.hero', id, lvl: 30 }, { cfg, now, dev: true }).state;
@@ -1725,8 +1743,8 @@ describe('Рыбалка, договоры Бездны, события эксп
 
 describe('Солнечный курорт: пляжный волейбол', () => {
   const DAY = 86400000;
-  // четвёртый праздник ротации — курорт
-  const TR = FESTIVAL_EPOCH + 3 * FESTIVAL_DAYS * DAY + 3600000;
+  // второй праздник ротации — летний курорт
+  const TR = FESTIVAL_EPOCH + 1 * FESTIVAL_DAYS * DAY + 3600000;
   const act = (s: PlayerState, a: Record<string, unknown>, now = TR) => applyAction(s, a as never, { cfg, now, dev: true });
   const ready = () => {
     let s = act(fresh(), { type: 'dev.progress', unlockAll: true, accLvl: 20 }).state;
@@ -1738,6 +1756,22 @@ describe('Солнечный курорт: пляжный волейбол', () 
   it('курорт — праздник пляжного волейбола; соперницы — жительницы острова, а не героини', () => {
     expect(festivalAt(TR)!.def.id).toBe('resort');
     expect(festivalAt(TR)!.def.kind).toBe('volley');
+    // летняя коллекция: финал шкалы — Мирабель, остальные пять — в лавке курорта
+    const def = festivalAt(TR)!.def;
+    expect(def.finalSkin).toBe('mirabel_summer');
+    expect(def.shopSkins).toHaveLength(5);
+    let s = { ...ready(), cur: { ...ready().cur, eventTokens: 100000 } };
+    const offer = festShopNow({ cfg, now: TR })!.offers.find((o) => o.give.skin === 'astrid_summer')!;
+    s = act(s, { type: 'fest.buy', offer: offer.id }).state;
+    expect(s.skins).toContain('astrid_summer');
+    expect(() => act(s, { type: 'fest.buy', offer: offer.id })).toThrow(GameError);
+    s = act(s, { type: 'sync' }).state;
+    s = { ...s, festival: { ...festivalState({ s, cfg, now: TR }), points: 100000 } };
+    expect(act(s, { type: 'fest.claim', index: 'all' }).state.skins).toContain('mirabel_summer');
+    // в купальнике — пляжная форма в матче
+    s = act(s, { type: 'hero.skin', id: 'astrid', skin: 'astrid_summer' }).state;
+    const m = act(s, { type: 'volley.start', heroes: ['astrid', 'lira'], rung: 1 }).result as any;
+    expect(m.team.rec).toBe(volleyTeam(['astrid', 'lira'], { astrid: 'astrid_summer' }).rec);
     for (let r = 1; r <= VOLLEY_RUNGS; r++) for (const id of volleyRival(r).pair) {
       expect(ENEMY_MAP[id]).toBeTruthy();
       expect(HEROINE_MAP[id]).toBeUndefined();
@@ -1749,6 +1783,11 @@ describe('Солнечный курорт: пляжный волейбол', () 
     expect(t1.rec + t1.set + t1.spk).toBeGreaterThanOrEqual(10);
     expect(volleyTeam(['astrid', 'mirabel']).synergy).toBe(true); // обе — свет
     expect(volleyTeam(['astrid', 'lira']).synergy).toBe(false);
+    // пляжная форма: героиня в летнем бикини — +1 ко всем навыкам
+    const plain = volleyTeam(['astrid', 'lira']);
+    const beach = volleyTeam(['astrid', 'lira'], { astrid: 'astrid_summer' });
+    expect(beach.rec - plain.rec + beach.set - plain.set + beach.spk - plain.spk).toBe(3);
+    expect(volleyTeam(['astrid', 'lira'], { astrid: 'astrid_bond' }).rec).toBe(plain.rec);
     expect(volleyRival(VOLLEY_RUNGS).pair).toContain('v_solara');
     expect(volleyRival(VOLLEY_RUNGS).final).toBe(true);
     expect(volleyRival(1).skill).toBeLessThan(volleyRival(VOLLEY_RUNGS).skill);
@@ -1791,5 +1830,50 @@ describe('Солнечный курорт: пляжный волейбол', () 
     expect(festivalState({ s, cfg, now: TR }).volley!.bonus).toBe(0);
     expect(() => act(act(s, { type: 'volley.end', forfeit: true }).state, { type: 'volley.start', heroes: pair, rung: 1 })).toThrow('noAttempts');
     expect(act(s, { type: 'volley.start', heroes: pair, rung: 1 }, TR + DAY).result).toMatchObject({ left: VOLLEY_DAILY - 1 });
+  });
+});
+
+describe('Вечер у костра', () => {
+  const act = (s: PlayerState, a: Record<string, unknown>, now = T0) => applyAction(s, a as never, { cfg, now, dev: true });
+
+  it('сцена на каждую пару героинь, реплики и ответы на обоих языках', () => {
+    const pairs = new Set(CAMPFIRE.map((c) => [c.a, c.b].sort().join('+')));
+    expect(pairs.size).toBe((ROSTER.length * (ROSTER.length - 1)) / 2);
+    for (const c of CAMPFIRE) {
+      expect(ROSTER).toContain(c.a);
+      expect(ROSTER).toContain(c.b);
+      expect(c.lines.length).toBeGreaterThanOrEqual(3);
+      for (const [, l] of c.lines) expect(l.ru && l.en).toBeTruthy();
+      for (const k of ['a', 'b', 'both'] as const) expect(c.choices[k].ru && c.replies[k][1].en).toBeTruthy();
+    }
+    expect(campCombos('astrid', 'keira')).toContain('backstab');
+    expect(campCombos('seyra', 'ulfa')).toEqual(expect.arrayContaining(['hunt']));
+  });
+
+  it('раз в день: близость обеим, их связка сыгрывается; завтра — новая пара', () => {
+    let s = fresh();
+    const sc = campfireScene({ s, now: T0 })!;
+    expect(sc.id).toBe('astrid_lira');
+    expect(() => act(s, { type: 'camp.talk', choice: 'x' })).toThrow('badParam');
+    const r = act(s, { type: 'camp.talk', choice: 'a' });
+    s = r.state;
+    expect(bondState({ s, now: T0 }, 'astrid').xp + bondState({ s, now: T0 }, 'astrid').lvl * 1000).toBeGreaterThanOrEqual(CAMP_BOND.favored);
+    expect(bondState({ s, now: T0 }, 'lira').xp).toBe(CAMP_BOND.other);
+    expect(campfireState({ s, now: T0 }).done).toBe(true);
+    expect(campfireScene({ s, now: T0 })!.id).toBe('astrid_lira');
+    expect(() => act(s, { type: 'camp.talk', choice: 'both' })).toThrow('usedToday');
+    // с Кейрой в Легионе у Астрид появляется новая сцена и «Удар в спину» сыгрывается у костра
+    s = act(s, { type: 'dev.hero', id: 'keira', lvl: 5 }).state;
+    const next = campfireScene({ s, now: T0 + 86400000 })!;
+    expect(next.id).not.toBe('astrid_lira');
+    const before = s.counters['combo:backstab'] ?? 0;
+    let day = 1;
+    while (campfireScene({ s, now: T0 + day * 86400000 })!.id !== 'astrid_keira' && day < 10) {
+      s = act(s, { type: 'camp.talk', choice: 'both' }, T0 + day * 86400000).state;
+      day++;
+    }
+    s = act(s, { type: 'camp.talk', choice: 'both' }, T0 + day * 86400000).state;
+    expect(s.counters['combo:backstab']).toBe(before + CAMP_MASTERY);
+    expect(s.counters.campfire).toBeGreaterThanOrEqual(2);
   });
 });

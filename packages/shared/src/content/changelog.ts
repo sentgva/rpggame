@@ -20,6 +20,32 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-01-summer',
+    date: '01.10.2026',
+    icon: '🏖️',
+    title: { ru: 'Летний курорт и вечера у костра', en: 'Summer resort and campfire evenings' },
+    lead: {
+      ru: 'Летний праздник с бикини-коллекцией, разговоры героинь у огня и мастерство связок',
+      en: 'A summer festival with a bikini collection, heroine talks by the fire and combo mastery',
+    },
+    color: '#ff9a3a',
+    art: { hero: 'mirabel', skin: 'mirabel_summer' },
+    items: [
+      {
+        ru: '👙 «Солнечный курорт»: бикини для всей шестёрки — в лавке и в финале шкалы; в купальнике волейбол идёт лучше',
+        en: '👙 “Sun Resort”: bikinis for all six — in the shop and at the track finale; swimsuits improve volleyball',
+      },
+      {
+        ru: '🔥 Вечер у костра: каждый день две героини спорят и шутят — поддержите одну или помирите обеих',
+        en: '🔥 Campfire evening: every day two heroines argue and joke — back one or reconcile both',
+      },
+      {
+        ru: '🔗 Мастерство связок: чем чаще героини играют в связке, тем она сильнее (до +80%)',
+        en: '🔗 Combo mastery: the more heroines use a combo, the stronger it gets (up to +80%)',
+      },
+    ],
+  },
+  {
     id: '2026-10-01',
     date: '01.10.2026',
     icon: '⚔️',

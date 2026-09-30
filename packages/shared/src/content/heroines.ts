@@ -190,6 +190,19 @@ export interface SkinDef {
   set?: SkinSet;
 }
 
-/** Облики героинь (добавляются сюда; наряды близости создаются в bond.ts). */
-export const SKINS: SkinDef[] = [];
-export const SKIN_MAP: Record<string, SkinDef> = {};
+/**
+ * Летняя коллекция «Солнечного курорта»: бикини на тонких завязках для всей шестёрки.
+ * Облики — только на празднике: финал шкалы наград (покровительница) и лавка курорта.
+ */
+export const SUMMER_SKINS: SkinDef[] = [
+  { id: 'mirabel_summer', hero: 'mirabel', name: L('Жемчужина лагуны', 'Lagoon Pearl'), look: { wear: 'micro', outfit: '#FFFFFF', trim: '#E0B040', acc: 'flower', accColor: '#F2E6D8' }, source: 'event', set: 'summer' },
+  { id: 'astrid_summer', hero: 'astrid', name: L('Морской страж', 'Sea Guardian'), look: { wear: 'micro', outfit: '#2E4E9A', trim: '#F2F0E6', acc: 'sunHat', accColor: '#E8C87A' }, source: 'event', set: 'summer' },
+  { id: 'lira_summer', hero: 'lira', name: L('Закатное пламя', 'Sunset Flame'), look: { wear: 'micro', outfit: '#E0532A', trim: '#F2C040', acc: 'flower', accColor: '#F2C040' }, source: 'event', set: 'summer' },
+  { id: 'seyra_summer', hero: 'seyra', name: L('Лесная лагуна', 'Forest Lagoon'), look: { wear: 'micro', outfit: '#4FBF5A', trim: '#F2E6D8', acc: 'elfEars', accColor: '#EBC09C' }, source: 'event', set: 'summer' },
+  { id: 'keira_summer', hero: 'keira', name: L('Полночный бриз', 'Midnight Breeze'), look: { wear: 'micro', outfit: '#1E1A2A', trim: '#B06AE0', acc: 'bandana', accColor: '#B06AE0' }, source: 'event', set: 'summer' },
+  { id: 'ulfa_summer', hero: 'ulfa', name: L('Северное сияние', 'Northern Lights'), look: { wear: 'micro', outfit: '#6FD0E0', trim: '#E6E6F0', acc: 'none' }, source: 'event', set: 'summer' },
+];
+
+/** Облики героинь (летняя коллекция; наряды близости добавляются в bond.ts). */
+export const SKINS: SkinDef[] = [...SUMMER_SKINS];
+export const SKIN_MAP: Record<string, SkinDef> = Object.fromEntries(SKINS.map((x) => [x.id, x]));

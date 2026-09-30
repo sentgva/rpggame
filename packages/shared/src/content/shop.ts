@@ -15,7 +15,8 @@ export interface ShopOffer {
 
 /** Облики коллекций, которые продаются в магазине активности. */
 function skinOffers(shop: 'arena' | 'labyrinth' | 'event', prefix: string, cost: ShopOffer['cost']): ShopOffer[] {
-  return SKINS.filter((x) => x.set && x.source === shop).map((x) => ({
+  // летняя коллекция продаётся только в лавке курорта (на празднике)
+  return SKINS.filter((x) => x.set && x.set !== 'summer' && x.source === shop).map((x) => ({
     id: `${prefix}_${x.id}`,
     shop,
     name: { ru: `Облик «${x.name.ru}»`, en: `Skin "${x.name.en}"` },
