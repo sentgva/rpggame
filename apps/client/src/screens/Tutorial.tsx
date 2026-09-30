@@ -25,7 +25,8 @@ export function Tutorial() {
     { text: t('tut.heroes'), when: () => canLevelAny(s, cfg) },
     { text: t('tut.gear'), when: () => Object.keys(s.items).length > 0 },
     { text: t('tut.tree'), when: () => isUnlocked({ s, cfg }, 'tree') },
-    { text: t('tut.summon'), when: () => s.cur.crystals >= cfg.summon.cost1 || s.cur.scrolls > 0 },
+    { text: t('tut.combo'), when: () => Object.keys(s.heroines).length >= 3 },
+    { text: t('tut.rank'), when: () => isUnlocked({ s, cfg }, 'ranks') && s.cur.emblems >= cfg.hero.rankEmblems[0] },
   ];
   const step = steps[s.tutorial];
   if (!step || modals > 0) return null;

@@ -1,257 +1,177 @@
-import {
-  CLASSES,
-  CLASS_IDS,
-  ELEMENTS,
-  HEROINES,
-  HEROINE_MAP,
-  HERO_RARITIES,
-  buildHeroine,
-  partySlots,
-  type ClassId,
-  type Element,
-  type HeroRarity,
-} from '@idle/shared';
-import { useMemo, useState } from 'react';
+import { CLASSES, COMBOS, COMBO_MASTERY, COMBO_MASTERY_STEP, HEROINES, HEROINE_MAP, ROSTER, activeParty, comboMastery, partyPower, stageFromGlobal, type ComboDef } from '@idle/shared';
 import { HeroImg } from '../components/HeroImg';
-import { Button, HeroCard, Icon, Panel, Tabs, css, cx } from '../components/ui';
+import { Button, CLASS_COLOR, HeroCard, Icon, Panel, css, formatNum } from '../components/ui';
 import { t, tl } from '../i18n';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
-import { haptic } from '../tg/telegram';
 import { HeroDetail } from './heroes/HeroDetail';
-
-type SortBy = 'level' | 'power' | 'rarity';
-const SORTS: SortBy[] = ['level', 'power', 'rarity'];
-function savedSort(): SortBy {
-  try {
-    const v = localStorage.getItem('heroSort') as SortBy | null;
-    return v && SORTS.includes(v) ? v : 'level';
-  } catch {
-    return 'level';
-  }
-}
 
 export default function HeroesTab() {
   const stack = useUi((u) => u.stacks.heroes);
   const top = stack[stack.length - 1];
   if (top?.id === 'hero') return <HeroDetail id={top.params!.id} />;
-  return <HeroesRoot />;
+  return <LegionRoot />;
 }
 
-function HeroesRoot() {
+/** Легион: шесть героинь шести классов, построение в бою и связки между ними. */
+function LegionRoot() {
   const s = useGameState();
   const cfg = useCfg();
-  const [slot, setSlot] = useState<number | null>(null);
-  const [fCls, setCls] = useState<ClassId | null>(null);
-  const [fEl, setEl] = useState<Element | null>(null);
-  const [fR, setR] = useState<HeroRarity | null>(null);
-  const [sort, setSort] = useState<SortBy>(savedSort);
-  const nextSort = () => {
-    const v = SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length];
-    setSort(v);
-    try {
-      localStorage.setItem('heroSort', v);
-    } catch {
-      /* без хранилища — просто не запоминаем */
-    }
-  };
-  const preset = s.party.active;
-  const slots = s.party.presets[preset];
-  const maxSlots = partySlots(cfg, s);
-
-  const list = useMemo(() => {
-    const all = HEROINES.filter((h) => (!h.boss || s.heroines[h.id] || (s.shards[h.id] ?? 0) > 0) && (!fCls || h.cls === fCls) && (!fEl || h.element === fEl) && (!fR || h.rarity === fR));
-    const owned = all.filter((h) => s.heroines[h.id]);
-    const rest = all.filter((h) => !s.heroines[h.id]);
-    const rOrder: Record<string, number> = { UR: 0, SSR: 1, SR: 2, R: 3 };
-    if (sort === 'power') {
-      const pw = Object.fromEntries(owned.map((h) => [h.id, buildHeroine(cfg, s, s.heroines[h.id]).power]));
-      owned.sort((a, b) => pw[b.id] - pw[a.id]);
-    } else if (sort === 'rarity') owned.sort((a, b) => rOrder[a.rarity] - rOrder[b.rarity] || s.heroines[b.id].lvl - s.heroines[a.id].lvl);
-    else owned.sort((a, b) => s.heroines[b.id].lvl - s.heroines[a.id].lvl || rOrder[a.rarity] - rOrder[b.rarity]);
-    rest.sort((a, b) => (s.shards[b.id] ?? 0) - (s.shards[a.id] ?? 0) || rOrder[a.rarity] - rOrder[b.rarity]);
-    return { owned, rest };
-  }, [s, cfg, fCls, fEl, fR, sort]);
-
-  const assign = (heroId: string | null) => {
-    if (slot === null) return;
-    const next = [...slots];
-    if (heroId) {
-      const prev = next.indexOf(heroId);
-      if (prev >= 0) next[prev] = next[slot];
-    }
-    next[slot] = heroId;
-    void useGame.getState().act('party.set', { preset, slots: next });
-    setSlot(null);
-  };
-
-  const count = slots.filter(Boolean).length;
-  const elems: Record<string, number> = {};
-  const classes: Record<string, number> = {};
-  for (const id of slots) if (id) {
-    const d = HEROINE_MAP[id];
-    elems[d.element] = (elems[d.element] ?? 0) + 1;
-    classes[d.cls] = (classes[d.cls] ?? 0) + 1;
-  }
-  const syn = [
-    ...Object.entries(elems).filter(([, n]) => n >= 3).map(([el]) => ({ icon: el, text: t('heroes.synergyElem') })),
-    ...Object.entries(classes).filter(([, n]) => n >= 2).map(([c]) => ({ icon: c, text: tl(CLASSES[c as ClassId].synergyText) })),
-  ];
+  const party = activeParty(s);
+  const front = party.filter((id) => CLASSES[HEROINE_MAP[id].cls].row === 'front');
+  const back = party.filter((id) => !front.includes(id));
+  const open = (id: string) => useUi.getState().push({ id: 'hero', params: { id } });
 
   return (
     <div className={css.col}>
       <Panel
-        title={t('heroes.party')}
+        title={t('legion.title')}
         right={
-          <span className={css.tiny}>
-            {count}/{maxSlots}
+          <span className={css.row} style={{ gap: 4 }}>
+            <Icon name="battle" size={16} />
+            <b className={css.num}>{formatNum(partyPower(cfg, s))}</b>
           </span>
         }
       >
-        <Tabs
-          value={String(preset)}
-          onChange={(v) => void useGame.getState().act('party.use', { preset: Number(v) })}
-          items={s.party.presets.map((_, i) => ({ id: String(i), label: t('heroes.preset', { n: i + 1 }) }))}
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 8, marginTop: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
           <div className={css.col} style={{ gap: 4 }}>
             <div className={css.tiny}>{t('heroes.back')}</div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {[2, 3, 4].map((i) => (
-                <PartySlot key={i} id={slots[i]} active={slot === i} onClick={() => setSlot(slot === i ? null : i)} />
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {back.map((id) => (
+                <FormationSlot key={id} id={id} onClick={() => open(id)} />
               ))}
             </div>
           </div>
           <div className={css.col} style={{ gap: 4 }}>
             <div className={css.tiny}>{t('heroes.front')}</div>
             <div style={{ display: 'flex', gap: 4 }}>
-              {[0, 1].map((i) => (
-                <PartySlot key={i} id={slots[i]} active={slot === i} onClick={() => setSlot(slot === i ? null : i)} />
+              {front.map((id) => (
+                <FormationSlot key={id} id={id} onClick={() => open(id)} />
               ))}
             </div>
           </div>
         </div>
-        {slot !== null && (
-          <div className={css.row} style={{ marginTop: 6 }}>
-            <span className={css.tiny} style={{ flex: 1 }}>
-              {t('heroes.setPartyHint')}
-            </span>
-            {slots[slot] && (
-              <Button size="small" kind="danger" onClick={() => assign(null)}>
-                {t('heroes.removeFromParty')}
-              </Button>
-            )}
-          </div>
-        )}
-        {syn.length > 0 && (
-          <div className={css.row} style={{ flexWrap: 'wrap', marginTop: 6, gap: 4 }}>
-            {syn.map((x, i) => (
-              <span key={i} className={css.chip}>
-                <Icon name={x.icon} size={14} />
-                {x.text}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className={css.tiny} style={{ marginTop: 6 }}>
+          {t('legion.formationHint')}
+        </div>
+        <div className={css.row} style={{ marginTop: 6, justifyContent: 'flex-end' }}>
+          <Button size="small" kind="secondary" onClick={() => void useGame.getState().act('item.autoEquip', {})}>
+            {t('legion.autoEquipAll')}
+          </Button>
+        </div>
       </Panel>
 
-      <div className={css.hscroll}>
-        <button className={cx(css.chip, !fCls && !fEl && !fR && css.chipOn)} onClick={() => (setCls(null), setEl(null), setR(null))}>
-          {t('heroes.filterAll')}
-        </button>
-        {HERO_RARITIES.map((r) => (
-          <button key={r} className={cx(css.chip, fR === r && css.chipOn)} onClick={() => setR(fR === r ? null : r)}>
-            {r}
-          </button>
-        ))}
-        {ELEMENTS.map((el) => (
-          <button key={el} className={cx(css.chip, fEl === el && css.chipOn)} onClick={() => setEl(fEl === el ? null : el)}>
-            <Icon name={el} size={14} />
-          </button>
-        ))}
-        {CLASS_IDS.map((c) => (
-          <button key={c} className={cx(css.chip, fCls === c && css.chipOn)} onClick={() => setCls(fCls === c ? null : c)}>
-            <Icon name={c} size={14} />
-          </button>
-        ))}
-      </div>
-
-      <div className={css.row} style={{ justifyContent: 'space-between' }}>
-        <div className={css.muted}>{t('heroes.collection', { n: Object.keys(s.heroines).length, total: HEROINES.length })}</div>
-        <button className={css.chip} onClick={nextSort}>
-          ⇅ {t(`heroes.sort.${sort}`)}
-        </button>
-      </div>
       <div className={css.grid3}>
-        {list.owned.map((h) => {
-          const inParty = slots.includes(h.id);
-          const away = s.modes.expeditions.some((e) => e.heroes.includes(h.id));
+        {ROSTER.map((id) => {
+          const def = HEROINE_MAP[id];
+          if (s.heroines[id]) {
+            const away = s.modes.expeditions.some((e) => e.heroes.includes(id));
+            return <HeroCard key={id} id={id} onClick={() => open(id)} sub={away ? <span className={css.tiny}>{t('heroes.expedition')}</span> : undefined} />;
+          }
+          const ref = stageFromGlobal(Math.max(1, def.join));
           return (
             <HeroCard
-              key={h.id}
-              id={h.id}
-              selected={inParty}
-              onClick={() => {
-                if (slot !== null) {
-                  if (away) return useUi.getState().toast(t('err.onExpedition'), 'bad');
-                  assign(h.id);
-                } else useUi.getState().push({ id: 'hero', params: { id: h.id } });
-              }}
-              sub={away ? <span className={css.tiny}>{t('heroes.expedition')}</span> : undefined}
+              key={id}
+              id={id}
+              owned={false}
+              onClick={() => open(id)}
+              sub={
+                <span className={css.tiny} style={{ textAlign: 'center' }}>
+                  <Icon name="lock" size={10} /> {t('legion.joinsAt', { act: ref.act, stage: ref.stage })}
+                </span>
+              }
             />
           );
         })}
       </div>
-      {list.rest.length > 0 && (
-        <>
-          <div className={css.muted}>{t('heroes.notOwned')}</div>
-          <div className={css.grid3}>
-            {list.rest.map((h) => {
-              const need = cfg.hero.recruitShards[h.rarity];
-              const have = s.shards[h.id] ?? 0;
-              return (
-                <HeroCard
-                  key={h.id}
-                  id={h.id}
-                  owned={false}
-                  badge={have >= need}
-                  onClick={() => useUi.getState().push({ id: 'hero', params: { id: h.id } })}
-                  sub={<span className={css.tiny}>{t('heroes.shards', { have, need })}</span>}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
+
+      <CombosPanel />
     </div>
   );
 }
 
-function PartySlot({ id, active, onClick }: { id: string | null; active: boolean; onClick: () => void }) {
-  const h = useGame((g) => (id ? g.state?.heroines[id] : undefined));
+function FormationSlot({ id, onClick }: { id: string; onClick: () => void }) {
+  const h = useGame((g) => g.state?.heroines[id]);
+  const def = HEROINE_MAP[id];
   return (
     <div
-      onClick={() => {
-        haptic.select();
-        onClick();
-      }}
+      onClick={onClick}
       style={{
-        flex: 1,
+        width: 54,
         aspectRatio: '1',
-        maxWidth: 64,
         borderRadius: 6,
-        border: `2px ${active ? 'solid var(--accent-2)' : 'dashed var(--frame)'}`,
+        border: `2px solid ${CLASS_COLOR[def.cls]}`,
         background: 'radial-gradient(circle at 50% 35%, #3a2a30, #140e12 75%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
         position: 'relative',
-        boxShadow: active ? '0 0 10px rgba(242,200,106,.5)' : undefined,
+        cursor: 'pointer',
       }}
     >
-      {h ? <HeroImg className="pixel" id={h.id} skin={h.skin} style={{ width: '100%', height: '100%' }} /> : <Icon name="plus" size={22} style={{ opacity: 0.4 }} />}
-      {h && <span style={{ position: 'absolute', bottom: 0, right: 3, fontSize: 10, fontWeight: 800, textShadow: '0 0 2px #000' }}>{h.lvl}</span>}
+      <HeroImg className="pixel" id={id} skin={h?.skin} style={{ width: '100%', height: '100%' }} />
+      <span style={{ position: 'absolute', bottom: 0, right: 3, fontSize: 10, fontWeight: 800, textShadow: '0 0 2px #000' }}>{h?.lvl}</span>
+      <span style={{ position: 'absolute', top: 1, left: 1 }}>
+        <Icon name={def.cls} size={14} />
+      </span>
     </div>
+  );
+}
+
+/** Связки классов: какие уже работают в отряде, а каких героинь не хватает. */
+export function CombosPanel({ highlight }: { highlight?: string }) {
+  const s = useGameState();
+  const has = (cls: string) => HEROINES.some((h) => h.cls === cls && s.heroines[h.id]);
+  const ready = (c: ComboDef) => has(c.from) && c.to.some((x) => has(x));
+  return (
+    <Panel title={t('legion.combos')} right={<Icon name="combo" size={18} />}>
+      <div className={css.tiny} style={{ marginBottom: 6 }}>
+        {t('legion.combosHint')}
+      </div>
+      <div className={css.list}>
+        {COMBOS.map((c) => {
+          const on = ready(c);
+          const count = s.counters[`combo:${c.id}`] ?? 0;
+          const m = comboMastery(count);
+          return (
+            <div
+              key={c.id}
+              className={css.listItem}
+              style={{
+                alignItems: 'flex-start',
+                opacity: on ? 1 : 0.55,
+                borderColor: highlight && (c.from === highlight || c.to.includes(highlight as never)) ? CLASS_COLOR[highlight as keyof typeof CLASS_COLOR] : undefined,
+              }}
+            >
+              <div className={css.row} style={{ gap: 2, flex: 'none', paddingTop: 2 }}>
+                <Icon name={c.from} size={20} />
+                <span className={css.muted}>→</span>
+                {c.to.length > 2 ? <Icon name="heroes" size={20} /> : c.to.map((x) => <Icon key={x} name={x} size={20} />)}
+              </div>
+              <div className={css.grow}>
+                <div className={css.row} style={{ gap: 6 }}>
+                  <b style={{ color: on ? CLASS_COLOR[c.from] : undefined }}>{tl(c.name)}</b>
+                  {m.lvl > 0 && (
+                    <span className={css.chip} style={{ padding: '0 5px', fontSize: 10 }}>
+                      {t('legion.mastery', { lvl: m.lvl, pct: Math.round(m.lvl * COMBO_MASTERY_STEP * 100) })}
+                    </span>
+                  )}
+                </div>
+                <div className={css.tiny}>{tl(c.desc)}</div>
+                {on && m.next !== null && (
+                  <div className={css.row} style={{ gap: 6, marginTop: 3 }}>
+                    <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#2a2026', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(100, ((count - m.from) / (m.next - m.from)) * 100)}%`, height: '100%', background: CLASS_COLOR[c.from] }} />
+                    </div>
+                    <span className={css.tiny}>
+                      {formatNum(count)}/{formatNum(m.next)}
+                    </span>
+                  </div>
+                )}
+                {on && m.lvl >= COMBO_MASTERY.length && <div className={css.tiny}>{t('legion.masteryMax')}</div>}
+                {!on && <div className={css.tiny}>{t('legion.comboMissing')}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }

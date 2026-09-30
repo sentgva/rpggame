@@ -1,4 +1,4 @@
-import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, PHOTO_DAILY, achievementClaimable, artifactFreeReady, bondState, isUnlocked, photoState } from '@idle/shared';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, PHOTO_DAILY, achievementClaimable, activeParty, bondState, isUnlocked, photoState } from '@idle/shared';
 import { HeroImg } from '../components/HeroImg';
 import { openNews } from '../components/News';
 import { Icon, css, cx } from '../components/ui';
@@ -20,7 +20,7 @@ import { Quests } from './hub/Quests';
 import { Settings } from './hub/Settings';
 import { Shop } from './hub/Shop';
 import { Story } from './hub/Story';
-import { Summon } from './hub/Summon';
+import { Workshop } from './hub/Workshop';
 import { Festival, FestivalBanner } from './modes/Festival';
 import st from './HubTab.module.css';
 
@@ -28,8 +28,9 @@ export default function HubTab() {
   const stack = useUi((u) => u.stacks.hub);
   const top = stack[stack.length - 1];
   switch (top?.id) {
+    case 'workshop':
     case 'summon':
-      return <Summon />;
+      return <Workshop />;
     case 'shop':
       return <Shop initial={top.params?.tab} />;
     case 'quests':
@@ -75,7 +76,7 @@ function HubRoot() {
     (care.length > 0 && care.every((b) => b.talk === 0 && b.treat === 0 && !b.spa && !b.date)) ||
     ((s.bondHearts ?? 0) >= BOND_COSTUME_HEARTS && BOND_HEROES.some((id) => s.heroines[id] && (s.bond?.[id]?.lvl ?? 0) >= BOND_MAX && !s.skins.includes(`${id}_bond`)));
   const all: Item[] = [
-    { id: 'summon', icon: 'summon', label: t('hub.summon'), badge: !s.day.freeSummon || s.cur.scrolls > 0 || (isUnlocked({ s, cfg }, 'artifacts') && artifactFreeReady({ s, now })) },
+    { id: 'workshop', icon: 'forge', label: t('hub.workshop'), locked: !isUnlocked({ s, cfg }, 'artifacts') },
     { id: 'shop', icon: 'shop', label: t('hub.shop') },
     { id: 'quests', icon: 'quest', label: t('hub.quests'), badge: questClaimable(s) > 0 || s.quests.login.claimedKey !== s.day.key },
     { id: 'pass', icon: 'pass', label: t('hub.pass') },
@@ -92,10 +93,10 @@ function HubRoot() {
   ];
   if (isDev) all.push({ id: 'dev', icon: 'dev', label: t('hub.dev') });
   // главное — крупно, остальное — сеткой ниже
-  const MAIN = ['summon', 'care', 'quests', 'shop'];
+  const MAIN = ['care', 'workshop', 'quests', 'shop'];
   const main = MAIN.map((id) => all.find((x) => x.id === id)!).filter(Boolean);
   const more = all.filter((x) => !MAIN.includes(x.id));
-  const leader = s.party.presets[s.party.active].find(Boolean) ?? 'lira';
+  const leader = activeParty(s)[0] ?? 'astrid';
   const open = (id: string) => {
     haptic.tap();
     if (id === 'news') openNews(true);

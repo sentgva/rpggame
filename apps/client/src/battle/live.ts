@@ -1,4 +1,4 @@
-import { applyAction, type BattleEvent, type BattleInput } from '@idle/shared';
+import { HEROINE_MAP, applyAction, type BattleEvent, type BattleInput } from '@idle/shared';
 import { create } from 'zustand';
 import { useGame } from '../store/game';
 
@@ -9,6 +9,11 @@ export interface LiveHero {
   alive: boolean;
   /** команда отдана, ульта ещё не вышла */
   pending: boolean;
+  /** фирменное умение готово и ждёт команды */
+  sig: boolean;
+  sigPending: boolean;
+  /** класс героини — иконка кнопки умения */
+  cls: string;
 }
 
 interface LiveUi {
@@ -64,6 +69,16 @@ export class LiveBattle {
     useLive.setState({ heroes: ui.heroes.map((x) => (x.uid === uid ? { ...x, pending: true } : x)) });
   }
 
+  /** Фирменное умение сейчас (на ближайшем ходу героини). */
+  castSig(uid: number) {
+    const ui = useLive.getState();
+    const h = ui.heroes.find((x) => x.uid === uid);
+    if (!ui.manual || !h || !h.alive || h.sigPending || !h.sig) return;
+    this.inputs.push({ t: this.at(), u: uid, s: 1 });
+    this.resim();
+    useLive.setState({ heroes: ui.heroes.map((x) => (x.uid === uid ? { ...x, sigPending: true } : x)) });
+  }
+
   /** До конца боя ульты — автоматически. */
   auto() {
     if (!useLive.getState().manual) return;
@@ -112,7 +127,9 @@ export async function runLive(
   }
   const start = live.events[0];
   const heroes: LiveHero[] =
-    start?.k === 'start' ? start.units.filter((u) => u.side === 0 && u.kind === 'hero').map((u) => ({ uid: u.uid, ref: u.ref, energy: u.energy, alive: true, pending: false })) : [];
+    start?.k === 'start' ? start.units
+          .filter((u) => u.side === 0 && u.kind === 'hero')
+          .map((u) => ({ uid: u.uid, ref: u.ref, energy: u.energy, alive: true, pending: false, sig: false, sigPending: false, cls: HEROINE_MAP[u.ref]?.cls ?? 'knight' })) : [];
   currentLive = live;
   useLive.setState({ active: true, manual: true, heroes, cast: null, clock: 0 });
   try {

@@ -4,7 +4,7 @@
  */
 import type { Element, Look } from '@idle/shared';
 
-export type WeaponKind = 'sword' | 'axe' | 'bow' | 'staff' | 'wand' | 'scythe' | 'daggers' | 'lute' | 'none';
+export type WeaponKind = 'sword' | 'axe' | 'bow' | 'staff' | 'wand' | 'scythe' | 'daggers' | 'lute' | 'crossbow' | 'none';
 export type BodyKind = 'robe' | 'tunic' | 'plate';
 
 export interface SpriteSpec {
@@ -27,32 +27,47 @@ export interface Bitmap {
 }
 
 export const CLASS_WEAPON: Record<string, WeaponKind> = {
+  knight: 'sword',
+  assassin: 'daggers',
+  priestess: 'wand',
+  ranger: 'bow',
+  warlock: 'staff',
+  hunter: 'crossbow',
+  brute: 'axe',
   guardian: 'sword',
   berserker: 'axe',
   archer: 'bow',
   sorceress: 'staff',
-  priestess: 'wand',
+  cleric: 'wand',
   necromancer: 'scythe',
-  assassin: 'daggers',
+  rogue: 'daggers',
   bard: 'lute',
 };
 
 export const CLASS_BODY: Record<string, BodyKind> = {
+  knight: 'plate',
+  assassin: 'tunic',
+  priestess: 'robe',
+  ranger: 'tunic',
+  warlock: 'robe',
+  hunter: 'tunic',
+  brute: 'plate',
   guardian: 'plate',
   berserker: 'plate',
   archer: 'tunic',
   sorceress: 'robe',
-  priestess: 'robe',
+  cleric: 'robe',
   necromancer: 'robe',
-  assassin: 'tunic',
+  rogue: 'tunic',
   bard: 'tunic',
 };
 
+/** Враги одеваются по роли — в те же закрытые боевые наряды, что и классы Легиона. */
 export const ROLE_CLASS: Record<string, string> = {
-  tank: 'guardian',
-  brute: 'berserker',
-  ranged: 'archer',
-  caster: 'sorceress',
+  tank: 'knight',
+  brute: 'brute',
+  ranged: 'ranger',
+  caster: 'warlock',
   healer: 'priestess',
   rogue: 'assassin',
 };

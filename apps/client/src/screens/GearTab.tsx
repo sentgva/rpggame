@@ -21,6 +21,7 @@ import {
   type EquipSlot,
   type Item,
   type ItemSlot as ItemSlotType,
+  activeParty,
 } from '@idle/shared';
 import { useMemo, useState } from 'react';
 import { heroUrl } from '../art/runtime';
@@ -38,7 +39,7 @@ export default function GearTab() {
   const s = useGameState();
   const cfg = useCfg();
   const gearHero = useUi((u) => u.gearHero);
-  const party = s.party.presets[s.party.active].filter(Boolean) as string[];
+  const party = activeParty(s);
   const heroId = gearHero && s.heroines[gearHero] ? gearHero : (party[0] ?? Object.keys(s.heroines)[0]);
   const [sort, setSort] = useState<Sort>('rarity');
   const [filter, setFilter] = useState<ItemSlotType | null>(null);

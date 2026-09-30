@@ -1,4 +1,4 @@
-import { ARTIFACT_MAP, ARTIFACT_RARITY_COLORS, ENEMY_MAP, HEROINE_MAP, SKILL_MAP, type BattleEvent, type UnitSnap } from '@idle/shared';
+import { ARTIFACT_MAP, ARTIFACT_RARITY_COLORS, CLASSES, COMBO_MAP, ENEMY_MAP, HEROINE_MAP, SKILL_MAP, type BattleEvent, type ClassId, type UnitSnap } from '@idle/shared';
 import {
   Application,
   BitmapFont,
@@ -40,6 +40,16 @@ const VFX_COLOR: Record<string, number> = {
 const AURA_COLOR: Record<string, number> = { fire: 0xffa040, water: 0x7fe0ff, nature: 0x9af06a, light: 0xfff0a0, dark: 0xe060ff };
 const DOT_COLOR: Record<string, number> = { burn: 0xff9a4a, poison: 0x9ae07a, bleed: 0xff5a5a, thorns: 0xd0c0a0 };
 const MELEE_VFX = new Set(['slash']);
+/** Цвета классов (как в интерфейсе): вспышки связок и метки. */
+const CLASS_HEX: Record<ClassId, number> = { knight: 0x6f9ad8, assassin: 0xb06ae0, priestess: 0xf2d46b, ranger: 0x6ac06a, warlock: 0xe0603a, hunter: 0x6fd0e0 };
+/** Метки связок над целью: цвет метки = цвет класса, который её ставит. */
+const MARK_COLOR: Record<string, number> = {
+  'mark:daze': CLASS_HEX.knight,
+  'mark:curse': CLASS_HEX.warlock,
+  'mark:root': CLASS_HEX.ranger,
+  'mark:prey': CLASS_HEX.hunter,
+  'mark:bless': CLASS_HEX.priestess,
+};
 
 interface Tween {
   update(dt: number): boolean;
@@ -96,7 +106,7 @@ class UnitView {
     this.hp = snap.hp;
     this.maxHp = snap.maxHp;
     this.energy = snap.energy;
-    const herald = !!HEROINE_MAP[snap.ref]?.herald;
+    const herald = false;
     const colossus = !!ENEMY_MAP[snap.ref]?.colossus;
     this.special = herald || colossus;
     this.life = newLife(now, snap.side === 0 && !snap.mirror, this.special);
@@ -265,6 +275,11 @@ class UnitView {
       else if (st === 'silence') col = 0xb0b0b0;
       else if (st === 'taunt') col = 0xe03a3a;
       else if (DOT_COLOR[st]) col = DOT_COLOR[st];
+      else if (MARK_COLOR[st]) {
+        // метка связки — ромбик покрупнее
+        g.rect(-this.barW / 2 + i * 5 - 1, y - 1, 6, 6).fill(0x140e12);
+        col = MARK_COLOR[st];
+      }
       else if (st.startsWith('buff')) col = 0x7ae07a;
       else if (st.startsWith('debuff')) col = 0xb04de0;
       else continue;
@@ -678,13 +693,30 @@ export class BattleRenderer {
           sfx('skill');
         }
         const enemyTargets = targets.filter((x) => x.snap.side !== u.snap.side);
-        if (MELEE_VFX.has(vfx) && enemyTargets.length === 1) this.lunge(u, enemyTargets[0]);
+        const cls = HEROINE_MAP[u.snap.ref]?.cls;
+        if (u.snap.ref === 'wolf' && enemyTargets.length) this.pounce(u, enemyTargets[0]);
+        else if (cls === 'assassin' && enemyTargets.length === 1) this.blink(u, enemyTargets[0]);
+        else if (cls === 'knight' && enemyTargets.length === 1) {
+          this.lunge(u, enemyTargets[0]);
+          // блик щита
+          this.burst(u.baseX + (u.snap.side === 0 ? 8 : -8), u.baseY - 20 * u.scale, 0xd8dee8, 4);
+        } else if (cls === 'hunter' && enemyTargets.length) {
+          this.castPose(u);
+          for (const tg of enemyTargets.slice(0, 6)) this.projectile(u, tg, 0xd8dee8, 'arrow', 2, 120);
+        } else if (cls === 'priestess' && vfx === 'holy') {
+          this.castPose(u);
+          for (const tg of (enemyTargets.length ? enemyTargets : targets).slice(0, 6)) this.beam(tg, VFX_COLOR.holy ?? 0xfff0a0);
+        } else if (MELEE_VFX.has(vfx) && enemyTargets.length === 1) this.lunge(u, enemyTargets[0]);
         else if (enemyTargets.length) {
           this.castPose(u);
-          for (const tg of enemyTargets.slice(0, 6)) this.projectile(u, tg, VFX_COLOR[vfx] ?? 0xffffff, vfx);
+          const arc = cls === 'ranger' ? 22 : 12;
+          for (const tg of enemyTargets.slice(0, 6)) this.projectile(u, tg, VFX_COLOR[vfx] ?? 0xffffff, vfx, arc);
+          // колдунья: руна под ногами
+          if (cls === 'warlock') this.burst(u.baseX, u.baseY - 4, CLASS_HEX.warlock, 6);
         } else {
           this.castPose(u);
-          for (const tg of targets) this.burst(tg.baseX, tg.baseY - 30, VFX_COLOR[vfx] ?? 0x7ae07a, 6);
+          if (cls === 'priestess') for (const tg of targets.slice(0, 6)) this.beam(tg, 0x9af06a);
+          else for (const tg of targets) this.burst(tg.baseX, tg.baseY - 30, VFX_COLOR[vfx] ?? 0x7ae07a, 6);
         }
         if (e.kind === 'basic') sfx(vfx === 'arrow' ? 'arrow' : vfx === 'slash' ? 'hit' : 'magic');
         break;
@@ -831,6 +863,19 @@ export class BattleRenderer {
         sfx('mech');
         break;
       }
+      case 'combo': {
+        const u = this.units.get(e.u);
+        const tg = this.units.get(e.tg);
+        const def = COMBO_MAP[e.c];
+        if (!def || !tg) break;
+        const col = CLASS_HEX[(u && HEROINE_MAP[u.snap.ref]?.cls) || def.to[0]] ?? 0xffe8a0;
+        this.floater(tg, `${tl(def.name)}!`, '#' + col.toString(16).padStart(6, '0'), 14);
+        this.burst(tg.baseX, tg.baseY - 30 * tg.scale, col, 12);
+        this.flashUnit(tg, 1);
+        if (e.c === 'backstab' || e.c === 'crush' || e.c === 'decay') this.shake = Math.max(this.shake, 4);
+        sfx('skill');
+        break;
+      }
       case 'end': {
         if (p.kind === 'boss' || p.kind === 'mode') {
           this.bigText(e.win ? t('common.victory') : t('common.defeat'), e.win ? '#ffe8a0' : '#ff8070');
@@ -843,7 +888,10 @@ export class BattleRenderer {
   // ——— живой бой: панель ульт ———
 
   private liveEvent(e: BattleEvent) {
-    if (e.k === 'act' && e.kind === 'ult') {
+    if (e.k === 'sig') {
+      const ui = useLive.getState();
+      if (ui.heroes.some((h) => h.uid === e.u)) useLive.setState({ heroes: ui.heroes.map((h) => (h.uid === e.u ? { ...h, sig: e.r === 1, sigPending: e.r === 1 ? h.sigPending : false } : h)) });
+    } else if (e.k === 'act' && e.kind === 'ult') {
       const ui = useLive.getState();
       if (ui.heroes.some((h) => h.uid === e.u && h.pending)) useLive.setState({ heroes: ui.heroes.map((h) => (h.uid === e.u ? { ...h, pending: false } : h)) });
     } else if (e.k === 'mech' && e.m === 'castStart' && e.tg !== undefined) {
@@ -893,6 +941,68 @@ export class BattleRenderer {
       u.body.y = dy * a;
     });
     setTimeout(() => this.slash(tg), 80);
+  }
+
+  /** Ассасин: исчезает, появляется за спиной цели, два удара — и назад. */
+  private blink(u: UnitView, tg: UnitView) {
+    const dx = tg.baseX - u.baseX + (u.snap.side === 0 ? 20 : -20) * tg.scale;
+    const dy = tg.baseY - u.baseY;
+    this.burst(u.baseX, u.baseY - 20 * u.scale, CLASS_HEX.assassin, 6);
+    this.tween(
+      300,
+      (k) => {
+        if (k < 0.2) u.body.alpha = 1 - k / 0.2;
+        else if (k < 0.3) {
+          u.body.x = dx;
+          u.body.y = dy;
+          u.body.alpha = (k - 0.2) / 0.1;
+        } else if (k < 0.75) {
+          u.body.x = dx;
+          u.body.y = dy;
+          u.body.alpha = 1;
+        } else {
+          const a = (k - 0.75) / 0.25;
+          u.body.x = dx * (1 - a);
+          u.body.y = dy * (1 - a);
+        }
+      },
+      () => {
+        u.body.x = 0;
+        u.body.y = 0;
+        if (u.alive) u.body.alpha = 1;
+      },
+    );
+    setTimeout(() => this.slash(tg), 110);
+    setTimeout(() => this.slash(tg), 170);
+  }
+
+  /** Волк: прыжок на цель дугой. */
+  private pounce(u: UnitView, tg: UnitView) {
+    const dx = (tg.baseX - u.baseX) * 0.55;
+    const dy = (tg.baseY - u.baseY) * 0.55;
+    this.tween(260, (k) => {
+      const a = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55;
+      u.body.x = dx * a;
+      u.body.y = dy * a - Math.sin(Math.min(1, k / 0.45) * Math.PI) * 10;
+    });
+    setTimeout(() => this.slash(tg), 110);
+  }
+
+  /** Жрица: столб света над целью. */
+  private beam(tg: UnitView, color: number) {
+    const s = tg.scale;
+    const b = this.px(color, 6 * s, 70 * s);
+    b.position.set(tg.baseX, tg.baseY - 36 * s);
+    b.alpha = 0.75;
+    this.tween(
+      320,
+      (k) => {
+        b.alpha = 0.75 * (1 - k);
+        b.width = 6 * s * (1 - k * 0.6);
+      },
+      () => this.freePx(b),
+    );
+    this.burst(tg.baseX, tg.baseY - 26 * s, color, 5);
   }
 
   private castPose(u: UnitView) {
@@ -956,7 +1066,7 @@ export class BattleRenderer {
     );
   }
 
-  private projectile(from: UnitView, to: UnitView, color: number, vfx: string) {
+  private projectile(from: UnitView, to: UnitView, color: number, vfx: string, arc = 12, dur = 170) {
     const sz = Math.max(3, from.scale * 1.5);
     const g = vfx === 'arrow' ? this.px(color, sz * 4, 2) : this.px(color, sz);
     const sx = from.baseX + (from.snap.side === 0 ? 10 : -10);
@@ -965,11 +1075,12 @@ export class BattleRenderer {
     const ey = to.baseY - 16 * to.scale;
     g.position.set(sx, sy);
     let trailAt = 0;
+    if (vfx === 'arrow') g.rotation = Math.atan2(ey - sy, ex - sx);
     this.tween(
-      170,
+      dur,
       (k) => {
         g.x = sx + (ex - sx) * k;
-        g.y = sy + (ey - sy) * k - Math.sin(k * Math.PI) * 12;
+        g.y = sy + (ey - sy) * k - Math.sin(k * Math.PI) * arc;
         // след — не чаще раза в ~25 мс полёта, а не на каждом кадре
         if (vfx !== 'arrow' && k - trailAt > 0.15) {
           trailAt = k;

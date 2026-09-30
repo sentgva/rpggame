@@ -153,8 +153,8 @@ function Login() {
               }}
             >
               <div style={{ fontSize: 9 }}>{r.day}</div>
-              <Icon name={r.ssrChoice ? 'heroes' : main ? CUR_ICON[main[0]] : 'gift'} size={20} />
-              <div style={{ fontSize: 9, fontWeight: 800 }}>{r.ssrChoice ? 'SSR' : main ? formatNum(main[1] ?? 0) : ''}</div>
+              <Icon name={r.big ? 'emblems' : main ? CUR_ICON[main[0]] : 'gift'} size={20} />
+              <div style={{ fontSize: 9, fontWeight: 800 }}>{r.big ? `×${r.reward.emblems}` : main ? formatNum(main[1] ?? 0) : ''}</div>
             </div>
           );
         })}
@@ -163,34 +163,10 @@ function Login() {
         block
         style={{ marginTop: 10 }}
         disabled={!canClaim}
-        onClick={() => {
-          if (LOGIN_REWARDS[today - 1]?.ssrChoice) pickSsr(claim);
-          else void claim();
-        }}
+        onClick={() => void claim()}
       >
         {canClaim ? `${t('common.claim')} · ${t('quests.loginDay', { n: today })}` : t('common.claimed')}
       </Button>
     </Panel>
   );
-}
-
-function pickSsr(claim: (hero: string) => Promise<void>) {
-  const list = HEROINES.filter((h) => !h.boss && !h.herald && h.rarity === 'SSR');
-  openSheet(t('quests.ssrChoice'), (close) => (
-    <div className={css.grid4}>
-      {list.map((h) => (
-        <div
-          key={h.id}
-          className={css.hero}
-          onClick={() => {
-            close();
-            void claim(h.id);
-          }}
-        >
-          <img className={css.heroSprite} style={{ width: 56, height: 56 }} src={heroUrl(h.id)} alt="" />
-          <div className={css.heroName}>{tl(h.name)}</div>
-        </div>
-      ))}
-    </div>
-  ));
 }

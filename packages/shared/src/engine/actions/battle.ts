@@ -1,4 +1,4 @@
-import { ACTS, AFFIX_REWARD, HEROINES, STAGES_PER_DIFF, stageAffixes, stageRef, type StageRef } from '../../content';
+import { ACTS, AFFIX_REWARD, COMBOS, HEROINES, STAGES_PER_DIFF, comboMastery, stageAffixes, stageRef, type StageRef } from '../../content';
 import { activeArtifacts } from './artifacts';
 import { mixSeed } from '../../rng';
 import type { Difficulty } from '../../types';
@@ -61,8 +61,13 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     manual: ctx.control?.manual,
     inputs: ctx.control?.inputs,
     artifacts: opt.noArtifacts ? [] : activeArtifacts(s),
+    mastery: comboMasteryOf(s),
   });
-  if (res.combos) track(ctx, 'combo', res.combos);
+  if (res.combos) {
+    track(ctx, 'combo', res.combos);
+    // сыгранность: счётчик каждой связки растит её мастерство
+    for (const [id, n] of Object.entries(res.comboBy)) ctx.s.counters[`combo:${id}`] = (ctx.s.counters[`combo:${id}`] ?? 0) + n;
+  }
   return {
     seed,
     win: res.win,
@@ -75,6 +80,16 @@ export function runBattle(ctx: Ctx, enemies: UnitInit[], heroes: UnitInit[], tim
     combos: res.combos,
     raw: res,
   };
+}
+
+/** Уровни мастерства связок игрока (по счётчикам сыгранных связок). */
+export function comboMasteryOf(s: Ctx['s']): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const c of COMBOS) {
+    const lvl = comboMastery(s.counters[`combo:${c.id}`] ?? 0).lvl;
+    if (lvl) out[c.id] = lvl;
+  }
+  return out;
 }
 
 export function stripRaw(b: BattleSummary & { raw?: BattleResult }): BattleSummary {

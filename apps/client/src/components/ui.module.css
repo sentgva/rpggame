@@ -478,65 +478,13 @@
 .hero:active {
   transform: scale(0.96);
 }
-.heroR {
-  border-color: var(--r-rare);
-}
-.heroSR {
-  border-color: var(--r-epic);
-}
-.heroSSR {
-  border-color: var(--r-legendary);
-  box-shadow: 0 0 8px rgba(240, 138, 36, 0.35);
-}
-.heroUR {
-  border-color: var(--r-mythic);
-  box-shadow: 0 0 10px rgba(224, 58, 58, 0.45);
+.heroAwake {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--cls) 60%, transparent);
 }
 .heroSprite {
   width: 72px;
   height: 72px;
   image-rendering: pixelated;
-}
-/* Вестницы Эфира: переливающаяся рамка цвета стихии, фигура крупнее и «выходит» за верх карточки */
-.heroHerald {
-  border-color: var(--aura);
-  box-shadow:
-    0 0 12px var(--aura),
-    inset 0 0 14px color-mix(in srgb, var(--aura) 35%, transparent);
-  background:
-    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--aura) 40%, #2a1a24), #140e12 78%);
-  animation: herald-border 1.6s ease-in-out infinite alternate;
-  overflow: visible;
-}
-.heroHerald .heroSprite {
-  width: 86px;
-  height: 86px;
-  margin: -14px -7px 0;
-  position: relative;
-  z-index: 1;
-}
-.heraldTag {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
-  padding: 0 5px;
-  border-radius: 3px;
-  background: #120c10;
-  border: 1px solid var(--aura);
-  color: var(--aura);
-  font-family: var(--font-pixel);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-}
-@keyframes herald-border {
-  to {
-    box-shadow:
-      0 0 20px var(--aura),
-      inset 0 0 20px color-mix(in srgb, var(--aura) 45%, transparent);
-  }
 }
 .heroName {
   font-family: var(--font-pixel);
@@ -556,13 +504,19 @@
   font-size: 11px;
   font-weight: 800;
 }
-.rarityTag {
+.clsTag {
   position: absolute;
   top: 2px;
-  left: 3px;
-  font-family: var(--font-pixel);
-  font-size: 13px;
-  text-shadow: 0 1px 0 #000;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+}
+.heroCls {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 .elemTag {
   position: absolute;

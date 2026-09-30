@@ -102,7 +102,7 @@ function MapRoot() {
           <StagePath act={act} diff={diff} cleared={cleared} />
         </div>
         <div className={css.row} style={{ marginTop: 8, alignItems: 'flex-start' }}>
-          <img className="pixel" src={heroUrl(boss.hero!)} width={48} height={48} alt="" />
+          <img className="pixel" src={enemyUrl(boss.id)} width={48} height={48} alt="" />
           <div className={css.grow}>
             <b>
               {t('map.boss')}: {tl(boss.name)}

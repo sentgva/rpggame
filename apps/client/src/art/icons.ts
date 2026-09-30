@@ -93,21 +93,21 @@ const ICONS: Record<string, string[]> = {
     '................',
     '................',
   ],
-  scrolls: [
+  emblems: [
+    '....rR....Rr....',
+    '....rRR..RRr....',
+    '.....rRRRRr.....',
+    '......rRRr......',
+    '.....YYYYYY.....',
+    '....YZZZZZZY....',
+    '...YZYYLLYYZY...',
+    '...YZYLZZLYZY...',
+    '...YZLZZZZLZY...',
+    '...YZYLZZLYZY...',
+    '...YZYYLLYYZY...',
+    '....YyYYYYyY....',
+    '.....yyyyyy.....',
     '................',
-    '..rRRRRRRRRRRr..',
-    '..RWWWWWWWWWWR..',
-    '...WwwwwwwwwW...',
-    '...WWWWWWWWWW...',
-    '...WwwwwwwwwW...',
-    '...WWWWYYWWWW...',
-    '...WWWYZZYWWW...',
-    '...WWWYZZYWWW...',
-    '...WWWWYYWWWW...',
-    '...WwwwwwwwwW...',
-    '...WWWWWWWWWW...',
-    '..RWWWWWWWWWWR..',
-    '..rRRRRRRRRRRr..',
     '................',
     '................',
   ],
@@ -1528,6 +1528,66 @@ ICONS.bard = [
   '................',
 ];
 ICONS.hero = ICONS.heroes;
+// классы Легиона
+ICONS.knight = ICONS.offhand;
+ICONS.ranger = ICONS.archer;
+ICONS.warlock = ICONS.sorceress;
+ICONS.hunter = [
+  '................',
+  '..BBBBBBBBBBBB..',
+  '.B.....bb.....B.',
+  'B......bb......B',
+  '.......bb.......',
+  '..KKKKKKKKKKKK..',
+  '.......bb.......',
+  '.......bb.......',
+  '......bbbb......',
+  '......bKKb......',
+  '.......bb.......',
+  '.......bb.......',
+  '......WbbW......',
+  '.....W....W.....',
+  '................',
+  '................',
+];
+// связка классов — две скрещённые линии с искрой
+ICONS.combo = [
+  '................',
+  '.YY..........CC.',
+  '.YZY........CUC.',
+  '..YZY......CUC..',
+  '...YZY....CUC...',
+  '....YZY..CUC....',
+  '.....YZYCUC.....',
+  '......YZUC......',
+  '......CUZY......',
+  '.....CUCYZY.....',
+  '....CUC..YZY....',
+  '...CUC....YZY...',
+  '..CUC......YZY..',
+  '.CUC........YZY.',
+  '.CC..........YY.',
+  '................',
+];
+// ранг — шеврон
+ICONS.rank = [
+  '................',
+  '................',
+  '.Y............Y.',
+  '.YY..........YY.',
+  '.YZY........YZY.',
+  '..YZY......YZY..',
+  '...YZY....YZY...',
+  '....YZYYYYZY....',
+  '.....YZZZZY.....',
+  '......YYYY......',
+  '.Y............Y.',
+  '.YY..........YY.',
+  '..YY........YY..',
+  '...YYYYYYYYYY...',
+  '................',
+  '................',
+];
 
 const OUTLINE = hex(PAL.X);
 

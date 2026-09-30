@@ -591,3 +591,15 @@ export const COMBOS: ComboDef[] = [
   { id: 'grace', name: L('Благодать', 'Grace'), desc: L('Благословлённая Жрицей: +20% урона и лечение от ударов; каждая связка даёт Жрице энергию', 'Blessed by the Priestess: +20% damage and healing from hits; every combo gives the Priestess energy'), from: 'priestess', to: ['knight', 'assassin', 'ranger', 'warlock', 'hunter'] },
 ];
 export const COMBO_MAP: Record<string, ComboDef> = Object.fromEntries(COMBOS.map((c) => [c.id, c]));
+
+/**
+ * Мастерство связок: героини сыгрываются — каждая сыгранная связка копится, и на порогах
+ * она становится сильнее (+8% к её эффекту за уровень, до 10-го).
+ */
+export const COMBO_MASTERY = [25, 100, 300, 800, 2000, 5000, 12000, 30000, 70000, 150000];
+export const COMBO_MASTERY_STEP = 0.08;
+export function comboMastery(count: number): { lvl: number; next: number | null; from: number } {
+  let lvl = 0;
+  while (lvl < COMBO_MASTERY.length && count >= COMBO_MASTERY[lvl]) lvl++;
+  return { lvl, next: COMBO_MASTERY[lvl] ?? null, from: lvl > 0 ? COMBO_MASTERY[lvl - 1] : 0 };
+}

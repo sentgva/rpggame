@@ -10,6 +10,7 @@ import {
   rollRarity,
   Rng,
   type Currency,
+  CLASSES,
 } from '@idle/shared';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Panel, Tabs, Toggle, confirmDialog, css, cx, formatNum } from '../../components/ui';
@@ -139,7 +140,7 @@ function Heroes() {
           <option value="all">{t('common.all')}</option>
           {HEROINES.map((h) => (
             <option key={h.id} value={h.id}>
-              {tl(h.name)} ({h.rarity})
+              {tl(h.name)} ({tl(CLASSES[h.cls].name)})
             </option>
           ))}
         </select>

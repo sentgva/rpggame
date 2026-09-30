@@ -4,7 +4,7 @@
  * результат совпадает бит в бит. Все входные характеристики — целые числа.
  */
 import type { Config } from '../config';
-import { CLASSES, ENEMY_MAP, SKILL_MAP, elementMult, artifactValue, type ComboDef } from '../content';
+import { CLASSES, COMBO_MASTERY_STEP, ENEMY_MAP, SKILL_MAP, elementMult, artifactValue, type ComboDef } from '../content';
 import type { BossMechanic } from '../content/acts';
 import type { BuffStat, MarkKind, SkillDef, SkillEffect, SkillMod, TargetRule } from '../content/effects';
 import { Rng } from '../rng';
@@ -135,6 +135,8 @@ export interface BattleSetup {
   quiet?: boolean;
   /** Артефакты отряда игрока (сторона 0). */
   artifacts?: { id: string; lvl: number }[];
+  /** Мастерство связок отряда игрока: id связки → уровень. */
+  mastery?: Record<string, number>;
 }
 
 export interface BattleResult {
@@ -147,8 +149,9 @@ export interface BattleResult {
   kills: number;
   units: UnitSnap[];
   timeout: boolean;
-  /** Связки классов, сыгранные отрядом игрока. */
+  /** Связки классов, сыгранные отрядом игрока (всего и по видам). */
   combos: number;
+  comboBy: Record<string, number>;
 }
 
 interface Status {
@@ -273,6 +276,7 @@ class Battle {
   private artifactUsed: Record<string, 1> = {};
   private prismElements = 0;
   private combos = 0;
+  private comboBy: Record<string, number> = {};
   private lastDealt = 0;
   /** Идёт дополнительный удар связки — новые связки не запускаются. */
   private inCombo = false;
@@ -474,6 +478,7 @@ class Battle {
       units: this.units.map((u) => this.snap(u)),
       timeout,
       combos: this.combos,
+      comboBy: this.comboBy,
     };
   }
 
@@ -908,10 +913,18 @@ class Battle {
     return tg.statuses.find((s) => s.type === 'mark' && s.mark === mark && this.units[s.src]?.side === side);
   }
 
+  /** Множитель силы связки от мастерства (только отряд игрока). */
+  private mk(c: ComboDef['id'], side: 0 | 1): number {
+    return side === 0 ? 1 + COMBO_MASTERY_STEP * (this.setup.mastery?.[c] ?? 0) : 1;
+  }
+
   /** Связка сыграна: событие, счётчик и энергия Жрицам отряда. */
   private comboDone(u: U, tg: U, c: ComboDef['id']) {
     this.emit({ t: this.t, k: 'combo', c, u: u.uid, tg: tg.uid });
-    if (u.side === 0) this.combos++;
+    if (u.side === 0) {
+      this.combos++;
+      this.comboBy[c] = (this.comboBy[c] ?? 0) + 1;
+    }
     for (const p of this.alive(u.side)) if (p.cls === 'priestess' && p.kind === 'hero') this.gainEnergy(p, COMBO.priestEnergy);
   }
 
@@ -956,34 +969,34 @@ class Battle {
       const daze = u.cls === 'assassin' ? this.markOn(tg, 'daze', foeSide) : undefined;
       if (daze) {
         forceCrit = true;
-        comboBonus += COMBO.backstab;
+        comboBonus += COMBO.backstab * this.mk('backstab', u.side);
         this.removeStatus(tg, daze);
         this.comboDone(u, tg, 'backstab');
       }
       const root = u.cls === 'knight' ? this.markOn(tg, 'root', foeSide) : undefined;
       if (root) {
-        comboBonus += COMBO.crush;
+        comboBonus += COMBO.crush * this.mk('crush', u.side);
         this.removeStatus(tg, root);
         this.comboDone(u, tg, 'crush');
         after.push(() => this.applyCc(u, tg, 'stun', 1, 1));
       }
       const curse = u.cls === 'ranger' || u.cls === 'hunter' ? this.markOn(tg, 'curse', foeSide) : undefined;
       if (curse) {
-        comboBonus += COMBO.detonate;
+        comboBonus += COMBO.detonate * this.mk('detonate', u.side);
         this.removeStatus(tg, curse);
         this.comboDone(u, tg, 'detonate');
         after.push(() => {
           const others = this.enemiesOf(u).filter((x) => x !== tg);
           if (others.length && this.lastDealt > 0) {
             const o = others[this.rng.int(others.length)];
-            this.applyDamageRaw(u, o, Math.max(1, Math.round(this.lastDealt * COMBO.detonateSplash)), { dot: 'shrapnel' });
+            this.applyDamageRaw(u, o, Math.max(1, Math.round(this.lastDealt * COMBO.detonateSplash * this.mk('detonate', u.side))), { dot: 'shrapnel' });
           }
         });
       }
       if (u.cls === 'warlock' && kind !== 'basic') {
         const poison = tg.statuses.filter((s) => s.type === 'dot' && s.dot === 'poison');
         if (poison.length) {
-          const burst = Math.round(poison.reduce((sum, s) => sum + s.amount * Math.max(1, s.turns), 0) * COMBO.decay);
+          const burst = Math.round(poison.reduce((sum, s) => sum + s.amount * Math.max(1, s.turns), 0) * COMBO.decay * this.mk('decay', u.side));
           for (const s of poison) this.removeStatus(tg, s);
           this.comboDone(u, tg, 'decay');
           after.push(() => {
@@ -997,7 +1010,7 @@ class Battle {
           if (!tg.alive || !u.alive) return;
           this.inCombo = true;
           try {
-            this.strike(u, tg, { ...eff, mult: (eff.mult ?? 1) * COMBO.huntSecond }, kind, def);
+            this.strike(u, tg, { ...eff, mult: (eff.mult ?? 1) * COMBO.huntSecond * this.mk('hunt', u.side) }, kind, def);
           } finally {
             this.inCombo = false;
           }
@@ -1005,9 +1018,9 @@ class Battle {
       }
     }
     // добыча Охотницы и благословение Жрицы — постоянные усиления, без счёта связок
-    if (this.markOn(tg, 'prey', foeSide)) comboBonus += COMBO.hunt;
+    if (this.markOn(tg, 'prey', foeSide)) comboBonus += COMBO.hunt * this.mk('hunt', u.side);
     const blessed = this.markOn(u, 'bless', u.side);
-    if (blessed) comboBonus += COMBO.grace;
+    if (blessed) comboBonus += COMBO.grace * this.mk('grace', u.side);
     const atk = this.effAtk(u);
     const k = eff.mult ?? 1;
     const pen = Math.min(this.S.penMax, Math.max(0, u.pen));
@@ -1063,7 +1076,7 @@ class Battle {
     for (const f of after) f();
     if (dealt > 0) {
       // вампиризм (благословлённая Жрицей лечится от ударов)
-      const ls = Math.min(this.S.lifestealMax, u.lifesteal) + (eff.lifesteal ?? 0) + (u.mechanic === 'bloodThirst' ? 1 : 0) + (blessed ? COMBO.graceHeal : 0);
+      const ls = Math.min(this.S.lifestealMax, u.lifesteal) + (eff.lifesteal ?? 0) + (u.mechanic === 'bloodThirst' ? 1 : 0) + (blessed ? COMBO.graceHeal * this.mk('grace', u.side) : 0);
       if (ls > 0 && u.alive) this.heal(u, u, Math.round(dealt * ls));
       // эффекты при попадании
       if (u.fx.bleedOnHit && this.rng.chance(u.fx.bleedOnHit.v ?? 0)) this.applyDot(u, tg, 'bleed', 0.3, 2);

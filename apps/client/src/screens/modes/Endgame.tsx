@@ -1,15 +1,11 @@
 import {
   ELEMENT_COLORS,
   ENEMY_MAP,
-  HERALD_BY_ELEMENT,
   HEROINE_MAP,
   HORDE_BLESSING_MAP,
   HORDE_BLESS_EVERY,
-  HORDE_SKIN_WAVES,
   RIFT_TACTICS,
   SKIN_MAP,
-  SPIRE_SKINS,
-  SPIRE_SKIN_FLOOR,
   hordeBonus,
   MECHANIC_TEXT,
   RIFT_ROTATION,
@@ -86,7 +82,6 @@ export function Rift() {
   const r = riftState({ s, now });
   const boss = riftBoss({ cfg, s, now });
   const def = ENEMY_MAP[boss.id];
-  const herald = HERALD_BY_ELEMENT[boss.element];
   const left = cfg.modes.riftAttempts - r.used;
   const act = def.act;
   const color = ELEMENT_COLORS[boss.element];
@@ -148,7 +143,7 @@ export function Rift() {
                     {t('mode.riftTier', { n: res.tier })} · {formatNum(res.dmg)} ({((100 * res.dmg) / res.hp).toFixed(1)}%)
                   </span>
                 ),
-                result: <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, items: res.reward.items, hearts: res.reward.hearts }} />,
+                result: <RewardList r={{ cur: res.reward.cur, items: res.reward.items, hearts: res.reward.hearts }} />,
               }))
             }
           >
@@ -160,7 +155,7 @@ export function Rift() {
               block
               onClick={async () => {
                 const res = await useGame.getState().act('rift.sweep');
-                if (res.ok) showReward(t('mode.rift'), { cur: res.result.cur, shards: res.result.shards });
+                if (res.ok) showReward(t('mode.rift'), { cur: res.result.cur });
               }}
             >
               {t('mode.riftSweep', { n: left, t: r.bestTierToday })}
@@ -169,12 +164,12 @@ export function Rift() {
         </div>
       </Panel>
 
-      <Panel title={t('mode.riftTiers')} right={<span className={css.tiny}>{t('mode.riftHerald', { name: tl(HEROINE_MAP[herald].name) })}</span>}>
+      <Panel title={t('mode.riftTiers')}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }}>
           {RIFT_TIERS.map((th, i) => {
             const tier = i + 1;
             const got = r.bestTierToday >= tier;
-            const rw = riftReward({ cfg, s }, tier, boss.level, boss.element);
+            const rw = riftReward({ cfg, s }, tier, boss.level);
             return (
               <div
                 key={tier}
@@ -183,13 +178,13 @@ export function Rift() {
               >
                 <b style={{ fontSize: 12 }}>{tier}</b>
                 <span style={{ fontSize: 10 }}>{(th * 100).toFixed(th < 0.05 ? 1 : 0)}%</span>
-                <span style={{ fontSize: 10, color: '#f2c86a' }}>+{rw.shards}</span>
+                <span style={{ fontSize: 10, color: '#f2c86a' }}>🎖️{rw.cur.emblems ?? 0}</span>
               </div>
             );
           })}
         </div>
         <div className={css.row} style={{ marginTop: 8, gap: 8, alignItems: 'center' }}>
-          <HeroImg id={herald} className="pixel" still={!s.heroines[herald]} width={48} height={48} />
+          <Icon name="emblems" size={40} />
           <div className={css.grow}>
             <div className={css.tiny}>{t('mode.riftBest', { today: formatNum(r.bestDmgToday), week: formatNum(r.bestDmgWeek), ever: formatNum(r.bestDmgEver) })}</div>
             <div className={css.tiny}>{t('mode.riftSchedule')}</div>
@@ -209,9 +204,8 @@ export function Spires() {
   const [sel, setSel] = useState<Element>(() => RIFT_ROTATION.find((el) => spireOpen(el, now)) ?? 'fire');
   const floor = (s.modes.spires?.[sel] ?? 0) + 1;
   const open = spireOpen(sel, now);
-  const party = spireParty({ cfg, s, now }, sel).filter((x): x is string => !!x);
+  const party = spireParty({ cfg, s, now }, sel);
   const rw = spireReward(floor, sel);
-  const herald = HERALD_BY_ELEMENT[sel];
   const color = ELEMENT_COLORS[sel];
   return (
     <div className={css.col}>
@@ -250,13 +244,7 @@ export function Spires() {
           )}
         </div>
         <div className={css.row} style={{ gap: 10, flexWrap: 'wrap' }}>
-          <RewardList r={{ cur: rw.cur }} />
-          {rw.shards > 0 && (
-            <span className={css.row} style={{ gap: 4 }}>
-              <HeroImg id={herald} still className="pixel" width={32} height={32} />
-              <b style={{ color: '#f2c86a' }}>+{rw.shards}</b>
-            </span>
-          )}
+          <RewardList r={{ cur: rw.emblems ? { ...rw.cur, emblems: rw.emblems } : rw.cur }} />
         </div>
         <Button
           block
@@ -265,16 +253,15 @@ export function Spires() {
           disabled={!open || !party.length || floor > cfg.modes.spireFloors}
           onClick={() =>
             void playMode('spire.fight', { element: sel }, `${elementName(sel)} · ${t('mode.spireFloor', { n: floor })}`, 1, (res) => ({
-              result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items, hearts: res.reward.hearts }} /> : undefined,
+              result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, items: res.reward.items, hearts: res.reward.hearts }} /> : undefined,
             }))
           }
         >
           {open ? t('common.fight') : t('mode.spireClosed', { day: dayName(sel) })}
         </Button>
         <div className={css.tiny} style={{ marginTop: 6 }}>
-          {t('mode.spireRules', { name: tl(HEROINE_MAP[herald].name) })}
+          {t('mode.spireRules')}
         </div>
-        <SkinGoal id={SPIRE_SKINS[sel]} text={t('mode.spireSkin', { n: SPIRE_SKIN_FLOOR })} />
       </Panel>
     </div>
   );
@@ -297,7 +284,7 @@ export function Horde() {
   const fight = () =>
     void playMode('horde.fight', {}, t('mode.hordeWave', { n: next }), act, (res) => ({
       outcome: res.win ? t('mode.hordeCleared', { n: res.wave }) : t('mode.hordeFallen', { n: res.wave - 1 }),
-      result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, shards: res.reward.shards, skins: res.reward.skins, items: res.reward.items, hearts: res.reward.hearts }} /> : undefined,
+      result: res.win && res.reward ? <RewardList r={{ cur: res.reward.cur, items: res.reward.items, hearts: res.reward.hearts }} /> : undefined,
     }));
   const bless = (i: number) => void useGame.getState().act('horde.bless', { index: i });
   return (
@@ -341,7 +328,6 @@ export function Horde() {
         </div>
         <div className={css.row} style={{ gap: 8, flexWrap: 'wrap' }}>
           <RewardList r={{ cur: rw.cur }} />
-          {rw.heraldShards > 0 && <span className={css.chip}>{t('mode.hordeHerald', { n: rw.heraldShards })}</span>}
         </div>
         <div className={css.row} style={{ marginTop: 10 }}>
           {h.active ? (
@@ -383,9 +369,6 @@ export function Horde() {
         <div className={css.tiny} style={{ marginTop: 4 }}>
           {t('mode.hordeBlessRule', { n: HORDE_BLESS_EVERY })}
         </div>
-        {Object.entries(HORDE_SKIN_WAVES).map(([w, id]) => (
-          <SkinGoal key={id} id={id} text={t('mode.hordeSkin', { n: w })} />
-        ))}
       </Panel>
     </div>
   );

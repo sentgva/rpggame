@@ -29,6 +29,14 @@ const STAT: Record<string, [string, string]> = {
   dmg: ['наносимый урон', 'damage dealt'],
   healRecv: ['получаемое лечение', 'healing received'],
 };
+/** Метки связок: что они значат для союзниц. */
+const MARK: Record<string, [string, string]> = {
+  daze: ['Метка «Ошеломление» (Ассасин бьёт в спину)', 'Daze mark (the Assassin backstabs)'],
+  curse: ['Метка «Проклятие» (выстрелы взрывают её)', 'Curse mark (shots detonate it)'],
+  root: ['Метка «Оковы» (Рыцарь сокрушает)', 'Root mark (the Knight crushes)'],
+  prey: ['Метка «Добыча» (весь отряд бьёт сильнее)', 'Prey mark (the whole party hits harder)'],
+  bless: ['Благословение (+урон и лечение от ударов)', 'Blessing (+damage and healing from hits)'],
+};
 const EL: Record<string, [string, string]> = { fire: ['огнём', 'fire'], water: ['водой', 'water'], nature: ['природой', 'nature'], light: ['светом', 'light'], dark: ['тьмой', 'dark'] };
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -84,6 +92,8 @@ function describeEffect(e: SkillEffect, rank: number, skillTarget: TargetRule): 
       return en ? `Revives a fallen ally with ${pct(e.pct ?? 0.3)} HP` : `Воскрешает павшую союзницу с ${pct(e.pct ?? 0.3)} HP`;
     case 'cleanse':
       return en ? 'Removes negative effects' : 'Снимает негативные эффекты';
+    case 'mark':
+      return `${L(MARK[e.mark ?? 'daze'])} ${tgt}, ${turns(e.turns)}`;
   }
 }
 

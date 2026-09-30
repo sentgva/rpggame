@@ -147,7 +147,7 @@ export const HEROINES: HeroineDef[] = [
     ),
     quote: L('Ты меня не увидишь. Они — тоже.', "You won't see me. Neither will they."),
     hello: L('Не вздрагивай. Я здесь уже полчаса. Мне нужна цель — у вас их, похоже, много.', "Don't flinch. I've been here half an hour. I need targets — you seem to have plenty."),
-    look: { hair: '#2A2436', style: 'ponytail', skin: SK.light, eyes: '#E03A5A', outfit: '#2A2438', trim: '#9B4DE0', acc: 'hood', accColor: '#1E1A2A', bust: 1, hips: 1 },
+    look: { hair: '#3A2E4E', style: 'ponytail', skin: SK.light, eyes: '#E03A5A', outfit: '#3A3050', trim: '#9B4DE0', acc: 'bandana', accColor: '#9B4DE0', bust: 1, hips: 1 },
     join: 10,
   },
   {

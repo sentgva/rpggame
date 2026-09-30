@@ -3,6 +3,7 @@
  * волны и босса (награды считает сервер), в остальное время показывает
  * косметический фарм последнего пройденного этапа.
  */
+import { openJoin } from '../components/Gacha';
 import {
   heroUnits,
   simulateBattle,
@@ -13,6 +14,7 @@ import {
   waveUnits,
   type BattleEvent,
   type StageRef,
+  activeParty,
 } from '@idle/shared';
 import { create } from 'zustand';
 import { manualEnabled, runLive, type LiveBattle } from './live';
@@ -172,6 +174,7 @@ async function fightBoss(target: StageRef, manual = false) {
     if (!r) return;
     useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now() } });
     sfx(r.result.win ? 'victory' : 'defeat');
+    if (r.result.joined?.length) void openJoin(r.result.joined);
     return;
   }
   const r = await g.act('battle.boss');
@@ -181,6 +184,7 @@ async function fightBoss(target: StageRef, manual = false) {
   await play({ events: r.result.battle.events, kind: 'boss', act: target.act, win: r.result.win, speed: battleSpeed(), label });
   useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now() } });
   sfx(r.result.win ? 'victory' : 'defeat');
+  if (r.result.joined?.length) void openJoin(r.result.joined);
 }
 
 /** Косметический фарм последнего пройденного этапа: только визуализация, доход идёт в сундук. */
@@ -190,7 +194,7 @@ async function farm() {
   const cfg = g.cfg!;
   const ref = stageFromGlobal(Math.max(1, s.progress.maxGlobal || 1));
   const wave = Math.floor(Math.random() * 3);
-  const heroes = heroUnits(cfg, s, s.party.presets[s.party.active]);
+  const heroes = heroUnits(cfg, s, activeParty(s));
   if (!heroes.length) {
     await sleep(1500);
     return;

@@ -67,6 +67,9 @@ import {
   CLASS_IDS,
   COMBOS,
   COMBO,
+  COMBO_MASTERY,
+  comboMastery,
+  comboMasteryOf,
   SIG_HOLD,
   activeParty,
   rankCost,
@@ -585,6 +588,24 @@ describe('связки классов и ручное управление', () 
     const r2 = auto.find((e) => e.k === 'sig' && e.u === hero && e.r === 1)!;
     const u2 = auto.find((e) => e.k === 'sig' && e.u === hero && e.r === 0 && e.t > r2.t)!;
     expect(u2.t - r2.t).toBeLessThan(SIG_HOLD);
+  });
+
+  it('мастерство связок: растёт от сыгранных связок и усиливает их', () => {
+    expect(comboMastery(0).lvl).toBe(0);
+    expect(comboMastery(COMBO_MASTERY[0]).lvl).toBe(1);
+    expect(comboMastery(1e9).lvl).toBe(COMBO_MASTERY.length);
+    const s = legion();
+    const all = Object.fromEntries(COMBOS.map((c) => [c.id, 10]));
+    const dmg = (r: ReturnType<typeof fight>) => Object.entries(r.dmgDone).reduce((a, [uid, v]) => (r.units[Number(uid)]?.side === 0 ? a + v : a), 0);
+    const base = fight(s, 2, { timeLimit: 8 });
+    const pro = fight(s, 2, { timeLimit: 8, mastery: all });
+    expect(dmg(pro)).toBeGreaterThan(dmg(base));
+    // счётчики связок копятся по видам и превращаются в уровни мастерства
+    let p = applyAction(s, { type: 'dev.progress', diff: 0, idx: 30 }, D).state;
+    p = { ...p, progress: { ...p.progress, wave: 3 }, counters: { ...p.counters, 'combo:backstab': COMBO_MASTERY[2] } };
+    expect(comboMasteryOf(p).backstab).toBe(3);
+    const r = applyAction(p, { type: 'battle.boss' }, { cfg, now: T0 + 1000 });
+    expect(r.state.counters['combo:backstab']).toBeGreaterThanOrEqual(COMBO_MASTERY[2]);
   });
 
   it('связки считаются в заданиях; команда с кривым s отклоняется', () => {

@@ -9,13 +9,13 @@ import { useUi } from '../../store/ui';
 import { sfx } from '../../audio/sfx';
 import { BackHeader, skinSourceText } from '../common';
 
-type ShopTab = 'shards' | 'daily' | 'skins' | 'arena' | 'labyrinth' | 'event' | 'guild';
+type ShopTab = 'emblems' | 'daily' | 'skins' | 'arena' | 'labyrinth' | 'event' | 'guild';
 
 export function Shop({ initial }: { initial?: ShopTab }) {
-  const [tab, setTab] = useState<ShopTab>(initial ?? 'shards');
+  const [tab, setTab] = useState<ShopTab>(initial ?? 'emblems');
   const social = useGame((g) => g.flags.social);
   const tabs: { id: ShopTab; label: string }[] = [
-    { id: 'shards', label: t('shop.shards') },
+    { id: 'emblems', label: t('shop.emblems') },
     { id: 'daily', label: t('shop.daily') },
     { id: 'skins', label: t('shop.skins') },
     { id: 'arena', label: t('shop.arena') },
@@ -72,7 +72,7 @@ function CurrencyShop({ shop }: { shop: ShopTab }) {
               {o.give.skin ? (
                 <HeroImg className="pixel" id={SKIN_MAP[o.give.skin].hero} skin={o.give.skin} width={56} height={56} />
               ) : (
-                <Icon name={o.give.shardsRarity ? 'star' : o.give.item ? 'weapon' : Object.keys(o.give.cur ?? {})[0] ?? 'gift'} size={36} />
+                <Icon name={o.give.item ? 'weapon' : Object.keys(o.give.cur ?? {})[0] ?? 'gift'} size={36} />
               )}
               <div className={css.grow}>
                 <b>{tl(o.name)}</b>
@@ -111,31 +111,6 @@ function SkinNote({ id, inSkinShop }: { id: string; inSkinShop: boolean }) {
 }
 
 async function buyOffer(o: ShopOffer) {
-  if (o.give.shardsRarity) {
-    const list = HEROINES.filter((h) => !h.boss && !h.herald && !h.festival && h.rarity === o.give.shardsRarity);
-    openSheet(t('shop.pickHero'), (close) => (
-      <div className={css.grid4}>
-        {list.map((h) => (
-          <div
-            key={h.id}
-            className={css.hero}
-            onClick={async () => {
-              const r = await useGame.getState().act('shop.buy', { offer: o.id, hero: h.id });
-              if (r.ok) {
-                useUi.getState().toast(`${tl(h.name)} +${o.give.shards}`, 'good');
-                close();
-              }
-            }}
-          >
-            <img className={css.heroSprite} style={{ width: 52, height: 52 }} src={heroUrl(h.id)} alt="" />
-            <div className={css.heroName}>{tl(h.name)}</div>
-            <div className={css.tiny}>{useGame.getState().state!.shards[h.id] ?? 0}</div>
-          </div>
-        ))}
-      </div>
-    ));
-    return;
-  }
   const r = await useGame.getState().act('shop.buy', { offer: o.id });
   if (r.ok) {
     sfx('coin');

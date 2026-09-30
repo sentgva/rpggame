@@ -1,4 +1,4 @@
-import { portraitUrl } from '../art/runtime';
+import { iconUrl, portraitUrl } from '../art/runtime';
 import { currentLive, useLive } from '../battle/live';
 import { t } from '../i18n';
 import { useGame } from '../store/game';
@@ -46,9 +46,10 @@ export function UltBar() {
           const ready = manual && h.alive && !h.pending && h.energy >= 100;
           const pct = Math.max(0, Math.min(100, h.energy));
           const ring = h.alive ? (h.energy >= 100 ? '#ffe08a' : '#e0a13a') : '#555';
+          const sigReady = manual && h.alive && h.sig && !h.sigPending;
           return (
+            <div key={h.uid} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
             <button
-              key={h.uid}
               disabled={!ready}
               aria-label={t('ult.cast')}
               onClick={() => {
@@ -96,6 +97,37 @@ export function UltBar() {
                 </span>
               )}
             </button>
+            {manual && (
+              <button
+                disabled={!sigReady}
+                aria-label={t('battle.sig')}
+                onClick={() => {
+                  haptic.select();
+                  currentLive?.castSig(h.uid);
+                }}
+                style={{
+                  width: 30,
+                  height: 22,
+                  padding: 0,
+                  borderRadius: 6,
+                  border: `1px solid ${sigReady ? '#f2e6d8' : 'rgba(255,255,255,.15)'}`,
+                  background: h.sigPending ? 'rgba(20,30,60,.9)' : sigReady ? 'rgba(90,60,20,.95)' : 'rgba(20,12,16,.75)',
+                  boxShadow: sigReady ? '0 0 8px 1px rgba(255,220,140,.7)' : undefined,
+                  opacity: h.alive ? (sigReady || h.sigPending ? 1 : 0.45) : 0.25,
+                  cursor: sigReady ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {h.sigPending ? (
+                  <span style={{ fontSize: 11, color: '#cfe8ff', fontWeight: 900 }}>…</span>
+                ) : (
+                  <img className="pixel" src={iconUrl(h.cls)} alt="" width={16} height={16} draggable={false} />
+                )}
+              </button>
+            )}
+            </div>
           );
         })}
         <button

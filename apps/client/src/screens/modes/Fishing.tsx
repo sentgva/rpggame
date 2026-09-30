@@ -8,7 +8,7 @@ import {
   FISH_RARITY,
   FISH_SPOTS,
   HEROINE_MAP,
-  HERO_RARITY_COLORS,
+  ROSTER,
   SKIN_MAP,
   fishBaitCost,
   fishingState,
@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Arms } from '../../art/figure';
 import { sceneUrl, type SceneBg } from '../../art/scenes';
 import { HeroImg } from '../../components/HeroImg';
-import { Button, Cost, Panel, Tabs, css, cx, openSheet } from '../../components/ui';
+import { Button, CLASS_COLOR, Cost, Panel, Tabs, css, cx, openSheet } from '../../components/ui';
 import { t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { haptic } from '../../tg/telegram';
@@ -35,7 +35,6 @@ const SPOT_VIEW: Record<FishSpot, { bg: SceneBg; feet: number; bob: [number, num
   moon: { bg: 'lake', feet: 29, bob: [70, 78] },
 };
 const HERO_H = 58;
-const RARITY_RANK: Record<string, number> = { UR: 0, SSR: 1, SR: 2, R: 3 };
 
 // ——— пиксельные рыбы (шаблоны 16×10: b — тело, d — спина/плавники, l — брюхо, e — глаз) ———
 const SHAPES: Record<string, string[]> = {
@@ -257,7 +256,7 @@ export function Fishing() {
   const owned = Object.keys(s.heroines)
     .map((id) => HEROINE_MAP[id])
     .filter(Boolean)
-    .sort((a, b) => Number(b.element === 'water') - Number(a.element === 'water') || RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || a.id.localeCompare(b.id));
+    .sort((a, b) => Number(b.element === 'water') - Number(a.element === 'water') || ROSTER.indexOf(a.id) - ROSTER.indexOf(b.id));
   const [tab, setTab] = useState<'fish' | 'book'>('fish');
   const [spot, setSpot] = useState<FishSpot>(() => (f.hook?.spot as FishSpot) ?? 'lake');
   const [buddy, setBuddy] = useState<string | undefined>(() => (f.buddy && s.heroines[f.buddy] ? f.buddy : owned[0]?.id));
@@ -334,7 +333,7 @@ export function Fishing() {
       shards?: Record<string, number>;
       first?: boolean;
       record?: boolean;
-      collection?: { species: number; crystals: number; scrolls?: number; hearts?: number }[];
+      collection?: { species: number; crystals: number; emblems?: number; hearts?: number }[];
       species?: number;
     };
     setMood(out.ok ? 'victory' : 'shy');
@@ -374,7 +373,7 @@ export function Fishing() {
         {(out.collection ?? []).map((m) => (
           <div key={m.species} className={st.milestone}>
             📖 {t('fish.bookReward', { n: m.species })}
-            <RewardList r={{ cur: { crystals: m.crystals, ...(m.scrolls ? { scrolls: m.scrolls } : {}) }, hearts: m.hearts || undefined }} />
+            <RewardList r={{ cur: { crystals: m.crystals, ...(m.emblems ? { emblems: m.emblems } : {}) }, hearts: m.hearts || undefined }} />
           </div>
         ))}
         <Button block onClick={close}>
@@ -458,7 +457,7 @@ export function Fishing() {
           <Panel title={t('fish.buddy')}>
             <div className={st.heroes}>
               {owned.map((h) => (
-                <button key={h.id} className={cx(st.heroBtn, h.id === buddy && st.heroOn)} style={{ borderColor: HERO_RARITY_COLORS[h.rarity] }} disabled={busy} onClick={() => setBuddy(h.id)}>
+                <button key={h.id} className={cx(st.heroBtn, h.id === buddy && st.heroOn)} style={{ borderColor: CLASS_COLOR[h.cls] }} disabled={busy} onClick={() => setBuddy(h.id)}>
                   <HeroImg id={h.id} skin={s.heroines[h.id]?.skin} still unarmed className="pixel" width={44} height={44} />
                   {h.element === 'water' && <span className={st.water2}>💧</span>}
                 </button>
@@ -497,7 +496,7 @@ function Book({ log, milestones }: { log: Record<string, { n: number; best: numb
                 <b>
                   {Math.min(species, m.species)}/{m.species}
                 </b>
-                <RewardList r={{ cur: { crystals: m.crystals, ...(m.scrolls ? { scrolls: m.scrolls } : {}) }, hearts: m.hearts }} />
+                <RewardList r={{ cur: { crystals: m.crystals, ...(m.emblems ? { emblems: m.emblems } : {}) }, hearts: m.hearts }} />
                 {got && <span className={st.check}>✓</span>}
               </div>
             );

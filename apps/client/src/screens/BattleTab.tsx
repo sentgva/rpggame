@@ -21,7 +21,7 @@ import {
   boostsLeft,
 } from '@idle/shared';
 import { useEffect, useState } from 'react';
-import { heroUrl } from '../art/runtime';
+import { enemyUrl } from '../art/runtime';
 import { HeroImg } from '../components/HeroImg';
 import { BattleView, getRenderer } from '../battle/BattleView';
 import { UltBar } from '../components/UltBar';
@@ -243,7 +243,7 @@ function ChestPanel() {
 function PartyPanel() {
   const s = useGameState();
   const cfg = useCfg();
-  const party = s.party.presets[s.party.active];
+  const party = activeParty(s);
   const power = partyPower(cfg, s);
   const n = farmStage(s);
   const canLevel = activeParty(s).some((id) => {
@@ -329,7 +329,7 @@ function BossHint() {
     <Panel>
       {mech && (
         <div className={st.mech}>
-          <img className="pixel" src={heroUrl(boss.hero!)} width={40} height={40} alt="" />
+          <img className="pixel" src={enemyUrl(boss.id)} width={40} height={40} alt="" />
           <div>
             <div style={{ color: 'var(--text)', fontWeight: 800 }}>
               {t('battle.mechanic')}: {tl(boss.name)}

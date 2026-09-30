@@ -1,6 +1,6 @@
 import {
   HEROINE_MAP,
-  HERO_RARITY_COLORS,
+  ROSTER,
   SKIN_MAP,
   VOLLEY_MIN_MS,
   VOLLEY_POINTS,
@@ -12,7 +12,6 @@ import {
   volleyPairName,
   volleyReward,
   volleyRival,
-  volleyRivalSkin,
   volleySkills,
   volleyTeam,
   type FestivalDef,
@@ -24,8 +23,8 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { Arms } from '../../art/figure';
 import { sceneUrl } from '../../art/scenes';
-import { HeroImg } from '../../components/HeroImg';
-import { Button, Panel, css, cx, openSheet } from '../../components/ui';
+import { EnemyImg, HeroImg } from '../../components/HeroImg';
+import { Button, CLASS_COLOR, Panel, css, cx, openSheet } from '../../components/ui';
 import { t, tl } from '../../i18n';
 import { useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
@@ -35,7 +34,6 @@ import fs from './Festival.module.css';
 import st from './FestVolley.module.css';
 
 const PAIR_KEY = 'volley.pair';
-const RARITY_RANK: Record<string, number> = { UR: 0, SSR: 1, SR: 2, R: 3 };
 
 /** На пляже — в купальнике, если он у героини есть. */
 function beachSkin(s: PlayerState, id: string): string | undefined {
@@ -52,7 +50,7 @@ function loadPair(s: PlayerState): string[] {
     /* нет хранилища — подберём пару сами */
   }
   // по умолчанию — лучшая по навыкам пара из первых героинь
-  const ids = Object.keys(s.heroines).sort((a, b) => RARITY_RANK[HEROINE_MAP[a].rarity] - RARITY_RANK[HEROINE_MAP[b].rarity]);
+  const ids = Object.keys(s.heroines).sort((a, b) => ROSTER.indexOf(a) - ROSTER.indexOf(b));
   return ids.slice(0, 2);
 }
 
@@ -107,7 +105,7 @@ export function VolleyTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
         </div>
         <div className={st.pairRow}>
           {pair.map((id) => (
-            <div key={id} className={st.pairHero} style={{ borderColor: HERO_RARITY_COLORS[HEROINE_MAP[id].rarity] }}>
+            <div key={id} className={st.pairHero} style={{ borderColor: CLASS_COLOR[HEROINE_MAP[id].cls] }}>
               <HeroImg id={id} skin={beachSkin(s, id)} unarmed flirt className="pixel" width={64} height={64} />
               <b>{tl(HEROINE_MAP[id].name)}</b>
               <Skills k={volleySkills(id)} />
@@ -137,7 +135,7 @@ export function VolleyTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
                 <span className={st.rungNum}>{rival.final ? '👑' : rung}</span>
                 <span className={st.rivals}>
                   {rival.pair.map((id) => (
-                    <HeroImg key={id} id={id} skin={volleyRivalSkin(id)} unarmed still className="pixel" width={44} height={44} style={{ transform: 'scaleX(-1)' }} />
+                    <EnemyImg key={id} id={id} unarmed className="pixel" width={44} height={44} style={{ transform: 'scaleX(-1)' }} />
                   ))}
                 </span>
                 <span className={css.grow}>
@@ -146,7 +144,7 @@ export function VolleyTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
                     {rival.final ? t('volley.finalTitle') : t('volley.skill', { n: Math.round(rival.skill * 100) })}
                   </div>
                   <div className={css.tiny}>
-                    {beaten ? `✓ · ${t('volley.winReward', { t: win.tokens, p: win.points })}` : t('volley.firstReward', { c: first.crystals, s: first.shards ? ` · ⭐${first.shards} ${tl(HEROINE_MAP[def.hero].name)}` : '', p: win.points + first.points })}
+                    {beaten ? `✓ · ${t('volley.winReward', { t: win.tokens, p: win.points })}` : t('volley.firstReward', { c: first.crystals, s: first.emblems ? ` · 🎖️${first.emblems}` : '', p: win.points + first.points })}
                   </div>
                 </span>
                 <Button size="small" kind={rung === v.best + 1 ? 'primary' : 'secondary'} pulse={rung === v.best + 1 && left > 0} disabled={!open || left <= 0} onClick={() => void play(rung)}>
@@ -183,7 +181,7 @@ function PairPicker({ s, cur, onPick }: { s: PlayerState; cur: string[]; onPick:
   const ids = Object.keys(s.heroines).sort((a, b) => {
     const ka = volleySkills(a);
     const kb = volleySkills(b);
-    return kb.rec + kb.set + kb.spk - (ka.rec + ka.set + ka.spk) || RARITY_RANK[HEROINE_MAP[a].rarity] - RARITY_RANK[HEROINE_MAP[b].rarity];
+    return kb.rec + kb.set + kb.spk - (ka.rec + ka.set + ka.spk) || ROSTER.indexOf(a) - ROSTER.indexOf(b);
   });
   const team = picked.length === 2 ? volleyTeam(picked) : null;
   return (
@@ -196,7 +194,7 @@ function PairPicker({ s, cur, onPick }: { s: PlayerState; cur: string[]; onPick:
             <button
               key={id}
               className={cx(st.pick, on && st.pickOn)}
-              style={{ borderColor: HERO_RARITY_COLORS[HEROINE_MAP[id].rarity] }}
+              style={{ borderColor: CLASS_COLOR[HEROINE_MAP[id].cls] }}
               onClick={() => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < 2 ? [...p, id] : [p[1], id]))}
             >
               <HeroImg id={id} skin={beachSkin(s, id)} unarmed still className="pixel" width={48} height={48} />
@@ -453,10 +451,9 @@ function VolleyMatch({ rival, heroes, def, onClose }: { rival: VolleyRival; hero
           />
         ))}
         {rival.pair.map((id, i) => (
-          <HeroImg
+          <EnemyImg
             key={id}
             id={id}
-            skin={volleyRivalSkin(id)}
             unarmed
             arms={themArms}
             className={cx('pixel', st.player, st.rival)}

@@ -5,7 +5,6 @@ import {
   FEST_CHAPTER,
   festGoalsFor,
   mineOf,
-  tourEntriesLeft,
   volleyLeft,
   type FestGoalDef,
   FEST_MILESTONES,
@@ -53,17 +52,16 @@ import { BackHeader, Locked, RewardList, shortDate, showReward } from '../common
 import { stageText } from '../MapTab';
 import { playMode } from './Endgame';
 import { MineTab } from './FestMine';
-import { TourneyTab } from './FestTourney';
 import { VolleyTab } from './FestVolley';
 import st from './Festival.module.css';
 
-type Tab = 'path' | 'boss' | 'tourney' | 'mine' | 'volley' | 'tasks' | 'rewards' | 'shop';
+type Tab = 'path' | 'boss' | 'mine' | 'volley' | 'tasks' | 'rewards' | 'shop';
 
 /** Последняя вкладка праздника — удобство игрока, хранится в браузере. */
 function savedTab(): Tab {
   try {
     const v = localStorage.getItem('festTab');
-    return (['path', 'boss', 'tourney', 'mine', 'volley', 'tasks', 'rewards', 'shop'] as Tab[]).includes(v as Tab) ? (v as Tab) : 'path';
+    return (['path', 'boss', 'mine', 'volley', 'tasks', 'rewards', 'shop'] as Tab[]).includes(v as Tab) ? (v as Tab) : 'path';
   } catch {
     return 'path';
   }
@@ -99,16 +97,14 @@ export function Festival() {
   const rewardReady = FEST_MILESTONES.some((m, i) => f.points >= m.at && !f.claimed.includes(i));
   // вкладки главной механики — свои у каждого вида праздника
   const main: { id: Tab; label: string; badge?: boolean }[] =
-    kind === 'tourney'
-      ? [{ id: 'tourney', label: t('fest.tabTourney'), badge: tourEntriesLeft(f) > 0 && (!f.tour?.run || f.tour.run.phase === 'done') }]
-      : kind === 'mine'
-        ? [{ id: 'mine', label: t('fest.tabMine'), badge: mineOf(s, f).picks > 0 }]
-        : kind === 'volley'
-          ? [{ id: 'volley', label: t('fest.tabVolley'), badge: volleyLeft(f) > 0 }]
-          : [
-            { id: 'path', label: t('fest.tabPath') },
-            { id: 'boss', label: t('fest.tabBoss'), badge: f.boss.used < FEST_BOSS_ATTEMPTS },
-          ];
+    kind === 'mine'
+      ? [{ id: 'mine', label: t('fest.tabMine'), badge: mineOf(s, f).picks > 0 }]
+      : kind === 'volley'
+        ? [{ id: 'volley', label: t('fest.tabVolley'), badge: volleyLeft(f) > 0 }]
+        : [
+          { id: 'path', label: t('fest.tabPath') },
+          { id: 'boss', label: t('fest.tabBoss'), badge: f.boss.used < FEST_BOSS_ATTEMPTS },
+        ];
   const shown: Tab = main.some((x) => x.id === tab) || ['tasks', 'rewards', 'shop'].includes(tab) ? tab : main[0].id;
 
   return (
@@ -131,7 +127,6 @@ export function Festival() {
           />
           {shown === 'path' && <PathTab def={def} f={f} />}
           {shown === 'boss' && <BossTab def={def} f={f} now={now} />}
-          {shown === 'tourney' && <TourneyTab def={def} f={f} />}
           {shown === 'mine' && <MineTab def={def} f={f} />}
           {shown === 'volley' && <VolleyTab def={def} f={f} />}
           {shown === 'tasks' && <TasksTab f={f} tasks={tasks} goalsList={goals} />}
@@ -381,11 +376,7 @@ function openStage(def: FestivalDef, f: FestivalState, stage: number) {
         <div className={css.row} style={{ flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
           <Cost cur="eventTokens" amount={cleared ? raid.tokens : first.tokens} />
           <span className={st.pointsChip}>+{cleared ? raid.points : first.points}</span>
-          {!cleared && first.shards > 0 && (
-            <span className={css.row} style={{ gap: 4 }}>
-              <HeroImg id={def.hero} className="pixel" width={22} height={22} />+{first.shards}
-            </span>
-          )}
+          {!cleared && first.emblems > 0 && <Cost cur="emblems" amount={first.emblems} />}
         </div>
       </div>
       <div className={css.row}>
@@ -505,7 +496,7 @@ function BossTab({ def, f, now }: { def: FestivalDef; f: FestivalState; now: num
         <div className={css.row} style={{ gap: 8, alignItems: 'center' }}>
           <Icon name="chest" size={40} />
           <div className={css.grow}>
-            <div className={css.tiny}>{t('fest.bossChest', { shards: chest.shards, crystals: chest.crystals, tokens: chest.tokens })}</div>
+            <div className={css.tiny}>{t('fest.bossChest', { shards: chest.emblems, crystals: chest.crystals, tokens: chest.tokens })}</div>
             <div className={css.tiny} style={{ marginTop: 4 }}>
               {t('fest.bossKills', { n: f.boss.kills, best: formatNum(f.boss.best) })}
             </div>
@@ -580,14 +571,7 @@ function TasksTab({ f, tasks, goalsList }: { f: FestivalState; tasks: string[]; 
 
 function MilestoneReward({ m, def }: { m: FestMilestone; def: FestivalDef }) {
   const parts: ReactNode[] = [];
-  if (m.skin) parts.push(<b key="skin">{t('fest.skinFinal', { name: tl(SKIN_MAP[def.finalSkin].name) })}</b>);
-  if (m.shards)
-    parts.push(
-      <span key="sh" className={css.row} style={{ gap: 4 }}>
-        <HeroImg id={def.hero} className="pixel" width={22} height={22} />
-        {t('fest.shardsN', { n: m.shards })}
-      </span>,
-    );
+  if (m.skin && def.finalSkin && SKIN_MAP[def.finalSkin]) parts.push(<b key="skin">{t('fest.skinFinal', { name: tl(SKIN_MAP[def.finalSkin].name) })}</b>);
   if (m.item)
     parts.push(
       <span key="it" className={css.row} style={{ gap: 4 }}>
@@ -615,17 +599,17 @@ function RewardsTab({ def, f }: { def: FestivalDef; f: FestivalState }) {
   const ready = FEST_MILESTONES.map((m, i) => (f.points >= m.at && !f.claimed.includes(i) ? i : -1)).filter((i) => i >= 0);
   const claim = async (index: number | 'all') => {
     const r = await useGame.getState().act('fest.claim', { index });
-    if (r.ok) showReward(t('fest.tabRewards'), { cur: r.result.cur, shards: r.result.shards, items: r.result.items, skins: r.result.skins, hearts: r.result.hearts });
+    if (r.ok) showReward(t('fest.tabRewards'), { cur: r.result.cur, items: r.result.items, skins: r.result.skins, hearts: r.result.hearts });
   };
   const last = FEST_MILESTONES[FEST_MILESTONES.length - 1];
   return (
     <div className={css.col}>
       <Panel className={st.finalPanel}>
         <div className={css.row} style={{ gap: 10, alignItems: 'center' }}>
-          <HeroImg id={def.hero} skin={def.finalSkin} className={cx('pixel', st.finalHero)} />
+          <HeroImg id={def.hero} skin={def.finalSkin && SKIN_MAP[def.finalSkin] ? def.finalSkin : undefined} className={cx('pixel', st.finalHero)} />
           <div className={css.grow}>
-            <div className={css.tiny}>{t('fest.final')}</div>
-            <div className={st.finalName}>{tl(SKIN_MAP[def.finalSkin].name)}</div>
+            <div className={css.tiny}>{def.finalSkin && SKIN_MAP[def.finalSkin] ? t('fest.final') : t('fest.patron')}</div>
+            <div className={st.finalName}>{def.finalSkin && SKIN_MAP[def.finalSkin] ? tl(SKIN_MAP[def.finalSkin].name) : tl(HEROINE_MAP[def.hero].name)}</div>
             <div className={css.tiny}>
               {formatNum(f.points)} / {formatNum(last.at)}
             </div>
@@ -665,12 +649,11 @@ function ShopTab({ now }: { now: number }) {
   const { def, cycle, offers } = shop;
   const hero = HEROINE_MAP[def.hero];
   const owned = !!s.heroines[def.hero];
-  const shards = s.shards[def.hero] ?? 0;
-  const need = cfg.hero.recruitShards[hero.rarity];
   const buy = async (id: string) => {
     const r = await useGame.getState().act('fest.buy', { offer: id });
-    if (r.ok) showReward(t('fest.tabShop'), { cur: r.result.cur, shards: r.result.shards, skin: r.result.skin, items: r.result.item ? [r.result.item] : undefined, hearts: r.result.hearts });
+    if (r.ok) showReward(t('fest.tabShop'), { cur: r.result.cur, skin: r.result.skin, items: r.result.item ? [r.result.item] : undefined, hearts: r.result.hearts });
   };
+  void cfg;
   return (
     <div className={css.col}>
       <Panel>
@@ -678,28 +661,9 @@ function ShopTab({ now }: { now: number }) {
           <HeroImg id={def.hero} still={!owned} className="pixel" width={72} height={72} />
           <div className={css.grow}>
             <b>{tl(hero.name)}</b>
-            <div className={css.tiny}>{tl(hero.title)} · UR</div>
-            {owned ? (
-              <div className={css.tiny}>{t('fest.inParty')}</div>
-            ) : (
-              <>
-                <Bar value={shards} max={need} height={10} text={t('fest.shards', { name: tl(hero.name), n: shards, need })} color="var(--fa)" />
-              </>
-            )}
+            <div className={css.tiny}>{t('fest.patronOf', { title: tl(hero.title) })}</div>
+            <div className={css.tiny}>{t('fest.shopHint')}</div>
           </div>
-          {!owned && (
-            <Button
-              size="small"
-              disabled={shards < need}
-              pulse={shards >= need}
-              onClick={async () => {
-                const r = await useGame.getState().act('hero.recruit', { id: def.hero });
-                if (r.ok) showReward(tl(hero.name), { heroes: [def.hero] });
-              }}
-            >
-              {t('fest.recruit')}
-            </Button>
-          )}
         </div>
       </Panel>
       <div className={css.list}>
@@ -712,10 +676,8 @@ function ShopTab({ now }: { now: number }) {
             <div key={o.id} className={css.listItem} style={{ opacity: off ? 0.5 : 1 }}>
               {o.give.skin ? (
                 <HeroImg id={SKIN_MAP[o.give.skin].hero} skin={o.give.skin} className="pixel" width={44} height={44} />
-              ) : o.give.shards ? (
-                <HeroImg id={def.hero} className="pixel" width={44} height={44} />
               ) : (
-                <Icon name={o.give.heart ? 'hearts' : o.give.item ? 'chest' : o.give.entry ? 'arena' : o.give.picks ? 'forge' : o.give.matches ? 'ball' : (Object.keys(o.give.cur ?? {})[0] ?? 'gift')} size={36} />
+                <Icon name={o.give.heart ? 'hearts' : o.give.item ? 'chest' : o.give.picks ? 'forge' : o.give.matches ? 'ball' : (Object.keys(o.give.cur ?? {})[0] ?? 'gift')} size={36} />
               )}
               <div className={css.grow}>
                 <div className={st.taskName}>{tl(o.name)}</div>

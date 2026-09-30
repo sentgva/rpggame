@@ -2,12 +2,13 @@ import {
   ELEMENT_COLORS,
   BASE_ITEM_MAP,
   ELEMENT_NAMES,
-  HERO_RARITY_COLORS,
+  CLASSES,
   HEROINE_MAP,
   ITEM_RARITY_COLORS,
   LEGENDARY_MAP,
   MYTHIC_MAP,
   formatNum,
+  type ClassId,
   type Currency,
   type Element,
   type Item,
@@ -95,7 +96,7 @@ export const CUR_ICON: Record<string, string> = {
   gold: 'gold',
   xp: 'xp',
   crystals: 'crystals',
-  scrolls: 'scrolls',
+  emblems: 'emblems',
   dust: 'dust',
   starDust: 'starDust',
   ether: 'ether',
@@ -173,6 +174,23 @@ export function elementName(el: Element): string {
   return tl(ELEMENT_NAMES[el]);
 }
 
+/** Цвет класса: рамки карточек, значки и подсветка связок. */
+export const CLASS_COLOR: Record<ClassId, string> = {
+  knight: '#6f9ad8',
+  assassin: '#b06ae0',
+  priestess: '#f2d46b',
+  ranger: '#6ac06a',
+  warlock: '#e0603a',
+  hunter: '#6fd0e0',
+};
+
+/** Ранг героини — шевроны (1–6). */
+export function Rank({ n, max = 6, size = 10 }: { n: number; max?: number; size?: number }) {
+  const list = [];
+  for (let i = 0; i < max; i++) list.push(<img key={i} src={iconUrl('rank')} className={cx(s.icon, i >= n && s.dim)} width={size} height={size} alt="" />);
+  return <span className={s.stars}>{list}</span>;
+}
+
 export function HeroCard({
   id,
   owned = true,
@@ -190,11 +208,13 @@ export function HeroCard({
 }) {
   const def = HEROINE_MAP[id];
   const h = useGame((g) => g.state?.heroines[id]);
+  const color = CLASS_COLOR[def.cls];
   return (
     <div
-      className={cx(s.hero, s[`hero${def.rarity}`], def.herald && s.heroHerald)}
+      className={cx(s.hero, h?.awakened && s.heroAwake)}
       style={{
-        ...(def.herald ? { ['--aura' as string]: ELEMENT_COLORS[def.element] } : null),
+        ['--cls' as string]: color,
+        borderColor: owned ? color : undefined,
         ...(selected ? { outline: '2px solid var(--accent-2)', outlineOffset: 1 } : null),
       }}
       onClick={() => {
@@ -202,19 +222,19 @@ export function HeroCard({
         onClick?.();
       }}
     >
-      <span className={s.rarityTag} style={{ color: HERO_RARITY_COLORS[def.rarity] }}>
-        {def.rarity}
-      </span>
-      {def.herald && <span className={s.heraldTag}>{t('hero.herald')}</span>}
+      <img className={s.clsTag} src={iconUrl(def.cls)} alt="" title={tl(CLASSES[def.cls].name)} />
       <img className={s.elemTag} src={iconUrl(def.element)} alt="" />
       <HeroImg className={cx(s.heroSprite, !owned && s.dim)} id={id} skin={h?.skin} still={!owned} />
       <div className={s.heroName}>{tl(def.name)}</div>
+      <div className={s.heroCls} style={{ color }}>
+        {tl(CLASSES[def.cls].name)}
+      </div>
       {owned && h ? (
         <div className={s.heroMeta}>
           <span>
             {t('common.level')} {h.lvl}
           </span>
-          <Stars n={h.stars} size={10} />
+          <Rank n={h.stars} size={9} />
         </div>
       ) : (
         sub

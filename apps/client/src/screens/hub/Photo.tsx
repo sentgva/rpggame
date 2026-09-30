@@ -1,7 +1,7 @@
 import {
   BOND_HEROES,
   HEROINE_MAP,
-  HERO_RARITY_COLORS,
+  ROSTER,
   PHOTO_BOND_PER_STAR,
   PHOTO_CRYSTALS,
   PHOTO_DAILY,
@@ -24,14 +24,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { Eyes } from '../../art/figure';
 import { sceneUrl, type SceneBg } from '../../art/scenes';
 import { HeroImg } from '../../components/HeroImg';
-import { Button, Icon, Panel, Tabs, confirmDialog, css, cx, openSheet } from '../../components/ui';
+import { Button, CLASS_COLOR, Icon, Panel, Tabs, confirmDialog, css, cx, openSheet } from '../../components/ui';
 import { t, tl } from '../../i18n';
 import { useGame, useGameState } from '../../store/game';
 import { haptic } from '../../tg/telegram';
 import { BackHeader, RewardList } from '../common';
 import st from './Photo.module.css';
 
-const RARITY_RANK: Record<string, number> = { UR: 0, SSR: 1, SR: 2, R: 3 };
 const LOC_BG: Record<PhotoLoc, SceneBg> = { beach: 'beach', sunset: 'sunset', onsen: 'spa', sakura: 'sakura', stars: 'night', camp: 'camp' };
 const FACE_EYES: Record<PhotoFace, Eyes> = { smile: 'open', wink: 'wink', sultry: 'half', dreamy: 'closed' };
 type Framing = 'full' | 'half' | 'close';
@@ -160,7 +159,7 @@ export function Photo() {
   const owned = Object.keys(s.heroines)
     .map((id) => HEROINE_MAP[id])
     .filter(Boolean)
-    .sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || a.id.localeCompare(b.id));
+    .sort((a, b) => ROSTER.indexOf(a.id) - ROSTER.indexOf(b.id));
   const [tab, setTab] = useState<'shoot' | 'album'>('shoot');
   const [hero, setHero] = useState(() => owned.find((h) => BOND_HEROES.includes(h.id))?.id ?? owned[0]?.id ?? 'lira');
   const [skin, setSkin] = useState<string | undefined>(() => s.heroines[hero]?.skin);
@@ -241,7 +240,7 @@ export function Photo() {
           <Panel title={t('photo.model')}>
             <div className={st.heroes}>
               {owned.map((h) => (
-                <button key={h.id} className={cx(st.heroBtn, h.id === hero && st.heroOn)} style={{ borderColor: HERO_RARITY_COLORS[h.rarity] }} onClick={() => pickHero(h.id)}>
+                <button key={h.id} className={cx(st.heroBtn, h.id === hero && st.heroOn)} style={{ borderColor: CLASS_COLOR[h.cls] }} onClick={() => pickHero(h.id)}>
                   <HeroImg id={h.id} skin={s.heroines[h.id]?.skin} still unarmed className="pixel" width={44} height={44} />
                 </button>
               ))}

@@ -20,7 +20,7 @@ export function Mail() {
       {mails.map((m) => (
         <Panel key={m.id} title={<span className={css.row}><Icon name="mail" size={20} />{tl(m.title)}</span>} right={<span className={css.tiny}>{new Date(m.at).toLocaleDateString()}</span>}>
           <p style={{ margin: '0 0 8px', lineHeight: 1.45, fontSize: 13 }}>{tl(m.body)}</p>
-          {m.rewards && <RewardList r={{ cur: m.rewards.cur, shards: m.rewards.shards, heroes: m.rewards.heroes }} />}
+          {m.rewards && <RewardList r={{ cur: m.rewards.cur, heroes: m.rewards.heroes }} />}
           {m.rewards && (
             <Button size="small" style={{ marginTop: 8 }} disabled={m.claimed} onClick={() => void useGame.getState().act('mail.claim', { id: m.id })}>
               {m.claimed ? t('common.claimed') : t('common.claim')}

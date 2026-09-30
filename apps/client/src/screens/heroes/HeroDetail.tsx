@@ -1,19 +1,24 @@
 import {
-  RIFT_ROTATION,
-  FESTIVAL_MAP,
-  type FestivalId,
   CLASSES,
+  COMBOS,
   EQUIP_SLOTS,
   HEROINE_MAP,
+  SKILL_MAP,
   SKINS,
   SLOT_NAMES,
+  activeParty,
   buildHeroine,
   equipSlotToItemSlot,
   fxText,
+  goldPerMin,
   goldToNext,
   isUnlocked,
   itemPower,
   levelCap,
+  maxRank,
+  rankCost,
+  sigRank,
+  stageFromGlobal,
   statText,
   xpToNext,
   type FinalStats,
@@ -22,34 +27,36 @@ import {
 import { useState } from 'react';
 import { heroUrl } from '../../art/runtime';
 import { HeroImg } from '../../components/HeroImg';
-import { Button, Cost, ElementIcon, Icon, ItemSlot, Panel, Stars, Tabs, css, cx, elementName, formatNum, confirmDialog } from '../../components/ui';
+import { Button, CLASS_COLOR, Cost, ElementIcon, Icon, ItemSlot, Panel, Rank, Tabs, css, cx, elementName, formatNum, confirmDialog } from '../../components/ui';
 import { getLang, t, tl } from '../../i18n';
 import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { haptic } from '../../tg/telegram';
 import { sfx } from '../../audio/sfx';
+import { describeSkill } from '../../text/describe';
 import { BackHeader, UnequipAllButton, openItem, skinSourceText } from '../common';
 import { SkillTree } from './SkillTree';
 
-type TabId = 'stats' | 'tree' | 'gear' | 'skins' | 'bio';
+type TabId = 'role' | 'stats' | 'tree' | 'gear' | 'skins' | 'bio';
 
 export function HeroDetail({ id }: { id: string }) {
   const s = useGameState();
   const cfg = useCfg();
   const def = HEROINE_MAP[id];
   const h = s.heroines[id];
-  const [tab, setTab] = useState<TabId>('stats');
-  const party = s.party.presets[s.party.active].filter(Boolean) as string[];
+  const [tab, setTab] = useState<TabId>('role');
 
   if (!h) return <NotOwned id={id} />;
-  const build = buildHeroine(cfg, s, h, { party: party.includes(id) ? party : undefined });
+  const party = activeParty(s);
+  const build = buildHeroine(cfg, s, h, { party });
   const cap = levelCap(cfg, h);
   const xp = xpToNext(cfg, h.lvl);
   const gold = goldToNext(cfg, h.lvl);
-  const maxStars = cfg.hero.maxStars[def.rarity];
-  const shards = s.shards[id] ?? 0;
-  const starNeed = cfg.hero.starShards[h.stars - 1];
   const cls = CLASSES[def.cls];
+  const color = CLASS_COLOR[def.cls];
+  const rc = rankCost(cfg, h);
+  const rankGold = rc ? Math.ceil(goldPerMin(cfg, s) * rc.goldMin) : 0;
+  const top = h.stars >= maxRank(cfg);
 
   const level = async (times: number) => {
     const r = await useGame.getState().act('hero.level', { id, times });
@@ -61,20 +68,17 @@ export function HeroDetail({ id }: { id: string }) {
 
   return (
     <div className={css.col}>
-      <BackHeader title={tl(def.name)} right={<Stars n={h.stars} max={maxStars} size={14} />} />
-      <Panel>
+      <BackHeader title={tl(def.name)} right={<Rank n={h.stars} size={13} />} />
+      <Panel style={{ borderColor: color }}>
         <div className={css.row} style={{ alignItems: 'flex-start', gap: 12 }}>
           <div style={{ position: 'relative', flex: 'none' }}>
-            <HeroImg className="pixel" id={id} skin={h.skin} width={128} height={128} style={{ animation: 'bob 1.4s ease-in-out infinite', filter: h.awakened ? 'drop-shadow(0 0 6px #ffe8a0)' : undefined }} />
+            <HeroImg className="pixel" id={id} skin={h.skin} width={128} height={128} style={{ animation: 'bob 1.4s ease-in-out infinite', filter: h.awakened ? `drop-shadow(0 0 6px ${color})` : undefined }} />
           </div>
           <div className={css.grow}>
             <div className={css.title}>{tl(def.name)}</div>
             <div className={css.tiny}>{tl(def.title)}</div>
             <div className={css.row} style={{ gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              <span className={css.chip} style={{ color: { R: '#3d7be0', SR: '#9b4de0', SSR: '#f08a24', UR: '#e03a3a' }[def.rarity] }}>
-                {def.rarity}
-              </span>
-              <span className={css.chip}>
+              <span className={css.chip} style={{ color, borderColor: color }}>
                 <Icon name={def.cls} size={14} />
                 {tl(cls.name)}
                 {h.spec && ` · ${tl(cls.specs[h.spec === 'A' ? 0 : 1].name)}`}
@@ -90,7 +94,7 @@ export function HeroDetail({ id }: { id: string }) {
               <span className={css.tiny}>{t('common.power')}</span>
             </div>
             <div className={css.tiny} style={{ marginTop: 2 }}>
-              {t('common.lvl', { lvl: h.lvl })} · {t('heroes.cap', { cap })}
+              {t('common.lvl', { lvl: h.lvl })} · {t('heroes.cap', { cap })} · {t('heroes.rank', { n: h.stars, max: maxRank(cfg) })}
             </div>
           </div>
         </div>
@@ -109,24 +113,32 @@ export function HeroDetail({ id }: { id: string }) {
           </Button>
         </div>
         <div className={css.row} style={{ flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {h.stars < maxStars && (
+          {rc && (
             <Button
               size="small"
-              kind={shards >= starNeed ? 'good' : 'secondary'}
-              disabled={shards < starNeed || !isUnlocked({ s, cfg }, 'stars')}
+              kind={s.cur.emblems >= rc.emblems && s.cur.gold >= rankGold ? 'good' : 'secondary'}
+              disabled={!isUnlocked({ s, cfg }, 'ranks')}
               onClick={async () => {
-                const r = await useGame.getState().act('hero.star', { id });
-                if (r.ok) sfx('rare');
+                const r = await useGame.getState().act('hero.rank', { id });
+                if (r.ok) {
+                  sfx('rare');
+                  haptic.success();
+                  useUi.getState().toast(t('heroes.rankUp', { name: tl(def.name), n: h.stars + 1, cap: cfg.hero.levelCaps[h.stars] ?? cap }), 'good');
+                }
               }}
             >
-              <Icon name="star" size={16} />
-              {t('heroes.starUp')} · {shards}/{starNeed}
+              <Icon name="rank" size={16} />
+              {t('heroes.rankBtn')}
+              <Cost cur="emblems" amount={rc.emblems} size={14} />
+              <Cost cur="gold" amount={rankGold} size={14} />
             </Button>
           )}
-          {def.rarity === 'UR' && h.stars >= 6 && !h.awakened && (
+          {!isUnlocked({ s, cfg }, 'ranks') && <span className={css.tiny}>{t('heroes.ranksAt', { n: cfg.unlocks.stage.ranks })}</span>}
+          {top && !h.awakened && (
             <Button size="small" onClick={() => void useGame.getState().act('hero.awaken', { id })}>
               {t('heroes.awaken')}
-              <Cost cur="crystals" amount={cfg.hero.awakenCrystals} size={14} />· {shards}/{cfg.hero.awakenShards}
+              <Cost cur="emblems" amount={cfg.hero.awakenEmblems} size={14} />
+              <Cost cur="crystals" amount={cfg.hero.awakenCrystals} size={14} />
             </Button>
           )}
           {h.lvl >= cfg.hero.specLevel ? (
@@ -143,6 +155,7 @@ export function HeroDetail({ id }: { id: string }) {
         value={tab}
         onChange={setTab}
         items={[
+          { id: 'role', label: t('heroes.tabRole') },
           { id: 'stats', label: t('heroes.tabStats') },
           { id: 'tree', label: t('heroes.tabTree') },
           { id: 'gear', label: t('heroes.tabGear') },
@@ -150,6 +163,7 @@ export function HeroDetail({ id }: { id: string }) {
           { id: 'bio', label: t('heroes.tabBio') },
         ]}
       />
+      {tab === 'role' && <RolePanel id={id} />}
       {tab === 'stats' && <StatsPanel stats={build.stats} fx={build.fx.map((f) => fxText(f, getLang()))} />}
       {tab === 'tree' && <SkillTree heroId={id} />}
       {tab === 'gear' && <HeroGear heroId={id} />}
@@ -169,6 +183,56 @@ export function HeroDetail({ id }: { id: string }) {
           ))}
         </Panel>
       )}
+    </div>
+  );
+}
+
+/** Роль в Легионе: фирменное умение, ульта и связки с другими классами. */
+function RolePanel({ id }: { id: string }) {
+  const s = useGameState();
+  const def = HEROINE_MAP[id];
+  const h = s.heroines[id];
+  const cls = CLASSES[def.cls];
+  const sig = SKILL_MAP[cls.sig];
+  const ultId = h.spec ? cls.specs[h.spec === 'A' ? 0 : 1].ult : cls.ult;
+  const ult = SKILL_MAP[ultId];
+  const basic = SKILL_MAP[cls.basic];
+  const mine = COMBOS.filter((c) => c.from === def.cls || c.to.includes(def.cls));
+  return (
+    <Panel title={tl(cls.role)}>
+      <SkillLine icon={def.cls} title={`${t('heroes.sig')}: ${tl(sig?.name)}`} sub={`${t('heroes.sigRank', { n: sigRank(h) })} · ${t('heroes.sigHint')}`} lines={sig ? describeSkill(sig, sigRank(h)) : []} />
+      <SkillLine icon="star" title={`${t('heroes.ult')}: ${tl(ult?.name)}`} lines={ult ? describeSkill(ult, 1) : []} />
+      <SkillLine icon="battle" title={`${t('heroes.basic')}: ${tl(basic?.name)}`} lines={basic ? describeSkill(basic, 1) : []} />
+      <div className={css.divider} />
+      <div className={css.tiny} style={{ color: CLASS_COLOR[def.cls], fontWeight: 800 }}>
+        {t('heroes.comboGives')}
+      </div>
+      <div style={{ marginBottom: 6 }}>{tl(cls.combo.gives)}</div>
+      <div className={css.tiny} style={{ color: CLASS_COLOR[def.cls], fontWeight: 800 }}>
+        {t('heroes.comboTakes')}
+      </div>
+      <div style={{ marginBottom: 6 }}>{tl(cls.combo.takes)}</div>
+      <div className={css.row} style={{ gap: 4, flexWrap: 'wrap' }}>
+        {mine.map((c) => (
+          <span key={c.id} className={css.chip}>
+            <Icon name="combo" size={12} />
+            {tl(c.name)}
+          </span>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function SkillLine({ icon, title, sub, lines }: { icon: string; title: string; sub?: string; lines: string[] }) {
+  return (
+    <div className={css.row} style={{ alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+      <Icon name={icon} size={22} />
+      <div className={css.grow}>
+        <b>{title}</b>
+        {sub && <div className={css.tiny}>{sub}</div>}
+        <div className={css.tiny}>{lines.join(' · ')}</div>
+      </div>
     </div>
   );
 }
@@ -332,39 +396,26 @@ function chooseSpec(id: string) {
 }
 
 function NotOwned({ id }: { id: string }) {
-  const s = useGameState();
-  const cfg = useCfg();
   const def = HEROINE_MAP[id];
-  const need = cfg.hero.recruitShards[def.rarity];
-  const have = s.shards[id] ?? 0;
+  const cls = CLASSES[def.cls];
+  const ref = stageFromGlobal(Math.max(1, def.join));
   return (
     <div className={css.col}>
       <BackHeader title={tl(def.name)} />
-      <Panel>
+      <Panel style={{ borderColor: CLASS_COLOR[def.cls] }}>
         <div className={css.col} style={{ alignItems: 'center', textAlign: 'center' }}>
-          {def.herald ? (
-            <HeroImg className="pixel" id={id} width={150} height={150} style={{ opacity: 0.8 }} />
-          ) : (
-            <img className={cx('pixel', css.dim)} src={heroUrl(id)} width={128} height={128} alt="" />
-          )}
+          <img className={cx('pixel', css.dim)} src={heroUrl(id)} width={128} height={128} alt="" />
           <div className={css.title}>{tl(def.name)}</div>
-          <div className={css.muted}>{tl(def.title)}</div>
-          <p style={{ lineHeight: 1.45 }}>{tl(def.bio)}</p>
-          <div>{t('heroes.shards', { have, need })}</div>
-          <Button disabled={have < need} onClick={() => void useGame.getState().act('hero.recruit', { id })}>
-            {t('heroes.recruit', { n: need })}
-          </Button>
-          <div className={css.tiny}>
-            {def.herald
-              ? t('hero.heraldSources', { day: riftDayName(RIFT_ROTATION.indexOf(def.element)), el: elementName(def.element) })
-              : def.festival
-                ? t('fest.heroOnly', { name: tl(FESTIVAL_MAP[def.festival as FestivalId].name) })
-                : t('summon.freeNote')}
+          <div className={css.muted}>
+            <Icon name={def.cls} size={14} /> {tl(cls.name)} · {tl(def.title)}
           </div>
+          <p style={{ lineHeight: 1.45 }}>{tl(def.bio)}</p>
+          <div className={css.chip}>
+            <Icon name="lock" size={12} /> {t('legion.joinsAt', { act: ref.act, stage: ref.stage })}
+          </div>
+          <div className={css.tiny}>{tl(cls.combo.gives)}</div>
         </div>
       </Panel>
     </div>
   );
 }
-
-const riftDayName = (i: number) => (document.documentElement.lang === 'en' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] : ['пн', 'вт', 'ср', 'чт', 'пт'])[i];

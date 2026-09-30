@@ -7,6 +7,7 @@ import {
   xpToNext,
   type Config,
   type PlayerState,
+  activeParty,
 } from '@idle/shared';
 import { useMemo } from 'react';
 import { useGame } from './game';
@@ -20,7 +21,7 @@ export function questClaimable(s: PlayerState): number {
 }
 
 export function canLevelAny(s: PlayerState, cfg: Config): boolean {
-  const party = s.party.presets[s.party.active].filter(Boolean) as string[];
+  const party = activeParty(s);
   return party.some((id) => {
     const h = s.heroines[id];
     return h && h.lvl < levelCap(cfg, h) && s.cur.xp >= xpToNext(cfg, h.lvl) && s.cur.gold >= goldToNext(cfg, h.lvl);
@@ -41,7 +42,7 @@ export function useBadges(): Record<Tab, boolean> {
       heroes: canLevelAny(s, cfg),
       gear: newItems,
       map: expReady,
-      hub: questClaimable(s) > 0 || mail || login || achievementClaimable(s) > 0 || !s.day.freeSummon,
+      hub: questClaimable(s) > 0 || mail || login || achievementClaimable(s) > 0,
     };
   }, [s, cfg, now]);
 }

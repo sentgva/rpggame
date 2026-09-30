@@ -326,3 +326,22 @@ function Card({ it, big, flipped, charging, onFlip, style }: { it: GachaItem; bi
     </div>
   );
 }
+
+/** Героиня присоединилась к Легиону: та же церемония круга, но цвет — её класса, подпись — первые слова. */
+export async function openJoin(ids: string[]) {
+  if (!ids.length) return;
+  const [{ HEROINE_MAP, CLASSES }, { HeroImg }, { CLASS_COLOR }, { tl }] = await Promise.all([import('@idle/shared'), import('./HeroImg'), import('./ui'), import('../i18n')]);
+  const c = CLASS_COLOR[HEROINE_MAP[ids[0]].cls];
+  openGacha({
+    title: t('legion.joined', { name: ids.map((id) => tl(HEROINE_MAP[id].name)).join(', ') }),
+    colors: { R: c, SR: c, SSR: c, UR: c },
+    items: ids.map((id) => ({
+      rarity: 'UR' as GachaRarity,
+      name: `${tl(HEROINE_MAP[id].name)} · ${tl(CLASSES[HEROINE_MAP[id].cls].name)}`,
+      sub: `«${tl(HEROINE_MAP[id].hello)}»`,
+      subGood: true,
+      isNew: true,
+      art: ({ big }: { big: boolean }) => <HeroImg id={id} className="pixel" width={big ? 160 : 56} height={big ? 160 : 56} />,
+    })),
+  });
+}

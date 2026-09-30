@@ -14,17 +14,39 @@ import type { Bitmap, SpriteSpec } from './sprite';
 const FIG = 48;
 
 /** Наряд по классу героини (враги берут класс по роли). */
-export type OutfitKind = 'knight' | 'barbarian' | 'ranger' | 'witch' | 'cleric' | 'reaper' | 'rogue' | 'minstrel';
+export type OutfitKind =
+  | 'knight'
+  | 'barbarian'
+  | 'ranger'
+  | 'witch'
+  | 'cleric'
+  | 'reaper'
+  | 'rogue'
+  | 'minstrel'
+  // классы Легиона: закрытые боевые наряды (облики — отдельно)
+  | 'paladin'
+  | 'shadow'
+  | 'vestal'
+  | 'scout'
+  | 'sorcerer'
+  | 'huntress';
 
 export const CLASS_OUTFIT: Record<string, OutfitKind> = {
+  knight: 'paladin',
+  assassin: 'shadow',
+  priestess: 'vestal',
+  ranger: 'scout',
+  warlock: 'sorcerer',
+  hunter: 'huntress',
+  brute: 'huntress',
   guardian: 'knight',
   berserker: 'barbarian',
   archer: 'ranger',
   sorceress: 'witch',
-  priestess: 'cleric',
+  cleric: 'cleric',
   necromancer: 'reaper',
-  assassin: 'rogue',
   bard: 'minstrel',
+  rogue: 'rogue',
 };
 
 export type Tone = '0' | '+' | '-' | '=';
@@ -980,8 +1002,216 @@ function fishnet(c: Canvas, y0: number, y1: number, m: string) {
 
 // ——— наряды: максимум открытой кожи, всё нужное прикрыто ———
 
+/** Торс материалом m с y0 по y1 (закрытая одежда). */
+function torso(c: Canvas, y0: number, y1: number, m: string, t: Tone = '0') {
+  for (const [y, x0, x1] of TORSO) if (y >= y0 && y <= y1) c.hl(x0, x1, y, m, t);
+}
+
+/** Складки ткани по форме груди на закрытой одежде. */
+function chestFolds(c: Canvas, m: string) {
+  c.hl(18, 22, 22, m, '-');
+  c.hl(25, 29, 22, m, '-');
+  c.set(24, 20, m, '-');
+  c.set(19, 19, m, '+');
+  c.set(28, 19, m, '+');
+}
+
 function outfit(c: Canvas, kind: OutfitKind, withLegs: boolean) {
   switch (kind) {
+    case 'paladin': {
+      // латы валькирии: кираса, наплечники, табард до колен и латные сапоги
+      torso(c, 17, 26, 'K');
+      chestFolds(c, 'K');
+      c.vl(24, 18, 25, 'K', '+');
+      c.hl(20, 27, 17, 'T');
+      c.ellipse(15, 18, 3, 2.2, 'K');
+      c.ellipse(32, 18, 3, 2.2, 'K');
+      c.hl(13, 17, 20, 'T');
+      c.hl(30, 34, 20, 'T');
+      c.hl(13, 16, 16, 'K', '+');
+      c.hl(31, 34, 16, 'K', '+');
+      torso(c, 27, 32, 'O');
+      c.hl(19, 28, 26, 'T');
+      c.set(24, 26, 'G', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'K');
+      bothArms(c, 'hand', 'K', '-');
+      if (withLegs) {
+        c.rows(
+          [
+            [33, 16, 31],
+            [34, 16, 31],
+            [35, 15, 31],
+            [36, 15, 32],
+            [37, 15, 32],
+          ],
+          'O',
+        );
+        c.hl(15, 32, 37, 'T');
+        c.vl(24, 27, 37, 'T');
+        c.vl(23, 28, 36, 'O', '-');
+        legs(c, 38, 46, 'K');
+        legs(c, 38, 38, 'T');
+        c.rect(19, 40, 20, 41, 'K', '+');
+        c.rect(26, 40, 27, 41, 'K', '+');
+      }
+      break;
+    }
+    case 'shadow': {
+      // тёмный кожаный костюм: шарф, ремни крест-накрест, штаны, мягкие сапоги, ножны на бедре
+      torso(c, 17, 32, 'O');
+      chestFolds(c, 'O');
+      c.hl(20, 27, 16, 'T');
+      c.hl(21, 26, 17, 'T', '-');
+      c.line(18, 21, 29, 30, 'W', '-');
+      c.line(29, 21, 18, 30, 'W', '-');
+      c.set(24, 26, 'K', '+');
+      c.hl(17, 30, 29, 'D');
+      c.set(24, 29, 'T', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'O', '-');
+      bothArms(c, 'hand', 'D');
+      if (withLegs) {
+        legs(c, 33, 46, 'O', '-');
+        legs(c, 40, 46, 'D');
+        legs(c, 40, 40, 'T');
+        c.rect(15, 31, 16, 38, 'W', '-');
+        c.set(15, 30, 'K', '+');
+      }
+      break;
+    }
+    case 'vestal': {
+      // одеяние жрицы: платье до пят, золотой ворот и кайма, пояс-лента цвета стихии, амулет
+      torso(c, 17, 32, 'O');
+      chestFolds(c, 'O');
+      c.hl(20, 27, 17, 'T');
+      c.set(21, 18, 'T');
+      c.set(26, 18, 'T');
+      c.set(24, 21, 'G', '+');
+      c.set(24, 20, 'T');
+      c.hl(19, 28, 26, 'G');
+      c.set(24, 26, 'T', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'O');
+      if (withLegs) {
+        c.poly(
+          [
+            [17, 32],
+            [31, 32],
+            [34, 47],
+            [14, 47],
+          ],
+          'O',
+        );
+        c.hl(14, 34, 45, 'T');
+        c.hl(14, 34, 46, 'T', '-');
+        c.vl(24, 33, 44, 'O', '-');
+        c.vl(20, 35, 44, 'O', '-');
+        c.vl(28, 35, 44, 'O', '-');
+      }
+      break;
+    }
+    case 'scout': {
+      // туника следопыта с кожаным жилетом, ремень колчана, лосины и высокие сапоги
+      torso(c, 17, 32, 'O');
+      chestFolds(c, 'O');
+      for (const [y, x0, x1] of TORSO) {
+        if (y < 18 || y > 27) continue;
+        c.hl(x0, x0 + 2, y, 'W');
+        c.hl(x1 - 2, x1, y, 'W');
+      }
+      c.hl(20, 27, 17, 'T');
+      c.line(20, 17, 30, 29, 'W', '-');
+      c.hl(17, 30, 28, 'W', '-');
+      c.set(24, 28, 'T', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'W');
+      if (withLegs) {
+        legs(c, 33, 46, 'F');
+        c.rows(
+          [
+            [33, 16, 31],
+            [34, 17, 30],
+          ],
+          'O',
+        );
+        c.hl(17, 30, 34, 'T', '-');
+        legs(c, 38, 46, 'W');
+        legs(c, 38, 38, 'T');
+      }
+      break;
+    }
+    case 'sorcerer': {
+      // мантия колдуньи: закрытый корсаж со шнуровкой, высокий ворот, длинная юбка с разрезом
+      torso(c, 17, 32, 'O');
+      chestFolds(c, 'O');
+      c.hl(19, 28, 17, 'T');
+      c.set(18, 16, 'O', '-');
+      c.set(19, 16, 'O');
+      c.set(28, 16, 'O');
+      c.set(29, 16, 'O', '-');
+      for (let y = 20; y <= 27; y++) c.set(24, y, 'T', y % 2 ? '+' : '-');
+      c.hl(18, 29, 28, 'T');
+      c.set(24, 28, 'G', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'O');
+      if (withLegs) {
+        c.poly(
+          [
+            [17, 32],
+            [31, 32],
+            [34, 47],
+            [14, 47],
+          ],
+          'O',
+        );
+        c.hl(14, 34, 46, 'T');
+        c.poly(
+          [
+            [23, 37],
+            [25, 37],
+            [27, 46],
+            [21, 46],
+          ],
+          'F',
+        );
+        c.vl(19, 35, 45, 'O', '-');
+        c.vl(29, 35, 45, 'O', '-');
+      }
+      break;
+    }
+    case 'huntress': {
+      // северная охотница: кожаная куртка с меховым воротом, пояс с подсумками, юбка из полос, меховые сапоги
+      torso(c, 17, 32, 'O');
+      chestFolds(c, 'O');
+      c.ellipse(15.5, 18, 2.6, 2, 'T');
+      c.ellipse(31.5, 18, 2.6, 2, 'T');
+      c.hl(19, 28, 17, 'T');
+      c.hl(20, 27, 16, 'T', '-');
+      c.vl(24, 19, 27, 'W', '-');
+      c.hl(17, 30, 28, 'W');
+      c.rect(18, 29, 19, 30, 'W', '-');
+      c.rect(28, 29, 29, 30, 'W', '-');
+      c.set(24, 28, 'K', '+');
+      bothArms(c, 'upper', 'O');
+      bothArms(c, 'fore', 'O');
+      bothArms(c, 'hand', 'W');
+      if (withLegs) {
+        legs(c, 33, 46, 'F');
+        c.rows(
+          [
+            [33, 16, 31],
+            [34, 16, 31],
+            [35, 16, 31],
+          ],
+          'O',
+        );
+        for (let x = 18; x <= 30; x += 3) c.vl(x, 33, 35, 'O', '-');
+        legs(c, 39, 46, 'O');
+        legs(c, 39, 40, 'T');
+      }
+      break;
+    }
     case 'knight': {
       // латное микро-бикини: наплечники, чашки-пластины, золотая цепь, узкий табард, поножи
       c.ellipse(15, 18, 3, 2, 'K');
@@ -2280,6 +2510,23 @@ function weaponRight(c: Canvas, w: SpriteSpec['weapon']) {
         'K',
       );
       c.line(30, 3, 40, 5, 'K', '+');
+      break;
+    case 'crossbow':
+      // ложа, дуги и тетива; болт на ложе
+      c.line(33, 31, 44, 24, 'W', '0', 2);
+      c.path(
+        [
+          [40, 19],
+          [44, 22],
+          [47, 27],
+        ],
+        'K',
+      );
+      c.line(40, 19, 42, 25, 'R', '-');
+      c.line(42, 25, 47, 27, 'R', '-');
+      c.line(41, 25, 46, 22, 'K', '+');
+      c.set(46, 21, 'G', '+');
+      c.rect(34, 31, 35, 33, 'W', '-');
       break;
     case 'daggers':
       c.line(36, 30, 41, 24, 'K', '+');

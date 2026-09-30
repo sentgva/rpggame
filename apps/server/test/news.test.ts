@@ -10,7 +10,7 @@ describe('/news', () => {
     expect(ru).not.toContain(CHANGELOG[3]?.title.ru ?? '\u0000');
     const en = newsText('en', 1);
     expect(en).toContain(CHANGELOG[0].title.en);
-    expect(en).not.toContain(CHANGELOG[1].title.en);
+    expect(en).not.toContain(CHANGELOG[1]?.title.en ?? '\u0000');
     // теги — только наши (b, i); «<» в тексте экранирован
     expect(ru.replace(/<\/?(b|i)>/g, '')).not.toMatch(/[<>]/);
     expect(ru.length).toBeLessThan(4096);

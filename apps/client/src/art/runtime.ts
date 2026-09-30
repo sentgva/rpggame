@@ -1,6 +1,7 @@
 import { BASE_ITEM_MAP, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Item, type Look } from '@idle/shared';
 import { renderIcon } from './icons';
 import { renderItemIcon } from './itemArt';
+import { renderWolf } from './beast';
 import { CLASS_OUTFIT, renderFigure, renderFigureHD, type OutfitKind, type Pose } from './figure';
 import { CLASS_BODY, CLASS_WEAPON, ROLE_CLASS, type Bitmap, type SpriteSpec } from './sprite';
 
@@ -97,7 +98,9 @@ function enemyCanvas(enemyId: string, opts: Partial<SpriteSpec> = {}, pose: Pose
   const key = specKey('e', enemyId, opts, pose);
   let c = canvasCache.get(key);
   if (!c) {
-    c = bitmapToCanvas(drawFigure(enemySpec(enemyId, opts), pose));
+    const def = ENEMY_MAP[enemyId];
+    // волк Охотницы — зверь, а не гуманоид
+    c = bitmapToCanvas(enemyId === 'wolf' ? renderWolf(def.look.hair, def.look.eyes, pose, style === 'hd') : drawFigure(enemySpec(enemyId, opts), pose));
     canvasCache.set(key, c);
   }
   return c;
@@ -132,11 +135,12 @@ export function heroUrl(heroId: string, skin?: string, pose: Pose = {}, unarmed 
   return u;
 }
 
-export function enemyUrl(enemyId: string, pose: Pose = {}): string {
-  const key = `url:e:${enemyId}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}`;
+export function enemyUrl(enemyId: string, pose: Pose = {}, unarmed = false): string {
+  if (unarmed && (!pose.arms || pose.arms === 'idle' || pose.arms === 'idle2')) pose = { ...pose, arms: 'relaxed' };
+  const key = `url:e:${enemyId}:${pose.arms ?? 'idle'}:${pose.eyes ?? 'open'}:${pose.flap ? 1 : 0}${unarmed ? ':u' : ''}`;
   let u = urlCache.get(key);
   if (!u) {
-    u = enemyCanvas(enemyId, {}, pose).toDataURL();
+    u = enemyCanvas(enemyId, unarmed ? { weapon: 'none' } : {}, pose).toDataURL();
     urlCache.set(key, u);
   }
   return u;

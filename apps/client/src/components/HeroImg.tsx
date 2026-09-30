@@ -48,11 +48,10 @@ const FLIRT_MS = 1900;
 /** Героиня, которая дышит, моргает и иногда подмигивает. */
 export function HeroImg({ id, skin, still, unarmed, flirt, arms, eyes, alt = '', style, ...rest }: Props) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
-  const herald = !!HEROINE_MAP[id]?.herald;
   useEffect(() => {
     setFrame(null);
     if (still || reducedMotion) return;
-    const life = newLife(performance.now(), true, herald);
+    const life = newLife(performance.now(), true, false);
     let key = 'idle:open';
     // кокетливая поза: какая и до какого момента; следующая — через 5–11 с
     let pose: { arms: Arms; eyes?: Eyes; until: number } | null = null;
@@ -75,15 +74,8 @@ export function HeroImg({ id, skin, still, unarmed, flirt, arms, eyes, alt = '',
       key = k;
       setFrame(k === 'idle:open' ? null : f);
     });
-  }, [id, skin, still, herald, flirt, unarmed]);
-  // Вестницы светятся цветом своей стихии
-  const st: CSSProperties | undefined = herald && !still
-    ? {
-        ...style,
-        ['--aura' as string]: ELEMENT_COLORS[HEROINE_MAP[id].element],
-        animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', '),
-      }
-    : style;
+  }, [id, skin, still, flirt, unarmed]);
+  const st: CSSProperties | undefined = style;
   // заданные поза и глаза — поверх дыхания и моргания (моргание остаётся, если глаза обычные)
   const f = { ...(frame ?? {}) };
   if (arms) f.arms = arms;
@@ -92,7 +84,7 @@ export function HeroImg({ id, skin, still, unarmed, flirt, arms, eyes, alt = '',
 }
 
 /** Враг с «живой» анимацией; Колоссы машут крыльями/хвостом и светятся своей стихией. */
-export function EnemyImg({ id, alt = '', style, ...rest }: Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & { id: string }) {
+export function EnemyImg({ id, alt = '', style, arms, unarmed, ...rest }: Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & { id: string; arms?: Arms; unarmed?: boolean }) {
   const [frame, setFrame] = useState<LifeFrame | null>(null);
   const def = ENEMY_MAP[id];
   const special = !!def?.colossus;
@@ -112,5 +104,7 @@ export function EnemyImg({ id, alt = '', style, ...rest }: Omit<ImgHTMLAttribute
   const st: CSSProperties | undefined = special
     ? { ...style, ['--aura' as string]: ELEMENT_COLORS[def.element], animation: [style?.animation, 'herald-aura 1.4s ease-in-out infinite alternate'].filter(Boolean).join(', ') }
     : style;
-  return <img {...rest} style={st} alt={alt} {...spriteSrc(enemyUrl(id, frame ?? {}))} draggable={false} />;
+  const f = { ...(frame ?? {}) };
+  if (arms) f.arms = arms;
+  return <img {...rest} style={st} alt={alt} {...spriteSrc(enemyUrl(id, f, unarmed))} draggable={false} />;
 }

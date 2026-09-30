@@ -620,8 +620,7 @@ function CareHero({ hero }: { hero: string }) {
             <div key={lvl} className={cx(st.milestone, b.lvl >= Number(lvl) && st.milestoneDone)}>
               <div className={st.lvl}>♥ {lvl}</div>
               <div>💎{m.crystals}</div>
-              {m.scrolls && <div>📜{m.scrolls}</div>}
-              {m.shards && <div>✦{m.shards}</div>}
+              {m.emblems && <div>🎖️{m.emblems}</div>}
             </div>
           ))}
         </div>

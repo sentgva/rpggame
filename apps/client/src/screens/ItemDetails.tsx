@@ -22,6 +22,7 @@ import {
   type Item,
   type StatKey,
   type Stats,
+  activeParty,
 } from '@idle/shared';
 import { useState } from 'react';
 import { Button, Cost, Icon, ItemSlot, Sheet, confirmDialog, css, itemName, openSheet, rarityColor } from '../components/ui';
@@ -45,7 +46,7 @@ export function ItemDetails({ uid, hero, onClose }: { uid: string; hero?: string
   const idx = equippedIndex(s);
   const owner = idx[uid];
   const base = BASE_ITEM_MAP[item.base];
-  const targetHero = hero ?? gearHero ?? s.party.presets[s.party.active].find(Boolean) ?? null;
+  const targetHero = hero ?? gearHero ?? activeParty(s)[0] ?? null;
   const targetDef = targetHero ? HEROINE_MAP[targetHero] : null;
   const wearable = targetDef ? canWear(targetDef.cls, base) : false;
 

@@ -319,7 +319,7 @@ function Abyss() {
             <div className={css.row} style={{ gap: 10 }}>
               <Cost cur="divineMats" amount={preview.cur.divineMats} />
               <Cost cur="crystals" amount={preview.cur.crystals} />
-              {preview.cur.scrolls ? <Cost cur="scrolls" amount={preview.cur.scrolls} /> : null}
+              {preview.cur.emblems ? <Cost cur="emblems" amount={preview.cur.emblems} /> : null}
             </div>
             {heat > 0 && <div className={css.tiny} style={{ color: '#ff8a4a' }}>{t('mode.abyssMult', { n: 100 + heat })}</div>}
           </div>
@@ -375,7 +375,7 @@ function Abyss() {
                 <b>
                   🔥{m.heat} {got && '✓'}
                 </b>
-                <RewardList r={{ cur: { crystals: m.crystals, ...(m.scrolls ? { scrolls: m.scrolls } : {}), ...(m.divineMats ? { divineMats: m.divineMats } : {}) } }} />
+                <RewardList r={{ cur: { crystals: m.crystals, ...(m.emblems ? { emblems: m.emblems } : {}), ...(m.divineMats ? { divineMats: m.divineMats } : {}) } }} />
               </div>
             );
           })}

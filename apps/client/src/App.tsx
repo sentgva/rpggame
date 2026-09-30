@@ -1,4 +1,4 @@
-import { accountXpToNext, formatNum } from '@idle/shared';
+import { accountXpToNext, formatNum, activeParty } from '@idle/shared';
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import styles from './App.module.css';
 import { portraitUrl } from './art/runtime';
@@ -118,7 +118,7 @@ function Game() {
 function TopBar() {
   const s = useGameState();
   const cfg = useCfg();
-  const leader = s.party.presets[s.party.active].find(Boolean) ?? 'lira';
+  const leader = activeParty(s)[0] ?? 'astrid';
   const user = tgUser();
   const need = accountXpToNext(cfg, s.account.lvl);
   return (

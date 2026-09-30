@@ -4,11 +4,11 @@ import { DbService } from '../db/db.service';
 import { env } from '../env';
 import { PlayerService } from '../game/player.service';
 
-const LADDER: Record<number, { crystals?: number; scrolls?: number }> = {
+const LADDER: Record<number, { crystals?: number; emblems?: number }> = {
   1: { crystals: 300 },
-  5: { scrolls: 5 },
+  5: { emblems: 5 },
   20: { crystals: 2000 },
-  50: { crystals: 3000, scrolls: 10 },
+  50: { crystals: 3000, emblems: 10 },
 };
 
 /**
