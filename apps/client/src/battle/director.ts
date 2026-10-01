@@ -18,6 +18,7 @@ import {
 } from '@idle/shared';
 import { create } from 'zustand';
 import { manualEnabled, runLive, type LiveBattle } from './live';
+import { mvpOf } from './mvp';
 import { useGame } from '../store/game';
 import { sfx } from '../audio/sfx';
 
@@ -40,7 +41,7 @@ interface BattleUi {
   phase: PlaybackKind | 'idle';
   label: string;
   stage: StageRef | null;
-  result: null | { kind: PlaybackKind; win: boolean; rewards?: any; stage?: StageRef; at: number };
+  result: null | { kind: PlaybackKind; win: boolean; rewards?: any; stage?: StageRef; at: number; mvp?: string | null };
   mode: boolean;
 }
 
@@ -170,9 +171,13 @@ async function fightBoss(target: StageRef, manual = false) {
   if (manual) {
     useBattle.setState({ phase: 'boss', label, stage: target, result: null });
     sfx('bossStart');
-    const r = await runLive('battle.boss', {}, (live) => play({ events: live.events, live, kind: 'boss', act: target.act, win: live.win, speed: battleSpeed(), label }));
+    let events: BattleEvent[] = [];
+    const r = await runLive('battle.boss', {}, (live) => {
+      events = live.events;
+      return play({ events: live.events, live, kind: 'boss', act: target.act, win: live.win, speed: battleSpeed(), label });
+    });
     if (!r) return;
-    useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now() } });
+    useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now(), mvp: mvpOf(events) } });
     sfx(r.result.win ? 'victory' : 'defeat');
     if (r.result.joined?.length) void openJoin(r.result.joined);
     return;
@@ -182,7 +187,7 @@ async function fightBoss(target: StageRef, manual = false) {
   useBattle.setState({ phase: 'boss', label, stage: target, result: null });
   sfx('bossStart');
   await play({ events: r.result.battle.events, kind: 'boss', act: target.act, win: r.result.win, speed: battleSpeed(), label });
-  useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now() } });
+  useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now(), mvp: mvpOf(r.result.battle.events) } });
   sfx(r.result.win ? 'victory' : 'defeat');
   if (r.result.joined?.length) void openJoin(r.result.joined);
 }

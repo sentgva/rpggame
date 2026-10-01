@@ -1,38 +1,4 @@
-/* Лагерь: баннер с лидером отряда, четыре главных раздела крупно и сетка остальных — в родном «металлическом» стиле. */
-.banner {
-  display: flex;
-  align-items: flex-end;
-  min-height: 132px;
-  padding: 12px 14px;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse at 82% 45%, rgba(224, 161, 58, 0.22), transparent 60%),
-    radial-gradient(ellipse at 10% 120%, rgba(184, 50, 44, 0.25), transparent 55%),
-    linear-gradient(180deg, var(--panel-2), var(--panel-1));
-}
-.bannerText {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  min-width: 0;
-}
-.kicker {
-  font-family: var(--font-pixel);
-  font-size: 15px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #e8705e;
-}
-.leader {
-  position: absolute;
-  right: 6px;
-  bottom: -8px;
-  width: 146px;
-  height: 146px;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.5));
-}
-
+/* Лагерь: адъютант (Adjutant.module.css), четыре главных раздела крупно и сетка остальных — в родном «металлическом» стиле. */
 .main {
   display: grid;
   grid-template-columns: 1fr 1fr;

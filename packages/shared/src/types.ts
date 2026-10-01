@@ -379,6 +379,14 @@ export interface CampfireState {
   seen: string[];
 }
 
+/** Адъютант в лагере: кто стоит на главном экране, в чём, и сколько ласк сегодня уже засчитано. */
+export interface AdjutantState {
+  hero: string;
+  skin?: string;
+  day: string;
+  pats: number;
+}
+
 export interface MineState {
   floor: number;
   seed: number;
@@ -438,6 +446,7 @@ export interface PlayerState {
   fishing?: FishingState;
   /** Вечер у костра: разговоры героинь. */
   campfire?: CampfireState;
+  adjutant?: AdjutantState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

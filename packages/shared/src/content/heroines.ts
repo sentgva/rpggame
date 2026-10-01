@@ -25,7 +25,8 @@ export type Accessory =
  * Сменный наряд облика вместо классового костюма.
  * Героини: купальники (swim*, micro — микро-бикини на завязках, string — ещё меньше, sling — слингшот,
  * shell — ракушки на жемчужных нитях), бельё (lace*, corset, ribbon — ленты с бантом), маскарадные (bunny, maid) и др.
- * Герои (мужские наряды): trunks — пляжные шорты, briefs — плавки, mrobe — распахнутый халат,
+ * Герои (мужские наряды): trunks — пляжные шорты, briefs — плавки, aloha — распахнутая гавайская рубашка
+ * и шорты, mrobe — распахнутый халат,
  * myukata — мужская юката, mformal — вечерний костюм с расстёгнутым воротом.
  */
 export type Wear =
@@ -52,13 +53,14 @@ export type Wear =
   | 'silk'
   | 'trunks'
   | 'briefs'
+  | 'aloha'
   | 'mrobe'
   | 'myukata'
   | 'mformal';
 
-const SWIM = new Set<Wear>(['swim', 'swim2', 'swim3', 'swim4', 'micro', 'string', 'sling', 'shell', 'trunks', 'briefs']);
+const SWIM = new Set<Wear>(['swim', 'swim2', 'swim3', 'swim4', 'micro', 'string', 'sling', 'shell', 'trunks', 'briefs', 'aloha']);
 /** Мужские наряды (у героев); женские на мужской фигуре заменяются ближайшим мужским. */
-export const MALE_WEAR = new Set<Wear>(['trunks', 'briefs', 'mrobe', 'myukata', 'mformal']);
+export const MALE_WEAR = new Set<Wear>(['trunks', 'briefs', 'aloha', 'mrobe', 'myukata', 'mformal']);
 
 /** Купальник ли это (для пляжа, источников и рыбалки). */
 export function isSwimwear(wear?: Wear): boolean {
@@ -287,6 +289,11 @@ const COLLECTION: SetSkin[] = [
   ['elian_surf', 'elian', 'summer', 'arena', { wear: 'trunks', outfit: '#3F8A5A', trim: '#E8C87A' }, 'Лесной прибой', 'Forest Surf'],
   ['elian_tropic', 'elian', 'summer', 'shop', { wear: 'briefs', outfit: '#1E8A8A', trim: '#F2E6D8' }, 'Тропик', 'Tropic', 2000],
   ['elian_robe', 'elian', 'lingerie', 'labyrinth', { wear: 'mrobe', outfit: '#2F5A3A', trim: '#E4E0D0' }, 'Лунная роща', 'Moon Grove'],
+  // летние облики героев: гавайские рубашки и плавки
+  ['cassian_aloha', 'cassian', 'summer', 'shop', { wear: 'aloha', outfit: '#3AA0E0', trim: '#F2F0E6', acc: 'sunHat', accColor: '#E8C87A' }, 'Голубая лагуна', 'Blue Lagoon', 2000],
+  ['cassian_coral', 'cassian', 'summer', 'event', { wear: 'briefs', outfit: '#FF6A6A', trim: '#FFFFFF', acc: 'flower', accColor: '#FF6A6A' }, 'Коралловый мальчик', 'Coral Boy'],
+  ['elian_aloha', 'elian', 'summer', 'shop', { wear: 'aloha', outfit: '#E0703A', trim: '#F2E6A0', acc: 'flower', accColor: '#F2E6A0' }, 'Закат в тропиках', 'Tropical Sunset', 2000],
+  ['elian_wave', 'elian', 'summer', 'event', { wear: 'trunks', outfit: '#6A5AE0', trim: '#E4E0D0' }, 'Лунная волна', 'Moon Wave'],
 ];
 
 /** Облики Легиона (коллекции; наряды близости добавляются в bond.ts, облики праздников — в festival.ts). */

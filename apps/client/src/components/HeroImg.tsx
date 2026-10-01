@@ -33,7 +33,7 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   still?: boolean;
   /** без оружия в руках */
   unarmed?: boolean;
-  /** время от времени кокетливо позирует (только без оружия): руки на бёдрах, за головой, поцелуй, взмах */
+  /** время от времени кокетливо позирует (только без оружия): руки на бёдрах, за головой, поцелуй, взмах, «виктори», рука в волосах */
   flirt?: boolean;
   /** заданная поза рук (фотосессия, реакции) — поверх живой анимации */
   arms?: Arms;
@@ -42,7 +42,7 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
 };
 
 /** Кокетливые позы: поза рук и (для поцелуя) подмигивание. */
-const FLIRT: { arms: Arms; eyes?: Eyes }[] = [{ arms: 'hips' }, { arms: 'behindHead' }, { arms: 'kiss', eyes: 'wink' }, { arms: 'wave' }, { arms: 'hips', eyes: 'wink' }];
+const FLIRT: { arms: Arms; eyes?: Eyes }[] = [{ arms: 'hips' }, { arms: 'behindHead' }, { arms: 'kiss', eyes: 'wink' }, { arms: 'wave' }, { arms: 'hips', eyes: 'wink' }, { arms: 'peace', eyes: 'wink' }, { arms: 'hair', eyes: 'half' }];
 const FLIRT_MS = 1900;
 
 /** Героиня, которая дышит, моргает и иногда подмигивает. */

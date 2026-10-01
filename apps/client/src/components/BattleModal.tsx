@@ -1,12 +1,14 @@
 import type { BattleEvent } from '@idle/shared';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { battleSpeed } from '../battle/director';
+import { mvpOf } from '../battle/mvp';
 import { runLive } from '../battle/live';
 import { BattleRenderer } from '../battle/renderer';
 import { t } from '../i18n';
 import { useUi } from '../store/ui';
 import { sfx } from '../audio/sfx';
 import { haptic } from '../tg/telegram';
+import { MvpCard } from './Mvp';
 import { UltBar } from './UltBar';
 import { Button, css } from './ui';
 
@@ -36,15 +38,16 @@ interface Props {
 /** Бой режима (подземелье, Башня, арена, лабиринт…) в отдельной сцене. */
 function BattleModal({ events, win, live, act, title, result, outcome, onClose }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const [done, setDone] = useState<({ win: boolean } & View) | null>(null);
+  const [done, setDone] = useState<({ win: boolean; mvp?: string | null } & View) | null>(null);
   const ctrl = useRef(new AbortController());
 
   useEffect(() => {
     const r = new BattleRenderer();
     let alive = true;
+    let played: BattleEvent[] = events ?? [];
     const finish = (v: { win: boolean } & View) => {
       if (!alive) return;
-      setDone(v);
+      setDone({ ...v, mvp: v.win ? mvpOf(played) : null });
       sfx(v.win ? 'victory' : 'defeat');
       if (v.win) haptic.success();
       else haptic.error();
@@ -52,9 +55,10 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
     void r.init(host.current!).then(async () => {
       if (!alive) return;
       if (live) {
-        const res = await runLive(live.type, live.params, (lb) =>
-          r.play({ events: lb.events, live: lb, win: lb.win, act, kind: 'mode', speed: battleSpeed(), label: title }, ctrl.current.signal),
-        );
+        const res = await runLive(live.type, live.params, (lb) => {
+          played = lb.events;
+          return r.play({ events: lb.events, live: lb, win: lb.win, act, kind: 'mode', speed: battleSpeed(), label: title }, ctrl.current.signal);
+        });
         if (!res) {
           if (alive) onClose();
           return;
@@ -86,6 +90,7 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
           <div className={css.title} style={{ textAlign: 'center', color: done.win ? 'var(--accent-2)' : '#ff8070' }}>
             {done.outcome ?? (done.win ? t('common.victory') : t('common.defeat'))}
           </div>
+          {done.mvp && <MvpCard hero={done.mvp} />}
           {done.win || done.outcome ? done.result : null}
           <Button block onClick={onClose}>
             {t('common.ok')}

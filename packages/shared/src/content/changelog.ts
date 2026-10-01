@@ -20,6 +20,32 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-03-fanservice',
+    date: '03.10.2026',
+    icon: '💗',
+    title: { ru: 'Адъютант и модные дни', en: 'Adjutant and fashion days' },
+    lead: {
+      ru: 'Герой на главном экране лагеря, бонус за облик дня и новые купальники',
+      en: 'A hero on the camp screen, a bonus for the outfit of the day and new swimsuits',
+    },
+    color: '#ff6a9a',
+    art: { hero: 'lira', skin: 'lira_spark' },
+    items: [
+      {
+        ru: '💗 Адъютант: выбери героя и наряд — он здоровается, болтает и смущается от касаний; касания дают близость',
+        en: '💗 Adjutant: pick a hero and an outfit — they greet you, chat and blush when touched; touches give bond',
+      },
+      {
+        ru: '👙 Модный день: в облике коллекции дня (пляж, будуар, маскарад) герои сильнее на 10%',
+        en: '👙 Fashion day: heroes wearing the collection of the day (beach, boudoir, masquerade) are 10% stronger',
+      },
+      {
+        ru: '✨ Купальники меньше и тоньше, новые позы, MVP после боя; Кассиан и Элиан стали милее и получили пляжные облики',
+        en: '✨ Smaller, finer swimsuits, new poses, an MVP after battle; Cassian and Elian got cuter and got beach skins',
+      },
+    ],
+  },
+  {
     id: '2026-10-02-looks',
     date: '02.10.2026',
     icon: '💋',

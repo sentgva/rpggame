@@ -35,6 +35,8 @@ import { haptic } from '../tg/telegram';
 import { sfx } from '../audio/sfx';
 import st from './BattleTab.module.css';
 import { RewardList, showReward } from './common';
+import { FashionDay } from '../components/Fashion';
+import { MvpCard } from '../components/Mvp';
 
 export function useNow(ms = 1000): number {
   const [now, setNow] = useState(() => useGame.getState().now());
@@ -277,6 +279,7 @@ function PartyPanel() {
           );
         })}
       </div>
+      <FashionDay />
       <div className={css.divider} />
       <div className={st.incomeGrid}>
         <div className={st.incomeCell}>
@@ -367,6 +370,7 @@ function ResultWatcher() {
       const r = result.rewards ?? {};
       useUi.getState().open((close) => (
         <Sheet title={t('battle.bossWin', { stage: stage ? stageLabel(stage) : '' })} onClose={close}>
+          {result.mvp && <MvpCard hero={result.mvp} />}
           <RewardList r={{ cur: r.cur, items: r.items, shards: r.shards ? { [r.shards.hero]: r.shards.n } : undefined }} />
           <div style={{ height: 10 }} />
           <Button block onClick={close}>

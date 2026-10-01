@@ -1,13 +1,13 @@
-import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, HEROINE_MAP, PHOTO_DAILY, achievementClaimable, activeParty, bondState, campfireScene, campfireState, isUnlocked, photoState } from '@idle/shared';
-import { HeroImg } from '../components/HeroImg';
+import { BOND_COSTUME_HEARTS, BOND_HEROES, BOND_MAX, PHOTO_DAILY, achievementClaimable, bondState, campfireScene, campfireState, isUnlocked, photoState } from '@idle/shared';
 import { openNews } from '../components/News';
 import { Icon, css, cx } from '../components/ui';
-import { t, tl } from '../i18n';
+import { t } from '../i18n';
 import { questClaimable } from '../store/badges';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
 import { haptic } from '../tg/telegram';
 import { Achievements } from './hub/Achievements';
+import { Adjutant } from './hub/Adjutant';
 import { Ascension } from './hub/Ascension';
 import { Campfire } from './hub/Campfire';
 import { Care } from './hub/Care';
@@ -100,7 +100,6 @@ function HubRoot() {
   const MAIN = ['campfire', 'care', 'workshop', 'quests'];
   const main = MAIN.map((id) => all.find((x) => x.id === id)!).filter(Boolean);
   const more = all.filter((x) => !MAIN.includes(x.id));
-  const leader = activeParty(s)[0] ?? 'cassian';
   const open = (id: string) => {
     haptic.tap();
     if (id === 'news') openNews(true);
@@ -109,18 +108,7 @@ function HubRoot() {
 
   return (
     <div className={css.col}>
-      <div className={cx(css.panel, st.banner)}>
-        <div className={st.bannerText}>
-          <div className={st.kicker}>{t('hub.kicker')}</div>
-          <div className={css.title} style={{ fontSize: 32, lineHeight: 1 }}>
-            {t('hub.title')}
-          </div>
-          <div className={css.tiny} style={{ marginTop: 4 }}>
-            {t('hub.sub', { name: tl(HEROINE_MAP[leader]?.name) })}
-          </div>
-        </div>
-        <HeroImg id={leader} skin={s.heroines[leader]?.skin} className={st.leader} />
-      </div>
+      <Adjutant />
 
       <FestivalBanner onOpen={() => open('festival')} />
 

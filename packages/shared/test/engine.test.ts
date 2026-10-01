@@ -171,6 +171,13 @@ import {
   PASS_SKIN_POOL,
   PASS_SKIN_LEVELS,
   STATE_VERSION,
+  adjutantState,
+  adjutantSkins,
+  ADJ_PATS,
+  ADJ_PAT_BOND,
+  fashionOfDay,
+  fashionFits,
+  FASHION_BONUS,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -1910,5 +1917,55 @@ describe('Вечер у костра', () => {
     s = act(s, { type: 'camp.talk', choice: 'both' }, T0 + day * 86400000).state;
     expect(s.counters['combo:backstab']).toBe(before + CAMP_MASTERY);
     expect(s.counters.campfire).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('фансервис: адъютант, модный день', () => {
+  const D = { cfg, dev: true };
+  const act = (s: PlayerState, a: Record<string, unknown>, now = T0) => applyAction(s, { type: 'x', ...a } as never, { cfg, now });
+
+  it('адъютант: по умолчанию первый в Легионе; только свои герои и доступные наряды', () => {
+    let s = fresh();
+    expect(adjutantState({ s, now: T0 })?.hero).toBe(Object.keys(s.heroines)[0]);
+    expect(() => act(s, { type: 'adj.set', hero: 'keira' })).toThrow('notOwned');
+    expect(() => act(s, { type: 'adj.set', hero: 'lira', skin: 'lira_beach' })).toThrow('noSkin');
+    // купальник для источников доступен всегда, пижама — с близости 5
+    s = act(s, { type: 'adj.set', hero: 'lira', skin: BOND_SPA_SKIN.lira }).state;
+    expect(s.adjutant).toMatchObject({ hero: 'lira', skin: BOND_SPA_SKIN.lira });
+    expect(adjutantSkins(s, 'lira')).not.toContain(BOND_SLEEP_SKIN.lira);
+    s = applyAction(s, { type: 'dev.skins' }, { ...D, now: T0 }).state;
+    s = act(s, { type: 'adj.set', hero: 'lira', skin: 'lira_beach' }).state;
+    expect(adjutantState({ s, now: T0 })?.skin).toBe('lira_beach');
+    s = act(s, { type: 'adj.set', hero: 'cassian', skin: null }).state;
+    expect(adjutantState({ s, now: T0 })).toMatchObject({ hero: 'cassian', skin: undefined });
+  });
+
+  it('адъютант: первые касания за день дают близость, потом — только реакция', () => {
+    let s = act(fresh(), { type: 'adj.set', hero: 'lira' }).state;
+    const xp0 = bondState({ s, now: T0 }, 'lira').xp;
+    for (let i = 0; i < ADJ_PATS; i++) s = act(s, { type: 'adj.pat', zone: i % 2 ? 'head' : 'body' }).state;
+    expect(bondState({ s, now: T0 }, 'lira').xp + bondState({ s, now: T0 }, 'lira').lvl * 1000).toBeGreaterThanOrEqual(xp0 + ADJ_PATS * ADJ_PAT_BOND);
+    expect(() => act(s, { type: 'adj.pat', zone: 'head' })).toThrow('usedToday');
+    expect(() => act(s, { type: 'adj.pat', zone: 'feet' }, T0 + 86400000)).toThrow('badParam');
+    // новый день — снова можно
+    s = act(s, { type: 'adj.pat', zone: 'head' }, T0 + 86400000).state;
+    expect(s.adjutant?.pats).toBe(1);
+  });
+
+  it('модный день: тема по дню недели, облик из коллекции дня — +10% к силе', () => {
+    expect(fashionOfDay('2026-10-04')).toBe('any'); // воскресенье
+    expect(fashionOfDay('2026-10-05')).toBe('summer'); // понедельник
+    expect(fashionOfDay('2026-10-06')).toBe('lingerie');
+    expect(fashionOfDay('2026-10-07')).toBe('masquerade');
+    expect(fashionFits('lira_beach', 'summer')).toBe(true);
+    expect(fashionFits('lira_beach', 'lingerie')).toBe(false);
+    expect(fashionFits('lira_beach', 'any')).toBe(true);
+    expect(fashionFits(undefined, 'any')).toBe(false);
+    let s = applyAction(fresh(), { type: 'dev.skins' }, { ...D, now: T0 }).state;
+    s = act(s, { type: 'hero.skin', id: 'lira', skin: 'lira_beach' }).state;
+    const at = (day: string) => buildHeroine(cfg, { ...s, day: { ...s.day, key: day } }, s.heroines.lira).stats.atk;
+    // понедельник (Пляжный день) против вторника (Будуар)
+    expect(at('2026-10-05') / at('2026-10-06')).toBeCloseTo((1 + 0.03 + FASHION_BONUS) / 1.03, 1);
+    expect(at('2026-10-05')).toBeGreaterThan(at('2026-10-06'));
   });
 });

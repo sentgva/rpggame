@@ -217,8 +217,8 @@ type Scene =
 
 /** Пиксельный фон сцены. */
 /** Реакция на касание: по голове — жмурится от удовольствия, по телу — по характеру. */
-const TOUCH_HEAD: { arms: Arms; eyes: Eyes } = { arms: 'relaxed', eyes: 'closed' };
-const TOUCH_BODY: Record<Personality, { arms: Arms; eyes: Eyes }> = {
+export const TOUCH_HEAD: { arms: Arms; eyes: Eyes } = { arms: 'relaxed', eyes: 'closed' };
+export const TOUCH_BODY: Record<Personality, { arms: Arms; eyes: Eyes }> = {
   proud: { arms: 'crossed', eyes: 'half' },
   playful: { arms: 'kiss', eyes: 'wink' },
   gentle: { arms: 'shy', eyes: 'closed' },

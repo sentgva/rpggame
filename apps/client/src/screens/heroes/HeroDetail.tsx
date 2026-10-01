@@ -23,6 +23,8 @@ import {
   xpToNext,
   type FinalStats,
   type StatKey,
+  fashionFits,
+  fashionOfDay,
 } from '@idle/shared';
 import { useState } from 'react';
 import { heroUrl } from '../../art/runtime';
@@ -36,6 +38,7 @@ import { sfx } from '../../audio/sfx';
 import { describeSkill } from '../../text/describe';
 import { BackHeader, UnequipAllButton, openItem, skinSourceText } from '../common';
 import { SkillTree } from './SkillTree';
+import { FashionDay } from '../../components/Fashion';
 
 type TabId = 'role' | 'stats' | 'tree' | 'gear' | 'skins' | 'bio';
 
@@ -321,8 +324,12 @@ function HeroSkins({ heroId }: { heroId: string }) {
   const s = useGameState();
   const h = s.heroines[heroId];
   const skins = SKINS.filter((x) => x.hero === heroId);
+  const theme = fashionOfDay(s.day.key);
   return (
     <Panel title={t('heroes.tabSkins')}>
+      <div style={{ marginBottom: 8 }}>
+        <FashionDay party={false} />
+      </div>
       <div className={css.grid3}>
         <div className={cx(css.hero)} style={!h.skin ? { outline: '2px solid var(--accent-2)' } : undefined} onClick={() => void useGame.getState().act('hero.skin', { id: heroId, skin: null })}>
           <img className={css.heroSprite} src={heroUrl(heroId)} alt="" />
@@ -344,6 +351,7 @@ function HeroSkins({ heroId }: { heroId: string }) {
             >
               <HeroImg className={cx(css.heroSprite, !owned && css.dim)} id={heroId} skin={sk.id} still={!owned} unarmed={!!sk.look.wear} flirt={owned && !!sk.look.wear} />
               <div className={css.heroName}>{tl(sk.name)}</div>
+              {fashionFits(sk.id, theme) && <div className={css.tiny} style={{ color: '#ff9ac8' }}>{t('fashion.today')}</div>}
               {!owned && sk.source !== 'shop' && <div className={css.tiny}>{skinSourceText(sk.id)}</div>}
               <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : t('heroes.skinLocked')}</div>
             </div>

@@ -10,7 +10,7 @@ import { HEROINE_MAP, SKIN_MAP, type SkinSet } from './heroines';
 const L = (ru: string, en: string): L10n => ({ ru, en });
 
 export type PhotoLoc = 'beach' | 'sunset' | 'onsen' | 'sakura' | 'stars' | 'camp';
-export type PhotoPose = 'relaxed' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss';
+export type PhotoPose = 'relaxed' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss' | 'peace' | 'hair';
 export type PhotoFace = 'smile' | 'wink' | 'sultry' | 'dreamy';
 export type PhotoTiming = 'perfect' | 'good' | 'miss';
 
@@ -32,6 +32,8 @@ export const PHOTO_POSES: { id: PhotoPose; name: L10n }[] = [
   { id: 'crossed', name: L('Руки скрещены', 'Arms crossed') },
   { id: 'shy', name: L('Смущение', 'Bashful') },
   { id: 'kiss', name: L('Воздушный поцелуй', 'Blown kiss') },
+  { id: 'peace', name: L('«Виктори» у лица', 'Peace sign') },
+  { id: 'hair', name: L('Рука в волосах', 'Hand in hair') },
 ];
 
 export const PHOTO_FACES: { id: PhotoFace; icon: string; name: L10n }[] = [
@@ -54,12 +56,12 @@ const LOC_BY_PLACE: Record<string, PhotoLoc> = { lake: 'beach', garden: 'sakura'
 /** Позы и выражения по характеру: из двух — по героине. */
 const POSE_BY_P: Record<Personality, [PhotoPose, PhotoPose]> = {
   proud: ['hips', 'crossed'],
-  playful: ['kiss', 'wave'],
+  playful: ['kiss', 'peace'],
   gentle: ['relaxed', 'wave'],
-  mysterious: ['behindHead', 'crossed'],
+  mysterious: ['hair', 'crossed'],
   fierce: ['victory', 'hips'],
   shy: ['shy', 'relaxed'],
-  gallant: ['hips', 'victory'],
+  gallant: ['hips', 'hair'],
   aloof: ['crossed', 'relaxed'],
 };
 const FACE_BY_P: Record<Personality, [PhotoFace, PhotoFace]> = {

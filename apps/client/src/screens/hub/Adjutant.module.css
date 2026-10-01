@@ -1,0 +1,180 @@
+/* Адъютант лагеря: крупная фигура на фоне места, реплика-пузырь, сердечки от касаний. */
+.wrap {
+  position: relative;
+  height: 268px;
+  padding: 0;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+}
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(14, 8, 12, 0.72), rgba(14, 8, 12, 0.15) 55%, transparent), linear-gradient(0deg, rgba(14, 8, 12, 0.6), transparent 35%);
+  pointer-events: none;
+}
+.top {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  z-index: 2;
+  pointer-events: none;
+}
+.kicker {
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #e8705e;
+}
+.name {
+  font-family: var(--font-pixel);
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 2px 0 #000;
+}
+.role {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.bubble {
+  position: absolute;
+  left: 10px;
+  top: 78px;
+  z-index: 2;
+  max-width: 52%;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 154, 200, 0.55);
+  border-radius: 10px 10px 10px 2px;
+  background: rgba(20, 12, 18, 0.82);
+  font-size: 12.5px;
+  line-height: 1.4;
+  animation: slide-up 0.25s var(--ease);
+  pointer-events: none;
+}
+.hero {
+  position: absolute;
+  right: 4%;
+  bottom: 22px;
+  z-index: 1;
+  width: 224px;
+  height: 224px;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.45));
+  -webkit-tap-highlight-color: transparent;
+}
+.heart {
+  position: absolute;
+  z-index: 3;
+  font-size: 18px;
+  color: #ff6a9a;
+  text-shadow: 0 0 6px #ff9ac8, 0 1px 1px #000;
+  pointer-events: none;
+  animation: adjHeart 1.3s ease-out both;
+}
+@keyframes adjHeart {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.9);
+  }
+}
+.gain {
+  position: absolute;
+  right: 18%;
+  top: 70px;
+  z-index: 3;
+  font-family: var(--font-pixel);
+  font-size: 20px;
+  color: #ff8ab8;
+  text-shadow: 0 2px 0 #000;
+  pointer-events: none;
+  animation: adjGain 1.4s ease-out both;
+}
+@keyframes adjGain {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-28px);
+  }
+}
+.bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pats {
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: rgba(20, 12, 18, 0.8);
+  font-size: 12px;
+  color: #ff9ac8;
+}
+.change {
+  padding: 5px 10px;
+  border: 1px solid var(--frame);
+  border-radius: 6px;
+  background: rgba(20, 12, 18, 0.85);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pickRow {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.pickHero,
+.pickSkin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--frame);
+  border-radius: 6px;
+  background: var(--panel-1);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pickHero {
+  flex: 0 0 auto;
+  width: 70px;
+}
+.pickGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.pickSkin span {
+  text-align: center;
+  line-height: 1.2;
+}
+.pickOn {
+  border-color: #ff8ab8;
+  box-shadow: 0 0 0 1px #ff8ab8 inset;
+}

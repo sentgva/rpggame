@@ -51,9 +51,9 @@ export const CLASS_OUTFIT: Record<string, OutfitKind> = {
 
 export type Tone = '0' | '+' | '-' | '=';
 export type Eyes = 'open' | 'half' | 'closed' | 'wink';
-export type Arms = 'idle' | 'idle2' | 'attack' | 'relaxed' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss';
+export type Arms = 'idle' | 'idle2' | 'attack' | 'relaxed' | 'hips' | 'behindHead' | 'victory' | 'wave' | 'crossed' | 'shy' | 'kiss' | 'peace' | 'hair';
 /** Позы конструктора (без оружия): боевые кадры — idle/idle2/attack. */
-export const EXTRA_POSES: Arms[] = ['relaxed', 'hips', 'behindHead', 'victory', 'wave', 'crossed', 'shy', 'kiss'];
+export const EXTRA_POSES: Arms[] = ['relaxed', 'hips', 'behindHead', 'victory', 'wave', 'crossed', 'shy', 'kiss', 'peace', 'hair'];
 export interface Pose {
   eyes?: Eyes;
   arms?: Arms;
@@ -207,10 +207,20 @@ const ARMS: Record<Arms, { L: ArmGeo; R: ArmGeo }> = {
     L: { shoulder: [17, 19], elbow: [13, 24], hand: [18, 28] },
     R: { shoulder: [30, 19], elbow: [34, 21], hand: [27, 13] },
   },
+  // «виктори» у лица: два пальца рядом с глазом, вторая рука на бедре
+  peace: {
+    L: { shoulder: [17, 19], elbow: [12, 24], hand: [18, 28] },
+    R: { shoulder: [30, 19], elbow: [35, 16], hand: [32, 10] },
+  },
+  // рука в волосах — откидывает пряди, вторая на бедре
+  hair: {
+    L: { shoulder: [17, 19], elbow: [11, 13], hand: [16, 6] },
+    R: { shoulder: [30, 19], elbow: [35, 24], hand: [30, 28] },
+  },
 };
 
 /** Руки, которые в позе идут перед торсом и одеждой (рисуются отдельным слоем поверх). */
-const FRONT_ARMS: Partial<Record<Arms, ('L' | 'R')[]>> = { crossed: ['L', 'R'], shy: ['L', 'R'], kiss: ['R'] };
+const FRONT_ARMS: Partial<Record<Arms, ('L' | 'R')[]>> = { crossed: ['L', 'R'], shy: ['L', 'R'], kiss: ['R'], peace: ['R'] };
 
 let arms = ARMS.idle;
 /** Слой рук «спереди» (позы конструктора); null — руки рисуются прямо под торсом, как в бою. */
@@ -306,18 +316,18 @@ const F_TORSO: [number, number, number][] = [
 ];
 
 /**
- * Мужская фигура («стройный красавчик»): плечи шире, грудь плоская, талия почти прямая, бёдра узкие,
- * ноги ровнее. Рисуется теми же функциями — они берут текущие TORSO/LEG_L/LEG_R.
+ * Мужская фигура («милый стройный красавчик»): плечи чуть шире, грудь плоская, талия почти прямая,
+ * бёдра узкие, ноги ровнее. Рисуется теми же функциями — они берут текущие TORSO/LEG_L/LEG_R.
  */
 const M_TORSO: [number, number, number][] = [
   [17, 20, 27],
-  [18, 16, 31],
-  [19, 16, 31],
-  [20, 16, 31],
+  [18, 17, 30],
+  [19, 17, 30],
+  [20, 17, 30],
   [21, 17, 30],
-  [22, 17, 30],
+  [22, 18, 29],
   [23, 18, 29],
-  [24, 18, 29],
+  [24, 19, 28],
   [25, 19, 28],
   [26, 19, 28],
   [27, 19, 28],
@@ -431,7 +441,7 @@ function drawBody(c: Canvas, withLegs: boolean) {
   c.set(26, 38, 'S', '+');
 }
 
-/** Мужское тело: тот же овал лица, но твёрже подбородок, шея шире, плоская грудь с контуром мышц. */
+/** Мужское тело: мягкий овал лица с узким подбородком (милый красавчик), стройная шея, плоская грудь. */
 function drawBodyMale(c: Canvas, withLegs: boolean) {
   c.rows(
     [
@@ -442,20 +452,18 @@ function drawBodyMale(c: Canvas, withLegs: boolean) {
       [9, 18, 29],
       [10, 18, 29],
       [11, 18, 29],
-      [12, 18, 29],
-      [13, 19, 28],
-      [14, 20, 27],
+      [12, 19, 28],
+      [13, 20, 27],
+      [14, 21, 26],
       [15, 22, 25],
     ],
     'S',
   );
-  c.set(18, 12, 'S', '-');
-  c.set(29, 12, 'S', '-');
-  c.hl(21, 26, 15, 'S', '-');
+  c.set(18, 11, 'S', '-');
+  c.set(29, 11, 'S', '-');
   // шея
-  c.rect(21, 15, 26, 17, 'S');
-  c.set(21, 16, 'S', '-');
-  c.set(26, 16, 'S', '-');
+  c.rect(22, 15, 25, 17, 'S');
+  c.hl(22, 25, 16, 'S', '-');
   for (const side of ['L', 'R'] as const) {
     const A = arms[side];
     const ac = armCanvas(c, side);
@@ -464,16 +472,11 @@ function drawBodyMale(c: Canvas, withLegs: boolean) {
     ac.rect(A.hand[0] - 1, A.hand[1] - 1, A.hand[0], A.hand[1], 'S');
   }
   c.rows(TORSO, 'S');
-  // ключицы, контур груди, пресс, пупок
+  // ключицы, лёгкий контур груди и пупок — без рельефа
   c.hl(20, 22, 18, 'S', '-');
   c.hl(25, 27, 18, 'S', '-');
-  c.hl(18, 22, 21, 'S', '-');
-  c.hl(25, 29, 21, 'S', '-');
-  c.vl(24, 19, 21, 'S', '-');
-  c.set(22, 23, 'S', '-');
-  c.set(25, 23, 'S', '-');
-  c.set(22, 25, 'S', '-');
-  c.set(25, 25, 'S', '-');
+  c.hl(19, 21, 21, 'S', '-');
+  c.hl(26, 28, 21, 'S', '-');
   c.set(24, 27, 'S', '-');
   if (!withLegs) return;
   c.rows(LEG_L, 'S');
@@ -644,7 +647,10 @@ function hairShine(c: Canvas) {
     if (c.get(x, y) === 'H0') c.set(x, y, 'H', '+');
 }
 
-/** Мужское лицо: глаза без «крылышек» ресниц, прямые брови гуще, тонкая линия рта, без румянца. */
+/**
+ * Мужское лицо (милый красавчик): большие глаза с бликом, но без «крылышек» ресниц, мягкие брови,
+ * лёгкий румянец и маленькая улыбка.
+ */
 function drawFaceMale(c: Canvas, eyes: Eyes) {
   const left = eyes === 'wink' ? 'open' : eyes;
   const right = eyes === 'wink' ? 'closed' : eyes;
@@ -655,30 +661,38 @@ function drawFaceMale(c: Canvas, eyes: Eyes) {
     const outer = flip ? x0 + 2 : x0;
     const inner = flip ? x0 : x0 + 2;
     if (st === 'closed') {
-      c.hl(x0, x0 + 2, 10, 'l');
+      // закрытый глаз — улыбающаяся дуга
+      c.set(x0, 10, 'l');
+      c.set(x0 + 1, 9, 'l');
+      c.set(x0 + 2, 10, 'l');
       continue;
     }
-    const top = st === 'half' ? 10 : 9;
-    c.hl(x0, x0 + 2, top, 'l');
-    c.set(outer, top + 1, 'E', '=');
-    c.set(x0 + 1, top + 1, 'E', '-');
-    c.set(inner, top + 1, 'E', '+');
-    if (st === 'open') {
-      c.set(outer, 11, 'E', '0');
-      c.set(x0 + 1, 11, 'E', '0');
-      c.set(inner, 11, 'E', '-');
+    if (st === 'half') {
+      c.hl(x0, x0 + 2, 9, 'S', '-');
+      c.hl(x0, x0 + 2, 10, 'l');
+      c.set(outer, 11, 'E', '=');
+      c.set(x0 + 1, 11, 'E', '-');
+      c.set(inner, 11, 'E', '+');
+      continue;
     }
+    c.hl(x0, x0 + 2, 9, 'l');
+    c.set(outer, 10, 'E', '=');
+    c.set(x0 + 1, 10, 'E', '-');
+    c.set(inner, 10, 'R', '+');
+    c.set(outer, 11, 'E', '0');
+    c.set(x0 + 1, 11, 'E', '0');
+    c.set(inner, 11, 'E', '-');
   }
-  // брови: прямые, чуть сведены к переносице
-  c.hl(19, 21, 7, 'H', '=');
-  c.hl(26, 28, 7, 'H', '=');
-  c.set(22, 8, 'H', '=');
-  c.set(25, 8, 'H', '=');
-  // нос и рот; при подмигивании — ухмылка
+  // брови: мягкие, чуть приподняты
+  c.hl(19, 21, 7, 'H', '-');
+  c.hl(26, 28, 7, 'H', '-');
+  // лёгкий румянец, носик, маленькая улыбка
+  c.set(19, 12, 'P', '+');
+  c.set(28, 12, 'P', '+');
   c.set(24, 11, 'S', '-');
-  c.set(24, 12, 'S', '-');
-  c.hl(23, 24, 13, 'S', '=');
-  if (eyes === 'wink') c.set(25, 13, 'S', '=');
+  c.set(23, 13, 'M', '-');
+  c.set(24, 13, 'S', '=');
+  if (eyes === 'wink') c.set(25, 13, 'M', '-');
 }
 
 function drawFace(c: Canvas, eyes: Eyes) {
@@ -733,15 +747,20 @@ function hairTop(c: Canvas) {
   c.hl(21, 23, 2, 'H', '+');
   // пряди вдоль лица (у героев — короткие виски)
   if (male) {
-    c.vl(17, 7, 10, 'H');
-    c.vl(16, 5, 9, 'H');
-    c.vl(30, 7, 10, 'H');
-    c.vl(31, 5, 9, 'H');
-    c.set(17, 11, 'H', '-');
-    c.set(30, 11, 'H', '-');
-    // косая чёлка: прядь падает на лоб справа налево
-    c.hl(21, 24, 7, 'H');
-    c.hl(22, 23, 8, 'H', '-');
+    // пушистые виски до скул, мягкая чёлка прядями и «антенна» на макушке
+    c.vl(17, 7, 11, 'H');
+    c.vl(16, 5, 10, 'H');
+    c.vl(30, 7, 11, 'H');
+    c.vl(31, 5, 10, 'H');
+    c.set(17, 12, 'H', '-');
+    c.set(30, 12, 'H', '-');
+    c.hl(22, 23, 7, 'H');
+    c.set(22, 8, 'H', '-');
+    c.set(26, 7, 'H');
+    // завиток-«антенна» на макушке
+    c.set(25, 0, 'H');
+    c.set(26, 0, 'H', '+');
+    c.set(27, 1, 'H');
     return;
   }
   c.vl(17, 7, 13, 'H');
@@ -1035,188 +1054,198 @@ function bust(c: Canvas, m: string, style: 'micro' | 'balconette' | 'bandeau' | 
   );
 }
 
+// ——— купальники: маленькие, но читаемые ———
+// Чашка — треугольник ровно по вершине груди: светлый верх с бликом, тень по нижнему краю (ткань
+// блестит и отделяется от кожи). Завязки — тонкие нити (материал 'Y': цвет ткани, но кожа под ними
+// не затеняется, иначе нить превращается в толстую полосу), на бёдрах — бантики: так даже крошечный
+// купальник с первого взгляда читается как купальник.
+
+type Row = readonly [y: number, x0: number, x1: number];
+/** Чашки (левая; правая — зеркально x ↔ 47 − x): обычный бикини, микро и «нитка». */
+const CUP_TRI: Row[] = [
+  [19, 19, 20],
+  [20, 18, 21],
+  [21, 17, 21],
+  [22, 17, 21],
+];
+const CUP_MICRO: Row[] = [
+  [19, 20, 20],
+  [20, 19, 20],
+  [21, 18, 21],
+  [22, 18, 21],
+];
+const CUP_STRING: Row[] = [
+  [20, 19, 19],
+  [21, 18, 20],
+  [22, 18, 20],
+];
+/** Низ (y, x0, x1) — по центру; обычный, микро и «нитка». */
+const BOTTOM_TRI: Row[] = [
+  [29, 21, 26],
+  [30, 21, 26],
+  [31, 22, 25],
+  [32, 23, 24],
+];
+const BOTTOM_MICRO: Row[] = [
+  [29, 22, 25],
+  [30, 22, 25],
+  [31, 23, 24],
+  [32, 23, 24],
+];
+const BOTTOM_STRING: Row[] = [
+  [30, 22, 25],
+  [31, 23, 24],
+  [32, 23, 24],
+];
+
 /**
- * Верх-«треугольники» на завязках: маленькие чашки по груди, блик на ткани, тонкие завязки на шею,
- * между чашками и по бокам. center — чем соединены чашки: завязкой или кольцом (T).
+ * Пара чашек с объёмом: верхний ряд светлый, на среднем — блик у внутреннего края, нижний — в тени.
+ * dx(y) — сдвиг груди наружу (после изменения объёма фигуры); возвращает вершины и внешние углы чашек.
  */
-function triTop(c: Canvas, m: string, center: 'tie' | 'ring' = 'tie') {
-  c.rows(
-    [
-      [19, 19, 20],
-      [20, 18, 21],
-      [21, 17, 22],
-      [22, 18, 21],
-      [19, 27, 28],
-      [20, 26, 29],
-      [21, 25, 30],
-      [22, 26, 29],
-    ],
-    m,
-  );
-  // блик и тень по нижнему краю — ткань читается как глянцевая чашка
-  c.set(19, 20, m, '+');
-  c.set(27, 20, m, '+');
-  c.set(20, 19, m, '+');
-  c.set(28, 19, m, '+');
-  c.hl(18, 21, 22, m, '-');
-  c.hl(26, 29, 22, m, '-');
-  // завязки: на шею, по бокам
-  c.line(20, 18, 22, 16, m, '=');
-  c.line(27, 18, 25, 16, m, '=');
-  c.set(16, 21, m, '=');
-  c.set(31, 21, m, '=');
-  if (center === 'ring') {
-    c.set(23, 21, 'T', '+');
-    c.set(24, 21, 'T', '0');
-    c.set(23, 22, 'T', '0');
-    c.set(24, 22, 'T', '-');
-  } else c.hl(23, 24, 21, m, '=');
+function cupPair(c: Canvas, m: string, rows: Row[], dx: (y: number) => number = () => 0) {
+  const last = rows.length - 1;
+  rows.forEach(([y, x0, x1], i) => {
+    const d = dx(y);
+    for (const side of [0, 1]) {
+      const L = side ? 47 - x1 + d : x0 - d;
+      const R = side ? 47 - x0 + d : x1 - d;
+      for (let x = L; x <= R; x++) {
+        const t: Tone = i === 0 ? '+' : i === last ? '-' : '0';
+        c.set(x, y, m, t);
+      }
+      if (i > 0 && i < last) c.set(side ? R - 1 : L + 1, y, m, '+');
+    }
+  });
+  const [ty, tx0] = rows[0];
+  const [by, bx0, bx1] = rows[last];
+  return {
+    tipL: [tx0 - dx(ty), ty] as P,
+    tipR: [47 - tx0 + dx(ty), ty] as P,
+    outL: [bx0 - dx(by), by] as P,
+    outR: [47 - bx0 + dx(by), by] as P,
+    inL: [bx1 - dx(by), by] as P,
+    inR: [47 - bx1 + dx(by), by] as P,
+  };
 }
 
-/** Низ на завязках: узкий треугольник спереди, высокие тонкие завязки на бёдрах. */
-function tieBottom(c: Canvas, m: string, ring = false) {
-  c.rows(
-    [
-      [29, 21, 26],
-      [30, 21, 26],
-      [31, 22, 25],
-      [32, 23, 24],
-    ],
-    m,
-  );
-  c.set(22, 29, m, '+');
-  c.set(23, 30, m, '+');
-  // завязки уходят вверх по бедру
-  c.line(20, 29, 17, 27, m, '=');
-  c.line(27, 29, 30, 27, m, '=');
-  if (ring) {
-    c.set(20, 29, 'T', '+');
-    c.set(27, 29, 'T', '+');
+/**
+ * Завязки верха: на шею от вершин, назад — короткой нитью вниз от внешних углов, между чашками —
+ * узелок или колечко чуть выше нижнего края (так чашки не сливаются в одну полосу).
+ */
+function cupStrings(c: Canvas, m: string, k: ReturnType<typeof cupPair>, center: 'tie' | 'ring', back = 2) {
+  c.line(k.tipL[0] + 1, k.tipL[1] - 1, 22, 16, 'Y', '-');
+  c.line(k.tipR[0] - 1, k.tipR[1] - 1, 25, 16, 'Y', '-');
+  c.line(k.outL[0] - 1, k.outL[1], k.outL[0] - back, k.outL[1] + 1, 'Y', '-');
+  c.line(k.outR[0] + 1, k.outR[1], k.outR[0] + back, k.outR[1] + 1, 'Y', '-');
+  const y = k.inL[1] - 1;
+  for (let x = k.inL[0] + 1; x < 23; x++) c.set(x, y, 'Y', '-');
+  for (let x = k.inR[0] - 1; x > 24; x--) c.set(x, y, 'Y', '-');
+  if (center === 'ring') {
+    c.set(23, y, 'T', '+');
+    c.set(24, y, 'T', '0');
+    c.set(23, y + 1, 'T', '0');
+    c.set(24, y + 1, 'T', '-');
+  } else {
+    c.set(23, y, m, '+');
+    c.set(24, y, m, '0');
+    c.set(23, y + 1, m, '-');
+    c.set(24, y + 1, m, '-');
   }
 }
 
+/** Бантик на конце завязки: узелок и две петельки (side −1 — слева, +1 — справа). */
+function bow(c: Canvas, m: string, x: number, y: number, side: -1 | 1) {
+  c.set(x, y, m, '0');
+  c.set(x + side, y - 1, m, '+');
+  c.set(x + side, y + 1, m, '+');
+  c.set(x - side, y + 1, 'Y', '-');
+}
+
+/** Низ с высокими завязками до тазовых косточек и бантиками (или колечками) на концах. */
+function bikiniBottom(c: Canvas, m: string, rows: Row[], hipShift = 0, end: 'bow' | 'ring' = 'bow') {
+  rows.forEach(([y, x0, x1], i) => {
+    for (let x = x0; x <= x1; x++) c.set(x, y, m, i === 0 ? '+' : i === rows.length - 1 ? '-' : '0');
+  });
+  c.set(rows[0][1] + 1, rows[1][0], m, '+');
+  const [y0, x0, x1] = rows[0];
+  const lx = 18 - hipShift;
+  const rx = 29 + hipShift;
+  c.line(x0 - 1, y0, lx, 27, 'Y', '-');
+  c.line(x1 + 1, y0, rx, 27, 'Y', '-');
+  if (end === 'bow') {
+    bow(c, m, lx, 27, -1);
+    bow(c, m, rx, 27, 1);
+  } else {
+    c.set(lx, 27, 'T', '+');
+    c.set(rx, 27, 'T', '+');
+  }
+}
+
+/** Обычный бикини-верх (рисуется до изменения объёма — едет вместе с грудью). */
+function triTop(c: Canvas, m: string, center: 'tie' | 'ring' = 'tie') {
+  cupStrings(c, m, cupPair(c, m, CUP_TRI), center, 1);
+}
+
+/** Обычный бикини-низ на завязках. */
+function tieBottom(c: Canvas, m: string, ring = false) {
+  bikiniBottom(c, m, BOTTOM_TRI, 0, ring ? 'ring' : 'bow');
+}
+
 /**
- * Микро-бикини: крошечные треугольнички ровно по груди, нитки-завязки на шею, между чашками и по бокам,
- * узкий треугольник снизу на высоких завязках до самых бёдер, золотые бусины-кольца и цепочка на талии.
- * Рисуется ПОСЛЕ изменения объёма фигуры (bust, hips): чашки едут вместе с грудью, а ткань не
- * растягивается — остаётся такой же крошечной у самой пышной фигуры.
+ * Микро-бикини: крошечные треугольнички ровно по вершине груди, нити на шею и за спину, колечко
+ * между чашками, узкий низ на высоких завязках с бантиками и тонкая золотая цепочка по талии.
+ * Рисуется ПОСЛЕ изменения объёма фигуры: чашки едут вместе с грудью, а ткань не растягивается.
  */
 function microBikini(c: Canvas, m: string, bust: number, hips: number) {
   const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
-  const h = (y: number) => HIP_ROWS[hips]?.torso[y] ?? 0;
-  // чашки: [y, x0, x1] левой; правая — зеркально (x ↔ 47 − x), со сдвигом груди наружу
-  for (const [y, x0, x1] of [
-    [20, 19, 20],
-    [21, 18, 21],
-    [22, 18, 21],
-  ] as const) {
-    c.hl(x0 - b(y), x1 - b(y), y, m);
-    c.hl(47 - x1 + b(y), 47 - x0 + b(y), y, m);
-  }
-  // блик на ткани и тень по нижнему краю
-  c.set(19 - b(21), 21, m, '+');
-  c.set(27 + b(21), 21, m, '+');
-  c.set(20 - b(20), 20, m, '+');
-  c.set(28 + b(20), 20, m, '+');
-  c.hl(18 - b(22), 21 - b(22), 22, m, '-');
-  c.hl(26 + b(22), 29 + b(22), 22, m, '-');
-  // нитки: на шею, по бокам и перемычка с бусиной
-  c.line(20 - b(20), 19, 22, 16, m, '=');
-  c.line(27 + b(20), 19, 25, 16, m, '=');
-  c.hl(16 - b(21), 17 - b(21), 21, m, '=');
-  c.hl(30 + b(21), 31 + b(21), 21, m, '=');
-  c.hl(22 - b(21), 25 + b(21), 21, m, '=');
-  c.set(23, 21, 'T', '+');
-  c.set(24, 21, 'T', '0');
-  // низ: узкий треугольник по центру, завязки уходят высоко на бёдра, на концах — кольца
-  c.rows(
-    [
-      [29, 22, 25],
-      [30, 22, 25],
-      [31, 23, 24],
-      [32, 23, 24],
-    ],
-    m,
-  );
-  c.set(22, 29, m, '+');
-  c.set(23, 30, m, '+');
-  // завязки идут по линии бёдер до самого края силуэта
-  c.line(21, 29, 18 - h(28), 28, m, '=');
-  c.line(26, 29, 29 + h(28), 28, m, '=');
-  c.set(21, 29, 'T', '+');
-  c.set(26, 29, 'T', '+');
-  // тонкая золотая цепочка по талии
-  for (let x = 19 - h(27); x <= 28 + h(27); x += 2) c.set(x, 27, 'T', x % 4 === 1 ? '+' : '0');
+  const h = HIP_ROWS[hips]?.torso[28] ?? 0;
+  cupStrings(c, m, cupPair(c, m, CUP_MICRO, b), 'ring');
+  bikiniBottom(c, m, BOTTOM_MICRO, h);
+  const hw = HIP_ROWS[hips]?.torso[26] ?? 0;
+  for (let x = 20 - hw; x <= 27 + hw; x += 2) c.set(x, 26, 'T', x % 4 === 0 ? '+' : '0');
 }
 
-/**
- * «Нитка»: ещё меньше микро-бикини — чашечки 2×2 ровно по груди, низ шириной в два пикселя,
- * всё держится на нитях: на шею, вокруг спины и высоко по бёдрам.
- */
+/** «Нитка»: ещё меньше микро — чашечки-треугольнички в семь пикселей и низ шириной в ладонь. */
 function stringBikini(c: Canvas, m: string, bust: number, hips: number) {
   const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
-  const h = (y: number) => HIP_ROWS[hips]?.torso[y] ?? 0;
-  for (const [y, x0, x1] of [
-    [21, 19, 20],
-    [22, 19, 20],
-  ] as const) {
-    c.hl(x0 - b(y), x1 - b(y), y, m);
-    c.hl(47 - x1 + b(y), 47 - x0 + b(y), y, m);
-  }
-  c.set(19 - b(21), 21, m, '+');
-  c.set(27 + b(21), 21, m, '+');
-  c.line(20 - b(21), 20, 22, 16, m, '=');
-  c.line(27 + b(21), 20, 25, 16, m, '=');
-  c.hl(16 - b(22), 18 - b(22), 22, m, '=');
-  c.hl(29 + b(22), 31 + b(22), 22, m, '=');
-  c.hl(21 - b(22), 26 + b(22), 22, m, '=');
-  c.rows(
-    [
-      [30, 23, 24],
-      [31, 23, 24],
-      [32, 23, 24],
-    ],
-    m,
-  );
-  c.set(23, 30, m, '+');
-  c.line(22, 30, 18 - h(28), 27, m, '=');
-  c.line(25, 30, 29 + h(28), 27, m, '=');
-  c.set(18 - h(28), 27, 'T', '+');
-  c.set(29 + h(28), 27, 'T', '+');
+  const h = HIP_ROWS[hips]?.torso[28] ?? 0;
+  cupStrings(c, m, cupPair(c, m, CUP_STRING, b), 'tie', 3);
+  bikiniBottom(c, m, BOTTOM_STRING, h);
 }
 
 /**
- * Слингшот: две узкие ленты от шеи через грудь сходятся книзу в крошечный треугольник —
- * самый открытый купальник, всё нужное закрыто.
+ * Слингшот: две ленты от шеи ложатся на грудь (на вершине — шире, с бликом), сходятся книзу
+ * у пупка и уходят в крошечный треугольник; на стыке — колечко.
  */
 function slingshot(c: Canvas, m: string, bust: number, hips: number) {
   const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
   void hips;
-  // ленты: от шеи вниз по груди (двойная ширина на чашке), затем сходятся к центру
-  const band: [number, number][] = [
-    [16, 22],
-    [17, 21],
-    [18, 20],
-    [19, 20],
-    [20, 19],
-    [21, 19],
-    [22, 19],
-    [23, 20],
-    [24, 21],
-    [25, 21],
-    [26, 22],
-    [27, 22],
-    [28, 23],
-    [29, 23],
+  // [y, x, ширина] левой ленты; правая — зеркально
+  const band: [number, number, number][] = [
+    [16, 22, 1],
+    [17, 21, 1],
+    [18, 20, 1],
+    [19, 19, 2],
+    [20, 18, 3],
+    [21, 18, 3],
+    [22, 18, 3],
+    [23, 19, 2],
+    [24, 20, 1],
+    [25, 21, 1],
+    [26, 21, 1],
+    [27, 22, 1],
+    [28, 22, 1],
+    [29, 23, 1],
   ];
-  for (const [y, x] of band) {
+  for (const [y, x, w] of band) {
     const d = y >= 19 && y <= 22 ? b(y) : 0;
-    const wide = y >= 20 && y <= 22;
-    c.hl(x - d, x - d + (wide ? 1 : 0), y, m);
-    c.hl(47 - x + d - (wide ? 1 : 0), 47 - x + d, y, m);
+    const bust3 = w === 3;
+    for (let k = 0; k < w; k++) {
+      const t: Tone = bust3 ? (y === 22 ? '-' : k === 1 ? '+' : '0') : '0';
+      c.set(x - d + k, y, m, t);
+      c.set(47 - (x - d + k), y, m, t);
+    }
   }
-  c.set(19 - b(21), 21, m, '+');
-  c.set(28 + b(21), 21, m, '+');
   c.rows(
     [
       [30, 23, 24],
@@ -1225,56 +1254,29 @@ function slingshot(c: Canvas, m: string, bust: number, hips: number) {
     ],
     m,
   );
-  c.set(23, 30, 'T', '+');
-  c.set(24, 30, 'T', '0');
-  c.hl(21, 22, 16, 'T');
-  c.hl(25, 26, 16, 'T');
+  c.set(23, 30, m, '+');
+  c.set(23, 29, 'T', '+');
+  c.set(24, 29, 'T', '0');
 }
 
 /** Ракушки: чашки-раковины с рёбрами, жемчужные нити, низ-раковина на жемчужных завязках. */
 function shellBikini(c: Canvas, m: string, bust: number, hips: number) {
   const b = (y: number) => BUST_ROWS[bust]?.[y] ?? 0;
-  const h = (y: number) => HIP_ROWS[hips]?.torso[y] ?? 0;
-  for (const [y, x0, x1] of [
-    [20, 19, 20],
-    [21, 18, 21],
-    [22, 18, 21],
-  ] as const) {
-    c.hl(x0 - b(y), x1 - b(y), y, m);
-    c.hl(47 - x1 + b(y), 47 - x0 + b(y), y, m);
-  }
+  const h = HIP_ROWS[hips]?.torso[28] ?? 0;
+  const k = cupPair(c, m, CUP_MICRO, b);
   // рёбра раковин
-  c.set(19 - b(21), 21, m, '-');
-  c.set(20 - b(22), 22, m, '-');
-  c.set(28 + b(21), 21, m, '-');
-  c.set(27 + b(22), 22, m, '-');
-  c.set(20 - b(20), 20, m, '+');
-  c.set(27 + b(20), 20, m, '+');
+  for (const [x, y] of [k.outL, k.outR]) c.set(x + (x < 24 ? 1 : -1), y - 1, m, '-');
   // жемчужные нити
-  for (const [x, y] of [
-    [21, 18],
-    [22, 17],
-    [26, 18],
-    [25, 17],
-    [23, 21],
-    [24, 21],
-    [17, 22],
-    [30, 22],
-  ] as P[])
-    c.set(x, y, 'R', '+');
-  c.rows(
-    [
-      [29, 22, 25],
-      [30, 22, 25],
-      [31, 23, 24],
-    ],
-    m,
-  );
-  c.set(23, 29, m, '+');
+  c.line(k.tipL[0] + 1, k.tipL[1] - 1, 22, 16, 'R', '+');
+  c.line(k.tipR[0] - 1, k.tipR[1] - 1, 25, 16, 'R', '+');
+  c.hl(k.inL[0] + 1, k.inR[0] - 1, k.inL[1] - 1, 'R', '+');
+  c.set(k.outL[0] - 1, k.outL[1] - 1, 'R', '+');
+  c.set(k.outR[0] + 1, k.outR[1] - 1, 'R', '+');
+  BOTTOM_MICRO.forEach(([y, x0, x1], i) => c.hl(x0, x1, y, m, i === 0 ? '+' : '0'));
   c.set(22, 30, m, '-');
-  for (let k = 0; k < 3; k++) {
-    c.set(21 - k - (k === 2 ? h(28) : 0), 29 - k, 'R', '+');
-    c.set(26 + k + (k === 2 ? h(28) : 0), 29 - k, 'R', '+');
+  for (let s = 0; s < 3; s++) {
+    c.set(21 - s - (s === 2 ? h : 0), 29 - s, 'R', '+');
+    c.set(26 + s + (s === 2 ? h : 0), 29 - s, 'R', '+');
   }
 }
 
@@ -2066,6 +2068,50 @@ function wearOutfit(c: Canvas, wear: NonNullable<Look['wear']>, withLegs: boolea
         c.vl(18, 33, 36, 'T', '-');
         c.vl(29, 33, 36, 'T', '-');
         legs(c, 36, 36, 'B', '-');
+      }
+      sandals();
+      break;
+    }
+    case 'aloha': {
+      // распахнутая гавайская рубашка с цветочным принтом, короткие рукава, пляжные шорты
+      c.poly(
+        [
+          [16, 18],
+          [21, 17],
+          [22, 30],
+          [17, 30],
+        ],
+        'O',
+      );
+      c.poly(
+        [
+          [26, 17],
+          [31, 18],
+          [30, 30],
+          [25, 30],
+        ],
+        'O',
+      );
+      c.line(21, 17, 22, 29, 'T', '-');
+      c.line(26, 17, 25, 29, 'T', '-');
+      c.set(21, 17, 'T', '+');
+      c.set(26, 17, 'T', '+');
+      for (const [x, y] of [
+        [18, 20],
+        [20, 23],
+        [18, 26],
+        [28, 21],
+        [27, 25],
+        [29, 28],
+      ] as P[])
+        c.set(x, y, 'T', '+');
+      bothArms(c, 'upper', 'O');
+      torso(c, 30, 32, 'B');
+      c.hl(19, 28, 30, 'B', '+');
+      c.vl(24, 31, 32, 'B', '-');
+      if (withLegs) {
+        legs(c, 33, 35, 'B');
+        legs(c, 35, 35, 'B', '-');
       }
       sandals();
       break;
@@ -3280,14 +3326,21 @@ function shiftInside(c: Canvas, fn: WeaponFn, w: SpriteSpec['weapon'], dx: numbe
 
 const AUTO = new Set(['S', 'H', 'O', 'T', 'A', 'B', 'K', 'W', 'R', 'F', 'D', 'G', 'Q', 'V']);
 
+/** Ткань купальников и белья, которая не отбрасывает тень на кожу (тонкие детали остаются тонкими). */
+const SHEER = new Set(['B', 'Y']);
+
 function autoShade(c: Canvas) {
   const src = c.g.slice();
-  const at = (x: number, y: number) => (c.in(x, y) ? src[y * c.w + x].charAt(0) : '');
+  const raw = (x: number, y: number) => (c.in(x, y) ? src[y * c.w + x].charAt(0) : '');
   for (let y = 0; y < c.h; y++)
     for (let x = 0; x < c.w; x++) {
       const v = src[y * c.w + x];
       if (v.length !== 2 || v[1] !== '0' || !AUTO.has(v[0])) continue;
       const m = v[0];
+      const at = (ax: number, ay: number) => {
+        const n = raw(ax, ay);
+        return m === 'S' && SHEER.has(n) ? 'S' : n;
+      };
       const right = at(x + 1, y) !== m;
       const down = at(x, y + 1) !== m;
       const left = at(x - 1, y) !== m;
@@ -3429,7 +3482,7 @@ function faceHD(c: Canvas, eyes: Eyes) {
   for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
 }
 
-/** Мужское лицо HD: глаза уже, одна линия ресниц, прямые брови, тонкий рот, без румянца. */
+/** Мужское лицо HD: большие глаза с одной линией ресниц, мягкие брови, маленькая улыбка, лёгкий румянец. */
 function faceHDMale(c: Canvas, eyes: Eyes) {
   for (let y = 14; y <= 30; y++)
     for (let x = 36; x <= 59; x++) {
@@ -3444,11 +3497,9 @@ function faceHDMale(c: Canvas, eyes: Eyes) {
     c.g[i] = v;
     mine.add(i);
   };
-  // брови: прямые и плотные, внутренний край ниже
-  for (let x = 38; x <= 43; x++) put(x, 14, 'H=');
-  for (let x = 52; x <= 57; x++) put(x, 14, 'H=');
-  put(43, 15, 'H=');
-  put(52, 15, 'H=');
+  // брови: мягкие
+  for (let x = 38; x <= 43; x++) put(x, 14, 'H-');
+  for (let x = 52; x <= 57; x++) put(x, 14, 'H-');
   const left = eyes === 'wink' ? 'open' : eyes;
   const right = eyes === 'wink' ? 'closed' : eyes;
   for (const [x0, st] of [
@@ -3459,24 +3510,28 @@ function faceHDMale(c: Canvas, eyes: Eyes) {
       for (let x = x0; x <= x0 + 5; x++) put(x, 21, 'l-');
       continue;
     }
-    const top = st === 'half' ? 19 : 18;
+    const top = st === 'half' ? 18 : 16;
     for (let x = x0; x <= x0 + 5; x++) put(x, top, 'l-');
-    const tones: Tone[] = st === 'half' ? ['=', '-', '0'] : ['=', '-', '0', '+'];
+    const tones: Tone[] = st === 'half' ? ['=', '-', '0', '+'] : ['=', '=', '-', '0', '+', '+'];
     tones.forEach((tn, k) => {
       for (let x = x0; x <= x0 + 5; x++) put(x, top + 1 + k, 'E' + tn);
     });
     if (st === 'open') {
-      put(x0 + 2, top + 2, 'E=');
-      put(x0 + 3, top + 2, 'E=');
+      put(x0 + 2, top + 3, 'E=');
+      put(x0 + 3, top + 3, 'E=');
     }
     put(x0, top + 1, 'R+');
     put(x0 + 1, top + 1, 'R+');
+    put(x0, top + 2, 'R+');
   }
-  // нос и рот
-  put(48, 22, 'S-');
+  // носик, маленькая улыбка и лёгкий румянец
   put(48, 23, 'S-');
-  for (let x = 46; x <= 49; x++) put(x, 26, 'S=');
-  if (eyes === 'wink') put(50, 25, 'S=');
+  put(46, 26, 'M-');
+  for (let x = 47; x <= 49; x++) put(x, 27, 'M-');
+  put(50, 26, 'M-');
+  if (eyes === 'wink') put(51, 25, 'M-');
+  for (let x = 38; x <= 41; x++) put(x, 25, 'P+');
+  for (let x = 54; x <= 57; x++) put(x, 25, 'P+');
   for (let x = 42; x <= 53; x++) if (c.get(x, 31) === 'S0') c.set(x, 31, 'S', '-');
 }
 
@@ -3547,6 +3602,7 @@ function softPalette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
   const eyes = hex(L.eyes);
   const out: Record<string, Record<Tone, RGBA>> = { ...base };
   for (const m of ['H', 'O', 'T', 'A', 'B', 'W', 'F', 'D', 'G', 'V']) out[m] = softTones(base[m]['0']);
+  out.Y = out.B;
   // тени кожи мягче и без глубоких углов: '=' совпадает с '-'
   const skinShade = mix(skin, hex('#C98A9E'), 0.2);
   out.S = { '0': mix(skin, hex('#FFF4EE'), 0.1), '+': lighten(skin, 0.24), '-': skinShade, '=': skinShade };
@@ -3557,6 +3613,13 @@ function softPalette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
 }
 
 function palette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
+  const p = basePalette(spec);
+  // нити купальников — того же цвета, что ткань
+  p.Y = p.B;
+  return p;
+}
+
+function basePalette(spec: SpriteSpec): Record<string, Record<Tone, RGBA>> {
   const L = spec.look;
   const outfit = hex(L.outfit);
   const trim = hex(L.trim);
@@ -3650,6 +3713,14 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
     for (let i = 0; i < armLayer.g.length; i++) if (armLayer.g[i]) c.g[i] = armLayer.g[i];
     armLayer = null;
   }
+  if (armsKind === 'peace') {
+    // два пальца «V» над кулачком
+    const [hx, hy] = arms.R.hand;
+    c.set(hx - 1, hy - 2, 'S');
+    c.set(hx - 1, hy - 3, 'S');
+    c.set(hx + 1, hy - 2, 'S');
+    c.set(hx + 1, hy - 3, 'S');
+  }
   accessory(c, L.acc);
   // кисть на бедре уезжает вместе с шириной бёдер
   const hipShift = HIP_ROWS[hips]?.torso[handL[1]] ?? 0;
@@ -3677,14 +3748,14 @@ function composeFigure(spec: SpriteSpec & { outfit?: OutfitKind }, pose: Pose, h
 /** Женский наряд на мужской фигуре — ближайший мужской (и наоборот). */
 function maleWear(w: Wear): Wear {
   if (MALE_WEAR.has(w)) return w;
-  if (isSwimwear(w)) return w === 'micro' || w === 'string' || w === 'sling' || w === 'shell' ? 'briefs' : 'trunks';
+  if (isSwimwear(w)) return w === 'micro' || w === 'string' || w === 'sling' || w === 'shell' ? 'briefs' : w === 'swim4' ? 'aloha' : 'trunks';
   if (w === 'yukata') return 'myukata';
   if (w === 'lace' || w === 'lace2' || w === 'lace3' || w === 'lace4' || w === 'corset' || w === 'ribbon' || w === 'silk') return 'mrobe';
   return 'mformal';
 }
 function femaleWear(w: Wear): Wear {
   if (!MALE_WEAR.has(w)) return w;
-  return w === 'trunks' || w === 'briefs' ? 'swim' : w === 'myukata' ? 'yukata' : w === 'mrobe' ? 'silk' : 'gown';
+  return w === 'trunks' || w === 'briefs' ? 'swim' : w === 'aloha' ? 'swim4' : w === 'myukata' ? 'yukata' : w === 'mrobe' ? 'silk' : 'gown';
 }
 
 /** edge — насколько тёмен мягкий контур (в HD он тоньше, поэтому темнее). */
