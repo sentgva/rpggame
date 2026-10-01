@@ -20,6 +20,7 @@ import { fishingActions } from './actions/fishing';
 import { volleyActions } from './actions/volley';
 import { campfireActions } from './actions/campfire';
 import { adjutantActions } from './actions/adjutant';
+import { sortieActions } from './actions/sortie';
 import { serverActions } from './actions/server';
 import { GameError, give, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
@@ -50,6 +51,7 @@ export const HANDLERS: Record<string, Handler> = {
   ...volleyActions,
   ...campfireActions,
   ...adjutantActions,
+  ...sortieActions,
   ...devActions,
   ...serverActions,
 };

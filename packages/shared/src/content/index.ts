@@ -37,3 +37,4 @@ export * from './volley';
 export * from './campfire';
 export * from './adjutant';
 export * from './fashion';
+export * from './sortie';

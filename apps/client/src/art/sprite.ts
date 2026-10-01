@@ -4,7 +4,7 @@
  */
 import type { Element, Look } from '@idle/shared';
 
-export type WeaponKind = 'sword' | 'axe' | 'bow' | 'staff' | 'wand' | 'scythe' | 'daggers' | 'lute' | 'crossbow' | 'none';
+export type WeaponKind = 'sword' | 'blade' | 'axe' | 'bow' | 'staff' | 'wand' | 'scythe' | 'daggers' | 'lute' | 'crossbow' | 'none';
 export type BodyKind = 'robe' | 'tunic' | 'plate';
 
 export interface SpriteSpec {
@@ -27,7 +27,7 @@ export interface Bitmap {
 }
 
 export const CLASS_WEAPON: Record<string, WeaponKind> = {
-  knight: 'sword',
+  knight: 'blade',
   assassin: 'daggers',
   priestess: 'wand',
   ranger: 'bow',

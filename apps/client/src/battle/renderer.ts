@@ -338,21 +338,33 @@ function liveTexture(canvas: HTMLCanvasElement): Texture {
  * Шрифт белый с тёмной обводкой, цвет — тонировкой, размер — масштабом.
  */
 const NUM_FONT = 'battle-num';
+/** Мелкие подписи (названия умений, статусы) — свой атлас в «родном» размере: уменьшенный крупный шрифт мылится. */
+const SMALL_FONT = 'battle-sm';
 let numFontReady = false;
 function ensureNumFont() {
   if (numFontReady) return;
+  const chars = [['a', 'z'], ['A', 'Z'], ['0', '9'], ['а', 'я'], ['А', 'Я'], 'ёЁ .,:;!?%+-−×·—–«»()/\'"…★♥'] as (string | string[])[];
+  const resolution = Math.min(2, window.devicePixelRatio || 1);
   BitmapFont.install({
     name: NUM_FONT,
     style: { fontFamily: `${PIXEL_FONT}, Manrope, sans-serif`, fontSize: 40, fontWeight: '600', fill: '#ffffff', stroke: { color: '#1a1016', width: 9 } },
-    chars: [['a', 'z'], ['A', 'Z'], ['0', '9'], ['а', 'я'], ['А', 'Я'], 'ёЁ .,:;!?%+-−×·—–«»()/\'"…★♥'],
+    chars,
     padding: 6,
+  });
+  BitmapFont.install({
+    name: SMALL_FONT,
+    style: { fontFamily: `${PIXEL_FONT}, Manrope, sans-serif`, fontSize: 18, fontWeight: '600', fill: '#ffffff', stroke: { color: '#1a1016', width: 4 } },
+    chars,
+    resolution,
+    padding: 3,
   });
   numFontReady = true;
 }
 
 function battleText(text: string, color: number | string, size: number): BitmapText {
   ensureNumFont();
-  const tx = new BitmapText({ text, style: { fontFamily: NUM_FONT, fontSize: Math.round(size * 1.25), align: 'center' } });
+  const px = Math.round(size * 1.25);
+  const tx = new BitmapText({ text, style: { fontFamily: px <= 22 ? SMALL_FONT : NUM_FONT, fontSize: px, align: 'center' } });
   tx.tint = typeof color === 'number' ? color : parseInt(color.replace('#', ''), 16);
   return tx;
 }
@@ -1121,7 +1133,7 @@ export class BattleRenderer {
     if (this.ui.children.length > MAX_FLOATERS) return;
     const tx = battleText(text, color, size);
     tx.anchor.set(0.5, 1);
-    const x0 = u.baseX + (Math.random() - 0.5) * 18;
+    const x0 = Math.max(tx.width / 2 + 2, Math.min(this.W - tx.width / 2 - 2, u.baseX + (Math.random() - 0.5) * 18));
     // не выше верхнего края сцены (над Колоссом цифры иначе обрезаются)
     const y0 = Math.max(44, u.baseY + u.headY - 6);
     tx.position.set(x0, y0);
@@ -1138,11 +1150,26 @@ export class BattleRenderer {
     );
   }
 
+  /** Подписи на сцене: где стоят и до какого момента — чтобы не налезали друг на друга. */
+  private labelSlots: { x: number; y: number; w: number; text: string; until: number }[] = [];
+
   private label(u: UnitView, text: string, color: number, size: number) {
     if (!text) return;
+    const now = this.time;
+    this.labelSlots = this.labelSlots.filter((l) => l.until > now);
+    const want = u.baseX;
+    // тот же приём у соседа в то же мгновение — одной подписи достаточно
+    if (this.labelSlots.some((l) => l.text === text && l.until - now > 650 && Math.abs(l.x - want) < 70)) return;
     const tx = battleText(text, color, size);
     tx.anchor.set(0.5, 1);
-    tx.position.set(Math.max(50, Math.min(this.W - 50, u.baseX)), u.baseY + u.headY - 22);
+    const w = tx.width;
+    // целиком в кадре и не поверх соседних подписей
+    const x = Math.max(w / 2 + 4, Math.min(this.W - w / 2 - 4, want));
+    let y = u.baseY + u.headY - 22;
+    for (let i = 0; i < 4 && this.labelSlots.some((l) => Math.abs(l.x - x) < (l.w + w) / 2 + 2 && Math.abs(l.y - y) < 15); i++) y -= 15;
+    y = Math.max(18, y);
+    this.labelSlots.push({ x, y, w, text, until: now + 900 });
+    tx.position.set(Math.round(x), Math.round(y));
     this.ui.addChild(tx);
     this.tween(900, (k) => (tx.alpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1), () => tx.destroy());
   }

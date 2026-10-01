@@ -317,7 +317,8 @@
       "rift": 50,
       "spires": 70,
       "artifacts": 25,
-      "fishing": 8
+      "fishing": 8,
+      "sortie": 12
     },
     "level": {
       "events": 10,

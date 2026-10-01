@@ -178,6 +178,10 @@ import {
   fashionOfDay,
   fashionFits,
   FASHION_BONUS,
+  SORTIE_DAILY,
+  SORTIE_BOSS_AT,
+  sortieTierOpen,
+  sortieReward,
 } from '../src';
 
 const T0 = Date.UTC(2026, 8, 25, 10);
@@ -1967,5 +1971,52 @@ describe('фансервис: адъютант, модный день', () => {
     // понедельник (Пляжный день) против вторника (Будуар)
     expect(at('2026-10-05') / at('2026-10-06')).toBeCloseTo((1 + 0.03 + FASHION_BONUS) / 1.03, 1);
     expect(at('2026-10-05')).toBeGreaterThan(at('2026-10-06'));
+  });
+});
+
+describe('вылазка', () => {
+  const D = { cfg, dev: true };
+  const act = (s: PlayerState, a: Record<string, unknown>, now = T0) => applyAction(s, { type: 'x', ...a } as never, { cfg, now });
+  const ready = () => applyAction(fresh(), { type: 'dev.progress', diff: 0, idx: 20 }, { ...D, now: T0 }).state;
+
+  it('открывается по ходу кампании; первые три забега в день — с наградой', () => {
+    expect(() => act(fresh(), { type: 'sortie.start', tier: 'normal', hero: 'lira' })).toThrow('locked');
+    let s = ready();
+    expect(() => act(s, { type: 'sortie.start', tier: 'hard', hero: 'lira' })).toThrow('locked');
+    expect(() => act(s, { type: 'sortie.start', tier: 'normal', hero: 'keira' })).toThrow('notOwned');
+    for (let i = 0; i < SORTIE_DAILY; i++) {
+      const r = act(s, { type: 'sortie.start', tier: 'normal', hero: 'lira' });
+      expect(r.result.rewarded).toBe(true);
+      s = r.state;
+    }
+    const r = act(s, { type: 'sortie.start', tier: 'normal', hero: 'lira' });
+    expect(r.result.rewarded).toBe(false);
+    // новый день — снова с наградой
+    expect(act(r.state, { type: 'sortie.start', tier: 'normal', hero: 'lira' }, T0 + 86400000).result.rewarded).toBe(true);
+  });
+
+  it('итог проверяется: время не обгоняет часы, босс — только после 5 минут; победа открывает сложность', () => {
+    let s = ready();
+    const start = act(s, { type: 'sortie.start', tier: 'normal', hero: 'cassian' });
+    s = start.state;
+    const id = start.result.id;
+    const end = T0 + (SORTIE_BOSS_AT + 20) * 1000;
+    expect(() => act(s, { type: 'sortie.finish', id, time: SORTIE_BOSS_AT, kills: 300, boss: true }, T0 + 60000)).toThrow('badParam');
+    expect(() => act(s, { type: 'sortie.finish', id, time: 100, kills: 50, boss: true }, end)).toThrow('badParam');
+    expect(() => act(s, { type: 'sortie.finish', id, time: 100, kills: 5000, boss: false }, end)).toThrow('badParam');
+    expect(() => act(s, { type: 'sortie.finish', id: id + 1, time: 100, kills: 50, boss: false }, end)).toThrow('requirements');
+    const gold0 = s.cur.gold;
+    const r = act(s, { type: 'sortie.finish', id, time: SORTIE_BOSS_AT + 10, kills: 900, boss: true }, end);
+    expect(r.result.rewarded).toBe(true);
+    expect(r.state.cur.gold).toBeGreaterThan(gold0);
+    expect(r.result.reward.emblems).toBeGreaterThanOrEqual(10);
+    expect(sortieTierOpen(r.state, 'hard')).toBe(true);
+    expect(sortieTierOpen(r.state, 'nightmare')).toBe(false);
+    // забег закрыт — второй раз итог не принимается
+    expect(() => act(r.state, { type: 'sortie.finish', id, time: 10, kills: 1, boss: false }, end)).toThrow('requirements');
+    // половина пути даёт меньше, чем победа над боссом
+    const half = sortieReward(cfg, s, 'normal', { time: 150, kills: 300, boss: false });
+    expect(half.emblems!).toBeLessThan(r.result.reward.emblems);
+    expect(sortieReward(cfg, s, 'hard', { time: 150, kills: 300, boss: false }).emblems!).toBeGreaterThan(half.emblems!);
   });
 });

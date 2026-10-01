@@ -19,6 +19,7 @@ export const DAILY_QUESTS: QuestDef[] = [
   { id: 'd_combo', name: { ru: 'Провести 25 связок классов в бою', en: 'Land 25 class combos in battle' }, counter: 'combo', target: 25, activity: 20, reward: { emblems: 1 } },
   { id: 'd_dungeon', name: { ru: 'Пройти подземелье 2 раза', en: 'Clear dungeons 2 times' }, counter: 'dungeon', target: 2, activity: 20, reward: { starDust: 10 } },
   { id: 'd_quick', name: { ru: 'Сделать быстрый сбор', en: 'Use quick collect' }, counter: 'quick', target: 1, activity: 20, reward: { crystals: 5 } },
+  { id: 'd_sortie', name: { ru: 'Сходить в вылазку', en: 'Go on a sortie' }, counter: 'sortie', target: 1, activity: 20, reward: { emblems: 1 } },
 ];
 
 /** Еженедельные задания (10 шт.). */

@@ -387,6 +387,14 @@ export interface AdjutantState {
   pats: number;
 }
 
+/** Вылазка: награждаемые забеги за день, рекорды по сложностям и текущий забег. */
+export interface SortieState {
+  day: string;
+  runs: number;
+  best: Record<string, { time: number; kills: number; boss: boolean }>;
+  active?: { id: number; tier: string; hero: string; at: number; rewarded: boolean };
+}
+
 export interface MineState {
   floor: number;
   seed: number;
@@ -447,6 +455,7 @@ export interface PlayerState {
   /** Вечер у костра: разговоры героинь. */
   campfire?: CampfireState;
   adjutant?: AdjutantState;
+  sortie?: SortieState;
   /** Встреча, ждущая решения игрока, и время следующей. */
   encounter?: EncounterState | null;
   encounterNext?: number;

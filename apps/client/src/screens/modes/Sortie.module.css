@@ -1,0 +1,179 @@
+/* «Вылазка»: лобби (сложность, герой) и полноэкранный забег с интерфейсом поверх холста. */
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.tier,
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border: 1px solid var(--frame);
+  border-radius: 6px;
+  background: var(--panel-1);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+.tier:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.on {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2) inset;
+}
+.heroes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.run {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: #0e0a0c;
+  touch-action: none;
+  user-select: none;
+}
+.host {
+  position: absolute;
+  inset: 0;
+}
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding-top: var(--safe-top, 0px);
+}
+.xp {
+  position: relative;
+  height: 12px;
+  margin: 6px 8px 0;
+  border: 1px solid #000;
+  background: rgba(20, 12, 18, 0.8);
+}
+.xpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #4aa0e0, #8ae0ff);
+  transition: width 0.15s;
+}
+.lvl {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  line-height: 10px;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 0 #000;
+}
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 8px 0;
+}
+.chip {
+  pointer-events: auto;
+  padding: 3px 9px;
+  border: 1px solid var(--frame);
+  border-radius: 10px;
+  background: rgba(20, 12, 18, 0.82);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.timer {
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  color: #ffd24a;
+}
+.bossBar {
+  margin: 6px 24px 0;
+}
+.party {
+  position: absolute;
+  left: 8px;
+  bottom: calc(14px + var(--safe-bottom, 0px));
+  display: flex;
+  gap: 2px;
+}
+.hp {
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: calc(18px + var(--safe-bottom, 0px));
+}
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  width: 80%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(20, 12, 18, 0.8);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: slide-up 0.3s var(--ease);
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 18px;
+  background: rgba(10, 6, 10, 0.72);
+  animation: slide-up 0.2s var(--ease);
+}
+.cardTitle {
+  font-family: var(--font-pixel);
+  font-size: 30px;
+  text-align: center;
+  color: #ffd24a;
+  text-shadow: 0 2px 0 #000;
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--accent-2);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel-1));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.card:active {
+  transform: scale(0.98);
+}
+.cardIcon {
+  width: 44px;
+  text-align: center;
+  font-size: 28px;
+}
+.cardText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.cardText b {
+  font-size: 14px;
+}

@@ -26,4 +26,5 @@ export { mineEnemies, mineNeedsFight } from './engine/actions/mine';
 export { volleyLeft } from './engine/actions/volley';
 export { campfireScene, campfireState } from './engine/actions/campfire';
 export { adjutantSkins, adjutantState } from './engine/actions/adjutant';
+export { sortieReward, sortieState, sortieTierOpen } from './engine/actions/sortie';
 export { festCopy, mineOf, volleyOf, festivalNow, festivalState, festBoss, festStageEnemies, festGoalValue, festTaskValue, festClaimable, festBought, festShopNow } from './engine/actions/festival';

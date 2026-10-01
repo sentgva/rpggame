@@ -44,9 +44,11 @@ import { Shop } from '../hub/Shop';
 import { Horde, Rift, Spires } from './Endgame';
 import { Festival } from './Festival';
 import { Fishing } from './Fishing';
+import { Sortie } from './Sortie';
 
 export const MODES = [
   { id: 'festival', icon: 'festival', title: 'mode.festival', desc: 'mode.festivalDesc', feature: 'events' },
+  { id: 'sortie', icon: 'battle', title: 'mode.sortie', desc: 'mode.sortieDesc', feature: 'sortie' },
   { id: 'expeditions', icon: 'expedition', title: 'mode.expeditions', desc: 'mode.expeditionsDesc', feature: 'expeditions' },
   { id: 'fishing', icon: 'fish', title: 'mode.fishing', desc: 'mode.fishingDesc', feature: 'fishing' },
   { id: 'dungeons', icon: 'dungeon', title: 'mode.dungeons', desc: 'mode.dungeonsDesc', feature: 'dungeons' },
@@ -83,6 +85,8 @@ export function ModeScreen({ id }: { id: string }) {
       return <Horde />;
     case 'festival':
       return <Festival />;
+    case 'sortie':
+      return <Sortie />;
     case 'shopArena':
       return <Shop initial="arena" />;
     case 'shopLab':

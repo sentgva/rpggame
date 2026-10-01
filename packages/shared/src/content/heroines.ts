@@ -1,6 +1,6 @@
 import type { ClassId, Element, L10n } from '../types';
 
-export type HairStyle = 'long' | 'short' | 'bob' | 'ponytail' | 'twintails' | 'braid' | 'bun' | 'wild' | 'swept';
+export type HairStyle = 'long' | 'short' | 'bob' | 'ponytail' | 'twintails' | 'braid' | 'bun' | 'wild' | 'swept' | 'prince';
 export type Accessory =
   | 'none'
   | 'witchHat'
@@ -19,7 +19,8 @@ export type Accessory =
   | 'sunHat'
   | 'bow'
   | 'bunnyEars'
-  | 'maidBand';
+  | 'maidBand'
+  | 'circlet';
 
 /**
  * Сменный наряд облика вместо классового костюма.
@@ -120,12 +121,12 @@ export const HEROINES: HeroineDef[] = [
     element: 'light',
     title: L('Северный рыцарь', 'Knight of the North'),
     bio: L(
-      'Рыцарь в белых латах и синем плаще с гербом Легиона. «Слишком красив для войны», — говорят все, пока не увидят его в строю. Поклялся защищать последних людей Аэриса и держит слово: первым встречает удар и последним уходит с поля боя.',
-      'A knight in white plate and a blue cloak bearing the Legion crest. "Too pretty for war," everyone says, until they see him hold the line. He swore to protect the last people of Aeris and keeps his word: first to meet the blow, last to leave the field.',
+      'Рыцарь в серебряных латах с золотой филигранью, с косой через плечо и синим полуплащом. «Слишком красив для войны», — говорят все, пока не увидят его в строю. Поклялся защищать последних людей Аэриса и держит слово: первым встречает удар и последним уходит с поля боя.',
+      'A knight in silver plate with golden filigree, a braid over his shoulder and a blue half-cloak. "Too pretty for war," everyone says, until they see him hold the line. He swore to protect the last people of Aeris and keeps his word: first to meet the blow, last to leave the field.',
     ),
     quote: L('За моей спиной вы в безопасности.', 'Behind me, you are safe.'),
     hello: L('Командор? Копьё я сломал, но щит цел. Я встану впереди — остальное за вами.', 'Commander? I broke my spear, but my shield holds. I will stand in front — the rest is yours.'),
-    look: { hair: '#F2E3A0', style: 'swept', skin: SK.fair, eyes: '#5AA0E0', outfit: '#3A5AA8', trim: '#D4A640', acc: 'none', male: true },
+    look: { hair: '#F6E7A8', style: 'prince', skin: SK.fair, eyes: '#4FA0F0', outfit: '#2E4FA8', trim: '#E8B840', acc: 'circlet', accColor: '#E8B840', male: true },
     join: 0,
   },
   {

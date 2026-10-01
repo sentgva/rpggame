@@ -52,6 +52,10 @@ export function vInt(v: unknown, min: number, max: number, name = 'param'): numb
   if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) throw new GameError('badParam', { name });
   return v;
 }
+export function vBool(v: unknown, name = 'param'): boolean {
+  if (typeof v !== 'boolean') throw new GameError('badParam', { name });
+  return v;
+}
 export function vOneOf<T extends string>(v: unknown, list: readonly T[], name = 'param'): T {
   if (typeof v !== 'string' || !list.includes(v as T)) throw new GameError('badParam', { name });
   return v as T;

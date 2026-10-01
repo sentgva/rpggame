@@ -20,6 +20,32 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-04-sortie',
+    date: '04.10.2026',
+    icon: '🗡️',
+    title: { ru: 'Вылазка: экшен вместо ожидания', en: 'Sortie: action instead of waiting' },
+    lead: {
+      ru: 'Новый активный режим: веди героя сквозь орду, собирай Легион и победи босса',
+      en: 'A new active mode: lead your hero through the horde, gather the Legion and beat the boss',
+    },
+    color: '#e0532a',
+    art: { hero: 'cassian' },
+    items: [
+      {
+        ru: '🗡️ Вылазка (Карта): управляешь героем пальцем, оружие бьёт само; уровни — выбор из трёх карточек; через 5 минут — босс',
+        en: '🗡️ Sortie (Map): steer your hero with a finger, the weapon fires by itself; level-ups offer three cards; a boss after 5 minutes',
+      },
+      {
+        ru: '🛡️ Кассиан в новом образе: латы с филигранью, коса, обруч, полуплащ, щит с гербом',
+        en: '🛡️ Cassian’s new look: filigree plate, a braid, a circlet, a half-cloak and a crested shield',
+      },
+      {
+        ru: '🔤 Подписи умений в бою — чёткие, не налезают друг на друга и не обрезаются',
+        en: '🔤 Skill labels in battle are crisp, no longer overlap and are not cut off',
+      },
+    ],
+  },
+  {
     id: '2026-10-03-fanservice',
     date: '03.10.2026',
     icon: '💗',
