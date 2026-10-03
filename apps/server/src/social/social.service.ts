@@ -24,12 +24,12 @@ export class SocialService {
     @Inject(PlayerService) private readonly players: PlayerService,
   ) {
     players.hooks.afterAction = (id, state, _action, meta) => {
-      if (env.socialEnabled && meta.referrer && !meta.refQualified && state.progress.maxGlobalEver >= 21) background(this.checkReferral(id, meta));
+      if (env.socialEnabled && meta.referrer && !meta.refQualified && state.progress.stage >= 20) background(this.checkReferral(id, meta));
     };
   }
 
   async leaderboard(board: string, me: string) {
-    const col = board === 'tower' ? 'tower' : board === 'arena' ? 'arena_rating' : 'max_stage';
+    const col = board === 'tower' ? 'tower' : board === 'legion' ? 'arena_rating' : 'max_stage';
     const rows = await this.db.query<{ id: string; first_name: string | null; username: string | null; score: number }>(
       `SELECT id, first_name, username, ${col} AS score FROM players WHERE NOT dev_used ORDER BY ${col} DESC LIMIT 100`,
     );

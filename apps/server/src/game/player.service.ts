@@ -336,7 +336,8 @@ export class PlayerService implements OnModuleInit, OnModuleDestroy {
         `UPDATE players SET state = $2, version = version + 1, max_stage = $3, tower = $4, arena_rating = $5, power = $6,
            dev_used = dev_used OR $7, lang = $8, updated_at = now(), last_seen_at = to_timestamp($9 / 1000.0)
          WHERE id = $1`,
-        [e.id, s, s.progress.maxGlobalEver, s.modes.tower, s.modes.arena.rating, power, s.dev.used, s.settings.lang, s.lastSeen],
+        // arena_rating — с 3.0 хранит уровень Легиона (рейтинг «legion»)
+        [e.id, s, s.progress.stage, s.modes.tower, s.legion.lvl, power, s.dev.used, s.settings.lang, s.lastSeen],
       );
     } catch (err) {
       e.dirty = true;

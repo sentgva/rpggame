@@ -18,7 +18,7 @@ export function sortieTierOpen(s: PlayerState, tier: SortieTierId): boolean {
   return !t.after || !!s.sortie?.best[t.after]?.boss;
 }
 
-/** Награда за забег: минуты дохода, Эмблемы, кристаллы и звёздная пыль — по доле пройденного и боссу. */
+/** Награда за забег: минуты дохода, Эмблемы, кристаллы и Тома — по доле пройденного и боссу. */
 export function sortieReward(cfg: Config, s: PlayerState, tier: SortieTierId, res: { time: number; kills: number; boss: boolean }): Partial<Record<Currency, number>> {
   const k = SORTIE_TIER_MAP[tier].reward;
   const p = Math.max(0, Math.min(1, res.time / SORTIE_BOSS_AT));
@@ -27,7 +27,7 @@ export function sortieReward(cfg: Config, s: PlayerState, tier: SortieTierId, re
     ...scaleReward(cfg, s, { gold: minutes, xp: minutes }),
     emblems: Math.round((1 + 7 * p + (res.boss ? 6 : 0)) * k),
     crystals: Math.round((res.boss ? 40 : 15 * p) * k),
-    starDust: Math.round((5 + 20 * p) * k),
+    books: Math.round((1 + 4 * p) * k),
   };
 }
 

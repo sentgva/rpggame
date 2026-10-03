@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { DIFFICULTY_KEYS, stageLabel, stageRef, type PlayerState } from '@idle/shared';
+import { stageLabel, stageRef, type PlayerState } from '@idle/shared';
 import { BotService } from '../bot/bot.service';
 import { CacheService } from '../common/cache.service';
 import { DbService } from '../db/db.service';
@@ -86,10 +86,9 @@ export class BugService {
     const name = escapeHtml(who.firstName ?? 'Игрок');
     lines.push(`👤 <b>${name}</b>${who.username ? ` @${escapeHtml(who.username)}` : ''} · <code>${escapeHtml(uid)}</code>`);
     if (s) {
-      const diff = s.progress.diff;
-      const cur = stageLabel(stageRef(diff, Math.max(1, s.progress.cleared[diff] + 1)));
+      const cur = stageLabel(stageRef(Math.min(600, s.progress.stage + 1)));
       const heroes = Object.keys(s.heroines).length;
-      lines.push(`📍 Этап ${cur} · ${DIFFICULTY_KEYS[diff]} · героев ${heroes}${who.power ? ` · сила ${Math.round(who.power).toLocaleString('ru-RU')}` : ''}`);
+      lines.push(`📍 Этап ${cur} · ур. Легиона ${s.legion?.lvl ?? 1} · героев ${heroes}${who.power ? ` · сила ${Math.round(who.power).toLocaleString('ru-RU')}` : ''}`);
     }
     const device = [d.platform, d.tgVersion && `TG ${d.tgVersion}`, d.screen, d.lang].filter(Boolean).join(' · ');
     if (device) lines.push(`📱 ${escapeHtml(device)}`);

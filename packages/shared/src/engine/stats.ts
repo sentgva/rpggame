@@ -1,465 +1,343 @@
 import type { Config } from '../config';
 import {
-  ASC_MAP,
+  BANNER_MAP,
+  BOND_STAT,
   CLASSES,
-  CONSTELLATIONS,
-  GEM_STATS,
   HEROINE_MAP,
-  LEGENDARY_MAP,
-  MAIN_BASE,
-  MYTHIC_MAP,
+  ROSTER,
+  SETS,
   SET_MAP,
   SKIN_MAP,
-  TREES,
-  parseGem, BOND_STAT, ROSTER, FASHION_BONUS, fashionFits, fashionOfDay } from '../content';
-import type { SkillMod } from '../content/effects';
-import type {
-  ClassId,
-  Element,
-  EquipSlot,
-  FinalStats,
-  HeroineState,
-  Item,
-  PlayerState,
-  SpecialEffect,
-  StatKey,
-  Stats,
-} from '../types';
-import { EQUIP_SLOTS } from '../types';
+  SLOT_MAIN,
+  fashionFits,
+  fashionOfDay,
+  type HeroMod,
+} from '../content';
+import type { FinalStats, GearSlot, HeroState, Item, PlayerState, SetId } from '../types';
+import { GEAR_SLOTS } from '../types';
 
-export function addStats(target: Stats, src: Stats | undefined, mult = 1): Stats {
-  if (!src) return target;
-  for (const k in src) {
-    const key = k as StatKey;
-    target[key] = (target[key] ?? 0) + (src[key] ?? 0) * mult;
-  }
-  return target;
+/** Рост характеристик за уровень/этап. */
+export function growth(cfg: Config, lvl: number): number {
+  return Math.pow(cfg.growth, Math.max(0, lvl - 1));
 }
 
-// ——— уровни и опыт ———
+// ——— уровни, ранги, навыки ———
 
-export function levelCap(cfg: Config, h: Pick<HeroineState, 'stars' | 'awakened'>): number {
-  if (h.awakened) return cfg.hero.awakenCap;
-  const caps = cfg.hero.levelCaps;
-  return caps[Math.max(0, Math.min(caps.length - 1, h.stars - 1))];
+/** Потолок уровня героя по рангу. */
+export function rankCap(cfg: Config, rank: number): number {
+  const caps = cfg.hero.rankCaps;
+  return caps[Math.max(0, Math.min(caps.length, rank) - 1)];
 }
 
-/** Опыт до следующего уровня: XP(L) = 100·L^2.2 */
-export function xpToNext(cfg: Config, lvl: number): number {
-  return Math.floor(cfg.hero.xpBase * Math.pow(lvl, cfg.hero.xpExp));
+/** Эффективный уровень героя: уровень Легиона, но не выше потолка его ранга. */
+export function heroLevel(cfg: Config, s: Pick<PlayerState, 'legion'>, h: Pick<HeroState, 'rank'>): number {
+  return Math.min(s.legion.lvl, rankCap(cfg, h.rank));
 }
 
-export function goldToNext(cfg: Config, lvl: number): number {
-  return Math.floor(cfg.hero.goldBase * Math.pow(lvl, cfg.hero.goldExp));
+/** Максимальный уровень Легиона — потолок высшего ранга. */
+export function legionMaxLevel(cfg: Config): number {
+  return cfg.hero.rankCaps[cfg.hero.rankCaps.length - 1];
+}
+
+/** Прорыв — переход с уровня, кратного breakEvery. */
+export function isBreakthrough(cfg: Config, lvl: number): boolean {
+  return lvl % cfg.hero.breakEvery === 0;
+}
+
+/**
+ * Цена повышения уровня Легиона с lvl на lvl+1: «минуты дохода» на этапе того же номера,
+ * растущие как levelA + levelB·lvl^levelK (прогресс быстрый в начале и плавно замедляется).
+ */
+export function levelCost(cfg: Config, lvl: number): { gold: number; xp: number } {
+  const H = cfg.hero;
+  const minutes = (H.levelA + H.levelB * Math.pow(lvl, H.levelK)) * (isBreakthrough(cfg, lvl) ? H.breakMult : 1);
+  const g = growth(cfg, lvl);
+  return { gold: Math.ceil(cfg.income.goldBase * g * minutes), xp: Math.ceil(cfg.income.xpBase * g * minutes) };
+}
+
+export function maxRank(cfg: Config): number {
+  return cfg.hero.maxRank;
+}
+
+/** Цена следующего ранга (null — ранг максимальный). Золото — в «уровнях» на потолке текущего ранга. */
+export function rankCost(cfg: Config, rank: number): { emblems: number; gold: number } | null {
+  if (rank >= cfg.hero.maxRank) return null;
+  const cap = rankCap(cfg, rank);
+  return { emblems: cfg.hero.rankEmblems[rank - 1], gold: Math.ceil((levelCost(cfg, cap).gold * cfg.hero.rankGold[rank - 1]) / 20) };
+}
+
+/** Цена следующего уровня навыка (null — максимум). Золото растёт вместе с уровнем Легиона. */
+export function skillCost(cfg: Config, s: Pick<PlayerState, 'legion'>, lvl: number): { books: number; gold: number } | null {
+  if (lvl >= cfg.hero.maxSkill) return null;
+  return { books: cfg.hero.skillBooks[lvl - 1], gold: Math.ceil((levelCost(cfg, s.legion.lvl).gold * cfg.hero.skillGold[lvl - 1]) / 20) };
+}
+
+/** Множитель силы навыка по уровню. */
+export function skillPower(cfg: Config, lvl: number): number {
+  return 1 + cfg.hero.skillStep * (lvl - 1);
 }
 
 export function accountXpToNext(cfg: Config, lvl: number): number {
   return Math.floor(cfg.account.xpBase * Math.pow(lvl, cfg.account.xpExp));
 }
 
-/** Высший ранг героини (до пробуждения). */
-export function maxRank(cfg: Config): number {
-  return cfg.hero.maxRank;
-}
+// ——— снаряжение ———
 
-/** Цена следующего ранга: Эмблемы и минуты дохода золота; null — ранг высший. */
-export function rankCost(cfg: Config, h: Pick<HeroineState, 'stars'>): { emblems: number; goldMin: number } | null {
-  const i = h.stars - 1;
-  if (h.stars >= cfg.hero.maxRank || i < 0) return null;
-  return { emblems: cfg.hero.rankEmblems[i], goldMin: cfg.hero.rankGold[i] };
-}
-
-/** Ранг фирменного умения растёт с уровнем героини: 1 + уровень/25 (до 5). */
-export function sigRank(h: Pick<HeroineState, 'lvl'>): number {
-  return Math.min(5, 1 + Math.floor(h.lvl / 25));
-}
-
-// ——— предметы ———
-
-/**
- * Кривая роста основных характеристик предмета от уровня. Темп роста за уровень плавно
- * растёт от growth до growthLate за growthRamp уровней: в начале игры силу даёт прокачка
- * героинь, ближе к концу — снаряжение (иначе поздние этапы стоят месяцами).
- */
-export function gearCurve(cfg: Config, lvl: number, stat: StatKey): number {
+/** Основные свойства предмета: оружие — атака, шлем — здоровье, доспех — защита, сапоги — скорость и немного здоровья. */
+export function itemMain(cfg: Config, it: Pick<Item, 'slot' | 'rarity' | 'lvl' | 'enh'>): { atk?: number; hp?: number; def?: number; haste?: number } {
   const G = cfg.gear;
-  if (stat === 'def') return Math.pow(G.defGrowth, lvl);
-  const a = Math.log(G.growth);
-  const b = Math.log(G.growthLate ?? G.growth);
-  const R = Math.max(1, G.growthRamp ?? 1);
-  const L = Math.max(0, lvl);
-  const ln = L <= R ? a * L + ((b - a) * L * L) / (2 * R) : a * R + ((b - a) * R) / 2 + b * (L - R);
-  return Math.exp(ln);
-}
-
-export function isExpStat(stat: StatKey): boolean {
-  return stat === 'hp' || stat === 'atk' || stat === 'def';
-}
-
-/** Основная характеристика с учётом заточки. */
-export function itemMainValue(cfg: Config, item: Item): number {
-  const exp = isExpStat(item.main.stat);
-  const step = exp ? cfg.gear.enhanceStep : cfg.gear.enhanceStep * 0.4;
-  const v = item.main.v * (1 + step * item.enh);
-  return exp ? Math.round(v) : v;
-}
-
-/** Все характеристики, которые даёт предмет (основная + аффиксы + камни). */
-export function itemStats(cfg: Config, item: Item): Stats {
-  const s: Stats = {};
-  s[item.main.stat] = itemMainValue(cfg, item);
-  for (const a of item.affixes) addStats(s, { [statOfAffix(a.id)]: a.v });
-  for (const g of item.gems) {
-    if (!g) continue;
-    const { type, lvl } = parseGem(g);
-    const gs = GEM_STATS[type];
-    addStats(s, { [gs.stat]: gs.values[lvl - 1] ?? 0 });
+  const r = G.rarityMult[it.rarity] * (1 + G.enhStep * it.enh);
+  const g = growth(cfg, it.lvl);
+  switch (SLOT_MAIN[it.slot]) {
+    case 'atk':
+      return { atk: Math.round(G.atk0 * g * r) };
+    case 'hp':
+      return { hp: Math.round(G.hp0 * g * r) };
+    case 'def':
+      return { def: Math.round(G.def0 * g * r) };
+    case 'haste':
+      return { haste: Math.round((G.haste0 + G.hasteGrowth * it.lvl) * r * 1000) / 1000, hp: Math.round(G.hp0 * G.bootsHp * g * r) };
   }
-  return s;
 }
 
-function statOfAffix(id: string): StatKey {
-  return id as StatKey;
+/** Сила предмета — для сравнения «лучше/хуже» и «Надеть лучшее». */
+export function itemPower(cfg: Config, it: Item): number {
+  const m = itemMain(cfg, it);
+  const g = growth(cfg, it.lvl);
+  // доп. свойства переводим в «эквивалент атаки» уровня предмета
+  const sub = it.subs.reduce((n, x) => n + x.v * SUB_WEIGHT[x.s], 0);
+  const base = (m.atk ?? 0) * 4 + (m.hp ?? 0) * 0.4 + (m.def ?? 0) * 3 + (m.haste ?? 0) * 900 * g;
+  return Math.round(base + sub * 900 * g + (it.set ? 120 * g : 0));
+}
+const SUB_WEIGHT: Record<string, number> = { atkPct: 1, hpPct: 0.8, defPct: 0.6, crit: 1.6, critDmg: 0.7, haste: 1.4, skillDmg: 0.9, lifesteal: 1.2 };
+
+/** Где надет предмет: uid → герой и слот. */
+export function equippedIndex(s: PlayerState): Record<string, { hero: string; slot: GearSlot }> {
+  const out: Record<string, { hero: string; slot: GearSlot }> = {};
+  for (const h of Object.values(s.heroines)) {
+    for (const slot of GEAR_SLOTS) {
+      const uid = h.gear[slot];
+      if (uid) out[uid] = { hero: h.id, slot };
+    }
+  }
+  return out;
 }
 
-export function itemFx(item: Item): SpecialEffect | null {
-  if (!item.fx) return null;
-  const leg = LEGENDARY_MAP[item.fx];
-  if (leg) return leg.fx;
-  const myth = MYTHIC_MAP[item.fx];
-  if (myth) return { id: 'classMod', s: myth.id };
-  return null;
+/** Сколько вещей каждого сета надето на героя. */
+export function setCounts(s: PlayerState, h: HeroState): Partial<Record<SetId, number>> {
+  const out: Partial<Record<SetId, number>> = {};
+  for (const slot of GEAR_SLOTS) {
+    const it = h.gear[slot] ? s.items[h.gear[slot]!] : undefined;
+    if (it?.set) out[it.set] = (out[it.set] ?? 0) + 1;
+  }
+  return out;
 }
 
-/** Грубая «сила» предмета для авто-экипировки и стрелок сравнения. */
-export function itemPower(cfg: Config, item: Item): number {
-  const s = itemStats(cfg, item);
-  let p = statsPower(s, 1);
-  if (item.fx) p *= 1.15;
-  if (item.set) p *= 1.05;
-  return Math.round(p);
-}
-
-/** Весовая оценка набора характеристик (для сравнения предметов). */
-export function statsPower(s: Stats, scale: number): number {
-  let p = 0;
-  p += (s.atk ?? 0) * 6;
-  p += (s.hp ?? 0) * 0.5;
-  p += (s.def ?? 0) * 3;
-  p += (s.spd ?? 0) * 60 * scale;
-  const pctW = 900 * scale;
-  p += ((s.atkPct ?? 0) * 1.2 + (s.hpPct ?? 0) + (s.defPct ?? 0) * 0.8) * pctW;
-  p += ((s.crit ?? 0) * 1.5 + (s.critDmg ?? 0) * 0.6 + (s.pen ?? 0) * 1.4 + (s.lifesteal ?? 0) + (s.eva ?? 0) + (s.acc ?? 0) * 0.6) * pctW;
-  p += ((s.healPower ?? 0) * 0.5 + (s.resist ?? 0) * 0.6 + (s.energyRegen ?? 0) * 0.9 + (s.dmgReduce ?? 0) * 2) * pctW;
-  p +=
-    ((s.dmgFire ?? 0) + (s.dmgNature ?? 0) + (s.dmgWater ?? 0) + (s.dmgLight ?? 0) + (s.dmgDark ?? 0) + (s.dmgBoss ?? 0) + (s.dmgSkill ?? 0) + (s.dmgUlt ?? 0) + (s.dmgBasic ?? 0) + (s.dmgDot ?? 0) + (s.shieldPower ?? 0)) *
-    0.5 *
-    pctW;
-  p += ((s.goldPct ?? 0) + (s.xpPct ?? 0) + (s.lootDouble ?? 0) * 3) * 0.3 * pctW;
-  p += (s.skillRank ?? 0) * 300 * scale;
-  return p;
-}
-
-// ——— героиня ———
-
-export interface SkillSlot {
-  id: string;
-  rank: number;
-  mods: { mod: SkillMod; rank: number }[];
-}
+// ——— характеристики героя ———
 
 export interface HeroBuild {
-  id: string;
-  cls: ClassId;
-  element: Element;
-  lvl: number;
-  stars: number;
   stats: FinalStats;
+  level: number;
+  /** Сеты, собранные на 4 вещи. */
+  sets4: SetId[];
   power: number;
-  fx: SpecialEffect[];
-  basic: SkillSlot;
-  skills: SkillSlot[];
-  ult: SkillSlot;
-  /** Все бонусы (для отображения). */
-  raw: Stats;
-  sets: Record<string, number>;
 }
 
-export interface BuildContext {
-  /** Состав отряда для бонусов синергии. */
-  party?: string[];
-  /** Доп. характеристики (реликвии лабиринта и т. д.). */
-  extra?: Stats;
-  extraFx?: SpecialEffect[];
+/** Бонус Знамени Легиона (доля или минуты). */
+export function bannerValue(s: Pick<PlayerState, 'banner'>, id: string): number {
+  const def = BANNER_MAP[id];
+  return def ? (s.banner[id] ?? 0) * def.per : 0;
 }
 
-const AWAKEN_FX: Record<ClassId, SpecialEffect> = {
-  knight: { id: 'startShield', v: 0.4 },
-  assassin: { id: 'execute', v: 0.6 },
-  priestess: { id: 'guardianAngel' },
-  ranger: { id: 'doubleStrike', v: 0.35 },
-  warlock: { id: 'echo', n: 3 },
-  hunter: { id: 'packLeader', v: 0.5 },
-};
-
-/** Бонусы созвездия аккаунта (для всего отряда). */
-export function constellationStats(stars: number): { stats: Stats; offline: number; loot: number; inv: number; capHours: number } {
-  const stats: Stats = {};
-  let offline = 0,
-    loot = 0,
-    inv = 0,
-    capHours = 0;
-  CONSTELLATIONS.forEach((c, i) => {
-    const n = Math.max(0, Math.min(20, stars - i * 20));
-    if (n <= 0) return;
-    addStats(stats, c.perStar, n);
-    offline += (c.special?.offline ?? 0) * n;
-    loot += (c.special?.loot ?? 0) * n;
-    inv += (c.special?.inv ?? 0) * n;
-    capHours += (c.special?.capHours ?? 0) * n;
-  });
-  return { stats, offline, loot, inv, capHours };
-}
-
-export function ascensionValue(s: PlayerState, id: string): number {
-  const def = ASC_MAP[id];
-  return def ? (s.ascension.up[id] ?? 0) * def.per : 0;
-}
-
-/** Очки навыков героини: 1 за уровень + 1 за 10 звёзд созвездия + награды за боссов актов. */
-export function skillPoints(s: PlayerState, h: HeroineState): number {
-  const bossPts = Math.min(10, Math.floor(s.progress.maxGlobalEver / 20));
-  return h.lvl + Math.floor(s.constellation / 10) + bossPts;
-}
-
-export function spentPoints(h: HeroineState): number {
-  let n = 0;
-  for (const k in h.tree) n += h.tree[k];
-  return n;
-}
-
-export function branchPoints(h: HeroineState, cls: ClassId, branch: number): number {
-  let n = 0;
-  for (const node of TREES[cls]) if (node.branch === branch) n += h.tree[node.id] ?? 0;
-  return n;
-}
-
-export function ultRank(h: HeroineState): number {
-  return Math.min(7, Math.max(1, h.stars) + (h.awakened ? 1 : 0));
-}
-
-/** Множитель «Памяти Легиона» за циклы Вознесения: (1 + cyclePower)^count. */
-export function legionMult(cfg: Config, s: Pick<PlayerState, 'ascension'>): number {
-  return Math.pow(1 + cfg.ascension.cyclePower, s.ascension.count);
-}
-
-export function buildHeroine(cfg: Config, s: PlayerState, h: HeroineState, ctx: BuildContext = {}): HeroBuild {
-  const def = HEROINE_MAP[h.id];
+export function heroStats(cfg: Config, s: PlayerState, id: string, mod?: HeroMod): HeroBuild {
+  const h = s.heroines[id];
+  const def = HEROINE_MAP[id];
   const cls = CLASSES[def.cls];
-  const heroMult = cfg.stat.heroMult;
-  const lvlMult = 1 + cfg.stat.levelGrowth * (h.lvl - 1);
-  const starMult = 1 + cfg.stat.starGrowth * (h.stars - 1);
-  // Уровень и звёзды усиливают и базу, и снаряжение: иначе к середине игры экспоненциальный
-  // рост предметов обесценил бы прокачку героини (см. README, «Баланс»).
-  const m = lvlMult * starMult;
-  // «Память Легиона»: каждый цикл Вознесения умножает ATK и HP отряда
-  const legion = legionMult(cfg, s);
-
-  const add: Stats = {};
-  // особые эффекты класса (волк у охотницы и т. п.)
-  const fx: SpecialEffect[] = [...(cls.fx ?? [])];
-  const sets: Record<string, number> = {};
-
+  const St = cfg.stat;
+  const lvl = heroLevel(cfg, s, h);
+  const g = growth(cfg, lvl) * Math.pow(cfg.hero.rankMult, h.rank - 1);
+  let hp = cls.base.hp * g;
+  let atk = cls.base.atk * g;
+  let def_ = cls.base.def * g;
+  let haste = 0;
+  const pct = { atk: 0, hp: 0, def: 0 };
+  let crit = St.critBase + (cls.base.crit ?? 0);
+  let critDmg = St.critDmgBase + (cls.base.critDmg ?? 0);
+  let skillDmg = 0;
+  let lifesteal = 0;
+  let heal = cls.base.heal ?? 0;
+  let dmgRed = cls.base.dmgRed ?? 0;
+  let energy = 0;
   // снаряжение
-  for (const slot of EQUIP_SLOTS) {
-    const uid = h.gear[slot];
-    const item = uid ? s.items[uid] : undefined;
-    if (!item) continue;
-    addStats(add, itemStats(cfg, item));
-    if (item.set) sets[item.set] = (sets[item.set] ?? 0) + 1;
-    const f = itemFx(item);
-    if (f) fx.push(f);
-  }
-  for (const [setId, count] of Object.entries(sets)) {
-    const set = SET_MAP[setId];
-    if (!set) continue;
-    if (count >= 2) addStats(add, set.bonus2);
-    if (count >= 4) {
-      addStats(add, set.bonus4);
-      if (set.fx4) fx.push(set.fx4);
+  for (const slot of GEAR_SLOTS) {
+    const it = h.gear[slot] ? s.items[h.gear[slot]!] : undefined;
+    if (!it) continue;
+    const m = itemMain(cfg, it);
+    atk += m.atk ?? 0;
+    hp += m.hp ?? 0;
+    def_ += m.def ?? 0;
+    haste += m.haste ?? 0;
+    for (const sub of it.subs) {
+      switch (sub.s) {
+        case 'atkPct':
+          pct.atk += sub.v;
+          break;
+        case 'hpPct':
+          pct.hp += sub.v;
+          break;
+        case 'defPct':
+          pct.def += sub.v;
+          break;
+        case 'crit':
+          crit += sub.v;
+          break;
+        case 'critDmg':
+          critDmg += sub.v;
+          break;
+        case 'haste':
+          haste += sub.v;
+          break;
+        case 'skillDmg':
+          skillDmg += sub.v;
+          break;
+        case 'lifesteal':
+          lifesteal += sub.v;
+          break;
+      }
     }
-    if (count >= 6) {
-      addStats(add, set.bonus6);
-      fx.push(set.fx6);
+  }
+  // сеты
+  const counts = setCounts(s, h);
+  const sets4: SetId[] = [];
+  for (const set of SETS) {
+    const n = counts[set.id] ?? 0;
+    if (n >= 2) {
+      const b = set.two;
+      if (b.stat === 'atk') pct.atk += b.v;
+      else if (b.stat === 'hp') pct.hp += b.v;
+      else if (b.stat === 'haste') haste += b.v;
+      else if (b.stat === 'crit') crit += b.v;
+      else if (b.stat === 'heal') heal += b.v;
+      else if (b.stat === 'skillDmg') skillDmg += b.v;
     }
+    if (n >= 4) sets4.push(set.id);
   }
-
-  // древо навыков
-  const treeMods: { mod: SkillMod; rank: number }[] = [];
-  const learnedSkills = new Map<string, number>();
-  for (const node of TREES[def.cls]) {
-    const r = h.tree[node.id] ?? 0;
-    if (r <= 0) continue;
-    if (node.kind === 'passive') addStats(add, node.stats, r);
-    else if (node.kind === 'key' && node.fx) fx.push(node.fx);
-    else if (node.kind === 'active' && node.skill) learnedSkills.set(node.skill, r);
-    else if (node.kind === 'mod' && node.mod) treeMods.push({ mod: node.mod, rank: r });
-  }
-
-  // специализация, пробуждение, облик
-  let ultId = cls.ult;
-  if (h.spec) {
-    const spec = cls.specs[h.spec === 'A' ? 0 : 1];
-    ultId = spec.ult;
-    addStats(add, spec.passive);
-    if (spec.fx) fx.push(spec.fx);
-  }
-  if (h.awakened) {
-    addStats(add, { hpPct: 0.2, atkPct: 0.2, defPct: 0.2 });
-    fx.push(AWAKEN_FX[def.cls]);
-  }
+  if (sets4.includes('predator')) critDmg += 0.35;
+  if (sets4.includes('gale')) energy += 0.25;
+  // пассивки по рангу
+  if (def.cls === 'knight' && h.rank >= 5) dmgRed += 0.1;
+  if (def.cls === 'priestess' && h.rank >= 3) heal += 0.15;
+  // Знамя, близость, облик и «Модный день»
+  pct.atk += bannerValue(s, 'atk');
+  pct.hp += bannerValue(s, 'hp');
+  pct.def += bannerValue(s, 'def');
+  const bond = (s.bond?.[id]?.lvl ?? 0) * BOND_STAT;
+  let look = 0;
   if (h.skin && SKIN_MAP[h.skin]) {
-    const b = cfg.stat.skinBonus;
-    addStats(add, { hpPct: b, atkPct: b, defPct: b });
+    look += St.skinBonus;
+    if (s.day?.key && fashionFits(h.skin, fashionOfDay(s.day.key))) look += St.fashionBonus;
   }
-  // «Модный день»: облик из коллекции дня — ещё +10%
-  if (s.day?.key && fashionFits(h.skin, fashionOfDay(s.day.key))) addStats(add, { hpPct: FASHION_BONUS, atkPct: FASHION_BONUS, defPct: FASHION_BONUS });
-  // близость (режим «Уход»): +2% за уровень
-  const bond = s.bond?.[h.id]?.lvl ?? 0;
-  if (bond > 0) addStats(add, { hpPct: BOND_STAT * bond, atkPct: BOND_STAT * bond, defPct: BOND_STAT * bond });
-
-  // общие бонусы аккаунта
-  addStats(add, constellationStats(s.constellation).stats);
-  // Вознесение: улучшения древа
-  addStats(add, {
-    atkPct: ascensionValue(s, 'atk'),
-    hpPct: ascensionValue(s, 'hp'),
-    crit: ascensionValue(s, 'crit'),
-  });
-
-  addStats(add, ctx.extra);
-  if (ctx.extraFx) fx.push(...ctx.extraFx);
-
-  const base = cls.base;
+  pct.atk += bond + look;
+  pct.hp += bond + look;
+  pct.def += bond + look;
+  // условия режима
+  if (mod) {
+    pct.atk += mod.atk ?? 0;
+    pct.hp += mod.hp ?? 0;
+    pct.def += mod.def ?? 0;
+    haste += mod.haste ?? 0;
+    heal += mod.heal ?? 0;
+    skillDmg += mod.skillDmg ?? 0;
+    energy += mod.energy ?? 0;
+    dmgRed += mod.dmgRed ?? 0;
+    crit += mod.crit ?? 0;
+  }
   const stats: FinalStats = {
-    hp: Math.round((base.hp * heroMult + (add.hp ?? 0)) * m * legion * (1 + (add.hpPct ?? 0))),
-    atk: Math.round((base.atk * heroMult + (add.atk ?? 0)) * m * legion * (1 + (add.atkPct ?? 0))),
-    def: Math.round((base.def * heroMult + (add.def ?? 0)) * m * (1 + (add.defPct ?? 0))),
-    spd: Math.round(base.spd + (add.spd ?? 0)),
-    crit: cfg.stat.critBase + (base.crit ?? 0) + (add.crit ?? 0),
-    critDmg: cfg.stat.critDmgBase + (base.critDmg ?? 0) + (add.critDmg ?? 0),
-    acc: add.acc ?? 0,
-    eva: add.eva ?? 0,
-    pen: add.pen ?? 0,
-    lifesteal: add.lifesteal ?? 0,
-    healPower: 1 + (base.healPower ?? 0) + (add.healPower ?? 0),
-    resist: add.resist ?? 0,
-    energyRegen: 1 + (add.energyRegen ?? 0),
-    bonus: pickBonus(add),
+    hp: Math.max(1, Math.round(hp * (1 + pct.hp))),
+    atk: Math.max(1, Math.round(atk * (1 + pct.atk))),
+    def: Math.max(0, Math.round(def_ * (1 + pct.def))),
+    haste: Math.min(St.hasteMax, round3(haste)),
+    crit: Math.min(St.critMax, round3(crit)),
+    critDmg: round3(critDmg),
+    skillDmg: round3(skillDmg),
+    lifesteal: Math.min(St.lifestealMax, round3(lifesteal)),
+    heal: round3(heal),
+    dmgRed: Math.min(St.dmgRedMax, round3(dmgRed)),
+    energy: round3(energy),
+    bossDmg: 0,
   };
-
-  // умения
-  const rankBonus = Math.min(3, Math.floor(add.skillRank ?? 0));
-  const modsFor = (skillId: string) => treeMods.filter((x) => x.mod.skill === skillId);
-  const classMods = fx
-    .filter((f) => f.id === 'classMod' && f.s)
-    .map((f) => MYTHIC_MAP[f.s!])
-    .filter((x) => x && x.cls === def.cls);
-  const basicMods = classMods.filter((x) => x.target === 'basic').map((x) => ({ mod: { ...x.mod, skill: cls.basic }, rank: 1 }));
-  const ultMods = classMods.filter((x) => x.target === 'ult').map((x) => ({ mod: { ...x.mod, skill: ultId }, rank: 1 }));
-
-  // фирменное умение класса — всегда первым, дальше — изученные в древе
-  const skills: SkillSlot[] = [{ id: cls.sig, rank: sigRank(h) + rankBonus, mods: modsFor(cls.sig) }];
-  for (const sid of h.skills) {
-    if (!sid) continue;
-    const r = learnedSkills.get(sid);
-    if (!r) continue;
-    skills.push({ id: sid, rank: Math.min(8, r + rankBonus), mods: modsFor(sid) });
-  }
-
-  const build: HeroBuild = {
-    id: h.id,
-    cls: def.cls,
-    element: def.element,
-    lvl: h.lvl,
-    stars: h.stars,
-    stats,
-    power: 0,
-    fx: fx.filter((f) => f.id !== 'classMod'),
-    basic: { id: cls.basic, rank: 1, mods: basicMods },
-    skills,
-    ult: { id: ultId, rank: ultRank(h) + rankBonus, mods: ultMods },
-    raw: add,
-    sets,
-  };
-  build.power = heroPower(build);
-  return build;
+  return { stats, level: lvl, sets4, power: statPower(stats) };
 }
 
-const BONUS_KEYS: StatKey[] = [
-  'dmgFire',
-  'dmgNature',
-  'dmgWater',
-  'dmgLight',
-  'dmgDark',
-  'dmgBoss',
-  'dmgSkill',
-  'dmgUlt',
-  'dmgBasic',
-  'dmgDot',
-  'dmgReduce',
-  'shieldPower',
-  'goldPct',
-  'xpPct',
-  'lootDouble',
-  'skillRank',
-];
-function pickBonus(add: Stats): Stats {
-  const b: Stats = {};
-  for (const k of BONUS_KEYS) if (add[k]) b[k] = add[k];
-  return b;
+function round3(v: number): number {
+  return Math.round(v * 1000) / 1000;
 }
 
-/** Сила героини — единая метрика для UI, авто-экипировки и подбора соперников. */
-export function heroPower(b: Pick<HeroBuild, 'stats' | 'skills' | 'fx'>): number {
-  const st = b.stats;
-  const crit = Math.min(0.8, st.crit);
-  const offense = st.atk * (1 + crit * (st.critDmg - 1)) * (st.spd / 100) * (1 + (st.bonus.dmgSkill ?? 0) * 0.3);
-  const defense = st.hp * 0.5 + st.def * 3;
-  const extras = 1 + b.skills.length * 0.06 + b.fx.length * 0.03;
-  return Math.round((offense * 6 + defense) * extras);
+/** Сила бойца одним числом (для интерфейса и сравнения). */
+export function statPower(st: FinalStats): number {
+  const dps = st.atk * (1 + st.crit * st.critDmg) * (1 + st.haste) * (1 + st.skillDmg * 0.5);
+  return Math.round(dps * 4 + st.hp * 0.4 + st.def * 3);
 }
 
-export function heroEquipSlotFor(item: Item): EquipSlot[] {
-  if (item.slot === 'ring') return ['ring1', 'ring2'];
-  return [item.slot as EquipSlot];
-}
-
-/** Обратный индекс: какой героиней надет предмет. */
-export function equippedIndex(s: PlayerState): Record<string, { hero: string; slot: EquipSlot }> {
-  const idx: Record<string, { hero: string; slot: EquipSlot }> = {};
-  for (const h of Object.values(s.heroines)) {
-    for (const slot of EQUIP_SLOTS) {
-      const uid = h.gear[slot];
-      if (uid) idx[uid] = { hero: h.id, slot };
-    }
-  }
-  return idx;
-}
-
-/** Отряд — все героини Легиона, что уже присоединились (в порядке строя). */
+/** Легион в строю — все присоединившиеся герои в порядке ростера. */
 export function activeParty(s: PlayerState): string[] {
-  return ROSTER.filter((id) => !!s.heroines[id]);
+  return ROSTER.filter((id) => s.heroines[id]);
 }
 
 export function partyPower(cfg: Config, s: PlayerState): number {
-  const party = activeParty(s);
-  return party.reduce((sum, id) => sum + buildHeroine(cfg, s, s.heroines[id], { party }).power, 0);
+  return activeParty(s).reduce((n, id) => n + heroStats(cfg, s, id).power, 0);
 }
 
+/** Рекомендуемая сила для этапа уровня n: шесть героев уровня n с редким снаряжением того же уровня. */
+export function recommendedPower(cfg: Config, n: number): number {
+  const g = growth(cfg, n);
+  const rank = cfg.hero.rankCaps.findIndex((c) => c >= n) + 1 || cfg.hero.maxRank;
+  const r = Math.pow(cfg.hero.rankMult, rank - 1);
+  const G = cfg.gear;
+  const atk = (100 * r + G.atk0 * G.rarityMult[2]) * g;
+  const hp = (900 * r + G.hp0 * G.rarityMult[2] * 1.5) * g;
+  const def = (40 * r + G.def0 * G.rarityMult[2]) * g;
+  return Math.round(6 * 0.85 * (atk * 1.1 * 4 + hp * 0.4 + def * 3));
+}
 
 export function inventoryCap(cfg: Config, s: PlayerState): number {
-  return Math.min(cfg.inventory.max, s.invCap + constellationStats(s.constellation).inv);
+  return s.invCap || cfg.inventory.start;
 }
 
-export { MAIN_BASE };
+/** Есть ли что улучшить у героя (для красных точек). */
+export function heroCanUpgrade(cfg: Config, s: PlayerState, id: string): boolean {
+  const h = s.heroines[id];
+  if (!h) return false;
+  const rc = rankCost(cfg, h.rank);
+  if (rc && s.legion.lvl >= rankCap(cfg, h.rank) && s.cur.emblems >= rc.emblems && s.cur.gold >= rc.gold) return true;
+  for (const lvl of [h.skill, h.ult]) {
+    const c = skillCost(cfg, s, lvl);
+    if (c && s.cur.books >= c.books && s.cur.gold >= c.gold) return true;
+  }
+  return false;
+}
+
+export { SET_MAP };
+
+const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+
+/** Компактный формат больших чисел: 1.2K, 3.4M … затем aa, ab… */
+export function formatNum(n: number): string {
+  if (!isFinite(n)) return '∞';
+  const neg = n < 0;
+  let v = Math.abs(n);
+  if (v < 1000) return (neg ? '-' : '') + (v < 10 && v % 1 ? v.toFixed(1) : Math.floor(v).toString());
+  let i = 0;
+  while (v >= 1000 && i < 400) {
+    v /= 1000;
+    i++;
+  }
+  let suf: string;
+  if (i < SUFFIXES.length) suf = SUFFIXES[i];
+  else {
+    const k = i - SUFFIXES.length;
+    suf = String.fromCharCode(97 + (Math.floor(k / 26) % 26)) + String.fromCharCode(97 + (k % 26));
+  }
+  const digits = v >= 100 ? 0 : v >= 10 ? 1 : 2;
+  return (neg ? '-' : '') + v.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1') + suf;
+}

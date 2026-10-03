@@ -95,7 +95,7 @@ export const fishingActions = {
     const r = FISH_RARITY[fish.rarity];
     const perfect = a.perfect === true;
     const gold = Math.floor(goldPerMin(cfg, s) * r.goldMin * (perfect ? 1 + FISH_PERFECT : 1));
-    const cur: Record<string, number> = { gold, dust: r.dust };
+    const cur: Record<string, number> = { gold, steel: r.steel };
     if (r.crystals) cur.crystals = r.crystals;
     if (r.emblems) cur.emblems = r.emblems;
     give(ctx, cur);

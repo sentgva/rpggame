@@ -1,60 +1,39 @@
 import type { Currency, L10n } from '../types';
 import { FESTIVAL_ONLY_SKINS, SKINS } from './heroines';
 
-/** Магазины за игровые валюты. */
+/** Лавки за игровые валюты. */
 export interface ShopOffer {
   id: string;
-  shop: 'emblems' | 'arena' | 'guild' | 'labyrinth' | 'event' | 'daily' | 'skins';
+  shop: 'daily' | 'emblems' | 'event' | 'skins';
   name: L10n;
   cost: Partial<Record<Currency, number>>;
-  give: { cur?: Partial<Record<Currency, number>>; skin?: string; item?: 'epic' | 'legendary' | 'mythic' };
+  give: { cur?: Partial<Record<Currency, number>>; skin?: string; item?: 'epic' | 'legendary' };
   /** Лимит покупок (в день для daily, иначе навсегда/в неделю). */
   limit?: number;
   weekly?: boolean;
 }
 
-/** Облики коллекций, которые продаются в магазине активности. */
-function skinOffers(shop: 'arena' | 'labyrinth' | 'event', prefix: string, cost: ShopOffer['cost']): ShopOffer[] {
-  // облики праздников продаются только в их лавках
-  return SKINS.filter((x) => x.set && !FESTIVAL_ONLY_SKINS.has(x.id) && x.source === shop).map((x) => ({
-    id: `${prefix}_${x.id}`,
-    shop,
-    name: { ru: `Облик «${x.name.ru}»`, en: `Skin "${x.name.en}"` },
-    cost,
-    give: { skin: x.id },
-    limit: 1,
-  }));
-}
-
-const E = (n: number): { ru: string; en: string } => ({ ru: `Эмблемы ×${n}`, en: `Emblems ×${n}` });
+const E = (n: number): L10n => ({ ru: `Эмблемы ×${n}`, en: `Emblems ×${n}` });
 
 export const SHOP_OFFERS: ShopOffer[] = [
-  // лавка эмблем: ранги героинь за кристаллы (обновляется раз в неделю)
-  { id: 'em_5', shop: 'emblems', name: E(5), cost: { crystals: 120 }, give: { cur: { emblems: 5 } }, limit: 5, weekly: true },
-  { id: 'em_25', shop: 'emblems', name: E(25), cost: { crystals: 520 }, give: { cur: { emblems: 25 } }, limit: 2, weekly: true },
-  { id: 'em_80', shop: 'emblems', name: E(80), cost: { crystals: 1500 }, give: { cur: { emblems: 80 } }, limit: 1, weekly: true },
-  { id: 'sh_emblem', shop: 'daily', name: E(3), cost: { crystals: 75 }, give: { cur: { emblems: 3 } }, limit: 3 },
-  { id: 'sh_dust', shop: 'daily', name: { ru: 'Пыль заточки ×200', en: 'Enhance dust ×200' }, cost: { crystals: 50 }, give: { cur: { dust: 200 } }, limit: 5 },
-  { id: 'sh_stardust', shop: 'daily', name: { ru: 'Звёздная пыль ×50', en: 'Star dust ×50' }, cost: { crystals: 80 }, give: { cur: { starDust: 50 } }, limit: 3 },
-  { id: 'sh_forge', shop: 'daily', name: { ru: 'Материалы кузницы ×10', en: 'Forge materials ×10' }, cost: { crystals: 60 }, give: { cur: { forgeMats: 10 } }, limit: 3 },
-  // арена
-  { id: 'ar_emblems', shop: 'arena', name: E(10), cost: { arenaTokens: 300 }, give: { cur: { emblems: 10 } }, limit: 5, weekly: true },
-  { id: 'ar_mythic', shop: 'arena', name: { ru: 'Мифический предмет', en: 'Mythic item' }, cost: { arenaTokens: 3000 }, give: { item: 'mythic' }, limit: 1, weekly: true },
-  ...skinOffers('arena', 'ar', { arenaTokens: 4500 }),
-  // гильдия
-  { id: 'gd_mythic', shop: 'guild', name: { ru: 'Мифический предмет', en: 'Mythic item' }, cost: { guildCoins: 2000 }, give: { item: 'mythic' }, limit: 1, weekly: true },
-  { id: 'gd_emblems', shop: 'guild', name: E(20), cost: { guildCoins: 1200 }, give: { cur: { emblems: 20 } }, limit: 1, weekly: true },
-  // лабиринт
-  ...skinOffers('labyrinth', 'lb', { labCoins: 1400 }),
-  { id: 'lb_emblems', shop: 'labyrinth', name: E(15), cost: { labCoins: 500 }, give: { cur: { emblems: 15 } }, limit: 2, weekly: true },
-  { id: 'lb_legend', shop: 'labyrinth', name: { ru: 'Легендарный предмет', en: 'Legendary item' }, cost: { labCoins: 600 }, give: { item: 'legendary' }, limit: 2, weekly: true },
-  // ивент
-  ...skinOffers('event', 'ev', { eventTokens: 1800 }),
-  { id: 'ev_emblems', shop: 'event', name: E(5), cost: { eventTokens: 200 }, give: { cur: { emblems: 5 } }, limit: 10 },
-  // облики за кристаллы
-  ...SKINS.filter((x) => x.crystals).map(
+  // лавка дня
+  { id: 'sh_emblem', shop: 'daily', name: E(3), cost: { crystals: 60 }, give: { cur: { emblems: 3 } }, limit: 3 },
+  { id: 'sh_books', shop: 'daily', name: { ru: 'Тома знаний ×5', en: 'Tomes ×5' }, cost: { crystals: 50 }, give: { cur: { books: 5 } }, limit: 3 },
+  { id: 'sh_steel', shop: 'daily', name: { ru: 'Сталь ×60', en: 'Steel ×60' }, cost: { crystals: 40 }, give: { cur: { steel: 60 } }, limit: 3 },
+  { id: 'sh_epic', shop: 'daily', name: { ru: 'Эпическая вещь', en: 'Epic item' }, cost: { crystals: 120 }, give: { item: 'epic' }, limit: 1 },
+  // лавка эмблем: ранги героев за кристаллы (раз в неделю)
+  { id: 'em_10', shop: 'emblems', name: E(10), cost: { crystals: 200 }, give: { cur: { emblems: 10 } }, limit: 5, weekly: true },
+  { id: 'em_40', shop: 'emblems', name: E(40), cost: { crystals: 720 }, give: { cur: { emblems: 40 } }, limit: 2, weekly: true },
+  { id: 'em_legend', shop: 'emblems', name: { ru: 'Легендарная вещь', en: 'Legendary item' }, cost: { crystals: 900 }, give: { item: 'legendary' }, limit: 1, weekly: true },
+  // облики праздника продаются только в лавке праздника; здесь — коллекции за кристаллы
+  ...SKINS.filter((x) => x.crystals && !FESTIVAL_ONLY_SKINS.has(x.id)).map(
     (x): ShopOffer => ({ id: `sk_${x.id}`, shop: 'skins', name: x.name, cost: { crystals: x.crystals! }, give: { skin: x.id }, limit: 1 }),
   ),
+  // облики-«ивент» коллекций — за жетоны праздника
+  ...SKINS.filter((x) => x.set && x.source === 'event' && !FESTIVAL_ONLY_SKINS.has(x.id)).map(
+    (x): ShopOffer => ({ id: `ev_${x.id}`, shop: 'event', name: { ru: `Облик «${x.name.ru}»`, en: `Skin "${x.name.en}"` }, cost: { eventTokens: 1800 }, give: { skin: x.id }, limit: 1 }),
+  ),
+  { id: 'ev_emblems', shop: 'event', name: E(5), cost: { eventTokens: 200 }, give: { cur: { emblems: 5 } }, limit: 10 },
 ];
 export const SHOP_OFFER_MAP: Record<string, ShopOffer> = Object.fromEntries(SHOP_OFFERS.map((o) => [o.id, o]));
 
@@ -98,10 +77,10 @@ export function passReward(level: number, season = 's0'): PassReward {
   }
   if (level % 10 === 0) return { item: 'legendary', cur: { emblems: 8, crystals: 100 } };
   if (level % 5 === 0) return { item: 'epic', cur: { emblems: 4, crystals: 30 } };
-  if (level % 2 === 0) return { cur: { crystals: 20, starDust: 15 } };
-  return { cur: { dust: 60, gold: 30 } };
+  if (level % 2 === 0) return { cur: { crystals: 20, books: 2 } };
+  return { cur: { steel: 40, gold: 30 } };
 }
 
 export function passBonusReward(): PassReward {
-  return { cur: { crystals: 50, starDust: 20 } };
+  return { cur: { crystals: 50, books: 3 } };
 }

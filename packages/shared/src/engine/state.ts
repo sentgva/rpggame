@@ -1,11 +1,11 @@
 import type { Config } from '../config';
 import { STARTER_HEROINES, CHANGELOG_LATEST } from '../content';
 import { hashStr, mixSeed } from '../rng';
-import type { Currency, HeroineState, PlayerState } from '../types';
+import type { Currency, HeroState, PlayerState } from '../types';
 import { CURRENCIES } from '../types';
 
-/** 2 — «Легион из шести»: фиксированный отряд вместо гачи, старые сохранения сбрасываются. */
-export const STATE_VERSION = 3;
+/** 4 — «Легион 3.0»: новый бой, снаряжение и общий уровень Легиона; старые сохранения сбрасываются. */
+export const STATE_VERSION = 4;
 const DAY = 86400000;
 
 export function dayKey(now: number): string {
@@ -31,16 +31,8 @@ export function yesterdayKey(now: number): string {
   return dayKey(now - DAY);
 }
 
-export function newHeroine(cfg: Config, id: string): HeroineState {
-  void cfg;
-  return {
-    id,
-    lvl: 1,
-    stars: 1,
-    tree: {},
-    skills: [null, null],
-    gear: {},
-  };
+export function newHeroine(_cfg: Config, id: string): HeroState {
+  return { id, rank: 1, skill: 1, ult: 1, gear: {} };
 }
 
 export function emptyCurrencies(): Record<Currency, number> {
@@ -49,7 +41,7 @@ export function emptyCurrencies(): Record<Currency, number> {
 
 export function createPlayer(cfg: Config, id: string, name: string, now: number, lang: 'ru' | 'en' = 'ru'): PlayerState {
   const seed = mixSeed(hashStr(id), now & 0xffffffff, 0x1d1e);
-  const heroines: Record<string, HeroineState> = {};
+  const heroines: Record<string, HeroState> = {};
   for (const h of STARTER_HEROINES) heroines[h] = newHeroine(cfg, h);
   const cur = emptyCurrencies();
   cur.gold = 300;
@@ -65,27 +57,18 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
     uidCounter: 1,
     account: { lvl: 1, xp: 0 },
     cur,
+    legion: { lvl: 1 },
     heroines,
     items: {},
     invCap: cfg.inventory.start,
-    gems: {},
     skins: [],
-    progress: { diff: 0, cleared: [0, 0, 0], wave: 0, bossFails: 0, retryAt: 0, maxGlobal: 0, maxGlobalEver: 0 },
-    chest: { since: now, minutes: 0, gold: 0, xp: 0, accXp: 0, itemMin: 0, dust: 0 },
+    banner: {},
+    progress: { stage: 0, wave: 0, fails: 0, retryAt: 0 },
+    chest: { since: now, minutes: 0, gold: 0, xp: 0, accXp: 0, itemMin: 0, steel: 0 },
     boosts: { x2Until: 0 },
-    day: { key: dayKey(now), quickFree: false, quickAd: false, quick: 0, ads: 0, keys: {}, arena: 0, arenaBought: 0, gift: false },
-    week: { key: weekKey(now), treeDiscount: false },
-    constellation: 0,
-    ascension: { count: 0, ether: 0, up: {}, story: 0 },
-    modes: {
-      dungeons: {},
-      tower: 0,
-      abyss: 0,
-      expeditions: [],
-      expeditionBoard: { day: '', quests: [] },
-      labBest: 0,
-      arena: { rating: 1000, wins: 0, losses: 0, opponents: [], refreshDay: '' },
-    },
+    day: { key: dayKey(now), quickFree: 0, quick: 0, boosts: 0, keys: {}, gift: false },
+    week: { key: weekKey(now) },
+    modes: { tower: 0, dungeons: {} },
     quests: {
       dayKey: dayKey(now),
       weekKey: weekKey(now),
@@ -99,19 +82,14 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
     },
     counters: { login: 1, loginDays: 1 },
     achievements: {},
-    shop: {
-      bought: {},
-      passSeason: seasonKey(now),
-      passXp: 0,
-      passClaimed: [],
-    },
+    shop: { bought: {}, passSeason: seasonKey(now), passXp: 0, passClaimed: [] },
     mail: [
       {
         id: 'welcome',
         title: { ru: 'Добро пожаловать, Командор!', en: 'Welcome, Commander!' },
         body: {
-          ru: 'Кристалл Эфира пробудился. Кассиан и Лира уже в строю — остальные присоединятся по пути. Эмблемы — на первые ранги.',
-          en: 'The Aether Crystal has awakened. Cassian and Lira stand ready — the others will join along the way. Emblems are for the first ranks.',
+          ru: 'Кристалл Эфира пробудился. Кассиан и Лира уже в строю — остальные присоединятся в походе. Эмблемы — на первые ранги.',
+          en: 'The Aether Crystal has awakened. Cassian and Lira stand ready — the others will join on the march. Emblems are for the first ranks.',
         },
         at: now,
         rewards: { cur: { crystals: 300, emblems: 20 } },
@@ -124,12 +102,13 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
       music: 0.6,
       sfx: 0.8,
       notify: true,
-      autoLevel: true,
-      autoBoss: false,
+      autoLevel: false,
+      autoBoss: true,
       autoRetry: true,
-      autoSmelt: 2,
+      autoSalvage: 1,
       haptics: true,
       speed: 1,
+      manual: true,
     },
     tutorial: 0,
     dev: { used: false },
@@ -140,24 +119,19 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
   return s;
 }
 
-/** Миграция старых сохранений: заполняем недостающие поля значениями по умолчанию. */
+/** Миграция сохранений: до 3.0 — новая игра (системы несовместимы), дальше — дополняем недостающие поля. */
 export function migrate(cfg: Config, raw: PlayerState, now: number): PlayerState {
+  if (!(raw?.v >= STATE_VERSION)) {
+    const fresh = createPlayer(cfg, raw.id, raw.name, now, raw.settings?.lang ?? 'ru');
+    // аккаунт, побывавший в режиме разработчика, остаётся помеченным
+    if (raw?.dev?.used) fresh.dev.used = true;
+    return fresh;
+  }
   const fresh = createPlayer(cfg, raw.id, raw.name, raw.createdAt ?? now, raw.settings?.lang ?? 'ru');
-  // сохранения эпохи гачи несовместимы с новым отрядом — начинаем заново (игроков тогда ещё не было)
-  if (!(raw.v >= 2)) return createPlayer(cfg, raw.id, raw.name, now, raw.settings?.lang ?? 'ru');
-  // v3: рыцарь и следопыт стали героями — Астрид → Кассиан, Сейра → Элиан (id в ключах, списках и обликах)
-  if (raw.v < 3) raw = renameHeroIds(raw, { astrid: 'cassian', seyra: 'elian' });
   const s = fillDefaults(raw as any, fresh as any) as PlayerState;
   for (const c of CURRENCIES) if (typeof s.cur[c] !== 'number' || !isFinite(s.cur[c])) s.cur[c] = 0;
   s.v = STATE_VERSION;
   return s;
-}
-
-/** Переименовать id героев во всём сохранении: ключи, значения и составные id («astrid_summer», «lira_astrid»). */
-function renameHeroIds(raw: PlayerState, map: Record<string, string>): PlayerState {
-  let json = JSON.stringify(raw);
-  for (const [from, to] of Object.entries(map)) json = json.replace(new RegExp(`(?<![a-z])${from}(?![a-z])`, 'g'), to);
-  return JSON.parse(json) as PlayerState;
 }
 
 function fillDefaults(target: any, defaults: any): any {
@@ -166,7 +140,7 @@ function fillDefaults(target: any, defaults: any): any {
   if (typeof target !== 'object' || Array.isArray(target)) return defaults;
   for (const k of Object.keys(defaults)) {
     // словари с динамическими ключами не дополняем содержимым по умолчанию
-    if (k === 'heroines' || k === 'items' || k === 'gems' || k === 'up' || k === 'tree' || k === 'gear' || k === 'dungeons' || k === 'keys' || k === 'bought' || k === 'counters' || k === 'achievements' || k === 'daily' || k === 'weekly') {
+    if (k === 'heroines' || k === 'items' || k === 'banner' || k === 'gear' || k === 'dungeons' || k === 'keys' || k === 'bought' || k === 'counters' || k === 'achievements' || k === 'daily' || k === 'weekly') {
       if (target[k] === undefined) target[k] = defaults[k];
       continue;
     }

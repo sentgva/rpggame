@@ -1,645 +1,205 @@
+import type { Config } from '../../config';
 import {
-  ABYSS_PACTS,
-  ABYSS_PACT_MAP,
   ACTS,
-  ARENA_BOT_NAMES,
-  EXPEDITION_EVENTS,
-  EXPEDITION_EVENT_CHANCE,
-  EXPEDITION_EVENT_MAP,
-  DUNGEON_MAP,
-  EXPEDITION_MAP,
-  EXPEDITION_QUESTS,
-  GEM_TYPES,
-  HEROINE_MAP,
-  ROSTER,
-  LAB_BUFFS,
-  LAB_FLOORS,
-  LAB_STEPS,
-  RELICS,
-  RELIC_MAP,
-  TOWER_SKIN_FLOORS,
-  abyssOmen,
-  abyssReward,
-  abyssStage,
-  dungeonStage,
-  gemKey,
-  towerStage,
-  DUNGEONS,
   DUNGEON_DAY_BONUS,
-  TOWER_HARD,
-  TOWER_HARD_REWARD,
+  DUNGEON_LEVELS,
+  DUNGEON_MAP,
+  DUNGEONS,
+  ENEMY_MAP,
+  RAID_COLOSSUS,
+  RAID_HP,
+  RAID_TIERS,
+  SKINS,
+  TOWER_SKIN_EVERY,
   dungeonOfDay,
+  dungeonReward,
+  raidElement,
+  towerLevel,
   towerMod,
-  type ExpeditionChoice,
+  towerReward,
 } from '../../content';
-import { Rng, hashStr, mixSeed } from '../../rng';
-import type { ArenaOpponent, Currency, Expedition, HeroineState, LabyrinthRun, SpecialEffect, Stats } from '../../types';
+import { Rng, mixSeed } from '../../rng';
+import type { PlayerState, RaidState } from '../../types';
 import type { Action } from '../apply';
-import type { UnitInit } from '../battle';
-import {
-  assert,
-  farmLevel,
-  give,
-  goldPerMin,
-  requireUnlocked,
-  scaleReward,
-  spend,
-  track,
-  trackMax,
-  vInt,
-  vOneOf,
-  vStr,
-  vStrArr,
-  xpPerMin,
-  type Ctx,
-  grantModeSetPiece,
-} from '../core';
+import type { CombatUnitInit } from '../combat';
+import { addItem, assert, give, goldPerMin, requireUnlocked, rollLoot, track, trackMax, vInt, vOneOf, xpPerMin, type Ctx } from '../core';
 import { dayKey, weekKey } from '../state';
-import { activeParty, addStats, buildHeroine, partyPower } from '../stats';
-import { customEnemies, heroUnits, modEnemies } from '../units';
-import { currentParty, runBattle, stripRaw } from './battle';
-import { grantHeart } from './bond';
-import { onExpedition } from './heroes';
+import { customEnemies, enemyStats, enemyUnit, heroUnits, modEnemies } from '../units';
+import { currentParty, runBattle, stripRaw } from './campaign';
 
-// ——— подземелья ———
+// ——— Башня ———
 
-/** Награда уровня подземелья; с now учитывается бонус «подземелья дня». */
-export function dungeonReward(ctx: Pick<Ctx, 'cfg' | 's'> & { now?: number }, id: string, level: number) {
-  const { cfg, s } = ctx;
-  const n = dungeonStage(level);
-  const def = DUNGEON_MAP[id];
-  const k = ctx.now !== undefined && dungeonOfDay(ctx.now) === id ? DUNGEON_DAY_BONUS : 1;
-  switch (def.reward) {
-    case 'gold':
-      return { cur: { gold: Math.floor(goldPerMin(cfg, s, n) * 90 * k) } };
-    case 'xp':
-      return { cur: { xp: Math.floor(xpPerMin(cfg, s, n) * 90 * k) } };
-    case 'dust':
-      return { cur: { dust: Math.floor((40 + 25 * Math.pow(level, 1.4)) * k) } };
-    case 'starDust':
-      return { cur: { starDust: Math.floor((15 + 12 * level) * k) } };
-    default: {
-      const lvl = Math.min(8, 1 + Math.floor((level - 1) / 3));
-      return { gems: { count: Math.round((2 + Math.floor(level / 5)) * k), lvl } };
-    }
-  }
-}
-
-function grantDungeon(ctx: Ctx, id: string, level: number) {
-  const r = dungeonReward(ctx, id, level);
-  if ('cur' in r && r.cur) {
-    give(ctx, r.cur);
-    return { cur: r.cur };
-  }
-  const gems: Record<string, number> = {};
-  const g = (r as { gems: { count: number; lvl: number } }).gems;
-  for (let i = 0; i < g.count; i++) {
-    const key = gemKey(GEM_TYPES[ctx.rng.int(GEM_TYPES.length)], g.lvl);
-    gems[key] = (gems[key] ?? 0) + 1;
-    ctx.s.gems[key] = (ctx.s.gems[key] ?? 0) + 1;
-  }
-  return { gems };
-}
-
-function dungeonEnemies(ctx: Ctx, id: string, level: number): UnitInit[] {
-  const def = DUNGEON_MAP[id];
-  const rng = new Rng(mixSeed(hashStr(id), level));
-  const list = [
-    { id: def.boss, tier: 'mini' as const },
-    { id: rng.pick(def.enemies), tier: 'normal' as const },
-    { id: rng.pick(def.enemies), tier: 'normal' as const },
-    { id: rng.pick(def.enemies), tier: 'normal' as const },
-  ];
-  return customEnemies(ctx.cfg, dungeonStage(level), list, 0.85);
-}
-
-// ——— башня ———
-
-function towerEnemies(ctx: Ctx, floor: number): UnitInit[] {
-  const act = ACTS[(floor - 1) % 10];
+/** Враги этажа: каждый 10-й — владычица, каждый 5-й — мини-босс, иначе элитная тройка. */
+export function towerEnemies(cfg: Config, floor: number): CombatUnitInit[] {
+  const lvl = towerLevel(floor);
+  const act = ACTS[(Math.floor((floor - 1) / 10) % ACTS.length)];
   const rng = new Rng(mixSeed(floor, 0x70e7));
-  const list: { id: string; tier: 'normal' | 'mini' | 'boss' | 'elite' }[] = [];
-  if (floor % 10 === 0) {
-    const bossAct = ACTS[(Math.floor(floor / 10) - 1) % 10];
-    list.push({ id: floor % 50 === 0 ? bossAct.boss : bossAct.minis[(floor / 10) % 3], tier: floor % 50 === 0 ? 'boss' : 'mini' });
-  }
-  const count = floor % 10 === 0 ? 2 : 4 + (floor > 100 ? 1 : 0);
-  for (let i = 0; i < count; i++) list.push({ id: rng.pick(act.enemies), tier: 'normal' });
-  return customEnemies(ctx.cfg, towerStage(floor), list);
+  let units: CombatUnitInit[];
+  if (floor % 10 === 0) units = [enemyUnit(cfg, act.boss, lvl, 'boss', 0), enemyUnit(cfg, rng.pick(act.enemies), lvl, 'normal', 1, { delay: 400 })];
+  else if (floor % 5 === 0) units = [enemyUnit(cfg, rng.pick(act.minis), lvl, 'mini', 0), ...[1, 2].map((i) => enemyUnit(cfg, rng.pick(act.enemies), lvl, 'normal', i, { delay: 300 * i }))];
+  else units = [enemyUnit(cfg, rng.pick(act.enemies), lvl, 'elite', 0), ...[1, 2, 3].map((i) => enemyUnit(cfg, rng.pick(act.enemies), lvl, 'normal', i, { delay: 250 * i }))];
+  return modEnemies(units, towerMod(floor)?.enemy);
 }
 
-export function towerReward(floor: number, hard = false) {
-  const boss = floor % 10 === 0;
-  const k = hard ? TOWER_HARD_REWARD : 1;
+/** Облик-награда этажа (каждый 25-й, по порядку из пула 'tower'). */
+export function towerSkin(floor: number): string | null {
+  if (floor % TOWER_SKIN_EVERY !== 0) return null;
+  const pool = SKINS.filter((x) => x.source === 'tower');
+  return pool[floor / TOWER_SKIN_EVERY - 1]?.id ?? null;
+}
+
+// ——— Подземелья ———
+
+export function dungeonKeysLeft(ctx: Pick<Ctx, 'cfg' | 's'>, id: string): number {
+  return ctx.cfg.modes.dungeonKeys - (ctx.s.day.keys[id] ?? 0);
+}
+
+export function dungeonEnemies(cfg: Config, id: string, tier: number): CombatUnitInit[] {
+  const lvl = DUNGEON_LEVELS[tier - 1];
+  const act = ACTS[DUNGEON_MAP[id].act - 1];
+  const rng = new Rng(mixSeed(tier, id.length, 0xd0d0));
+  const list = [
+    { id: rng.pick(act.minis), tier: 'mini' as const },
+    { id: rng.pick(act.enemies) },
+    { id: rng.pick(act.enemies) },
+    { id: rng.pick(act.enemies) },
+  ];
+  return customEnemies(cfg, lvl, list);
+}
+
+/** Награда ступени (с бонусом подземелья дня). */
+export function dungeonPrize(cfg: Config, s: PlayerState, id: string, tier: number, now: number): { gold?: number; xp?: number; books?: number; steel?: number; items: number } {
+  const r = dungeonReward(id as 'gold', tier);
+  const L = DUNGEON_LEVELS[tier - 1];
+  const k = dungeonOfDay(now) === id ? DUNGEON_DAY_BONUS : 1;
+  const out: { gold?: number; xp?: number; books?: number; steel?: number; items: number } = { items: r.items ?? 0 };
+  if (r.goldMin) out.gold = Math.floor(goldPerMin(cfg, s, L) * r.goldMin * k);
+  if (r.xpMin) out.xp = Math.floor(xpPerMin(cfg, s, L) * r.xpMin * k);
+  if (r.books) out.books = Math.floor(r.books * k);
+  if (r.steel) out.steel = Math.floor(r.steel * k);
+  return out;
+}
+
+function grantDungeon(ctx: Ctx, id: string, tier: number) {
+  const prize = dungeonPrize(ctx.cfg, ctx.s, id, tier, ctx.now);
+  const { items: n, ...cur } = prize;
+  give(ctx, cur);
+  const items: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const uid = addItem(ctx, rollLoot(ctx, { lvl: DUNGEON_LEVELS[tier - 1], minRarity: 2 }));
+    if (uid) items.push(uid);
+  }
+  track(ctx, 'dungeon', 1);
+  return { cur, items };
+}
+
+// ——— Колосс ———
+
+export function raidState(ctx: { s: PlayerState; now: number }): RaidState {
+  const day = dayKey(ctx.now);
+  const week = weekKey(ctx.now);
+  const r = ctx.s.modes.raid;
+  if (!r) return { day, used: 0, bestDay: 0, week, bestWeek: 0, best: 0, tiers: [] };
   return {
-    crystals: (2 + Math.floor(floor / 40)) * (boss ? 4 : 1) * k,
-    starDust: Math.floor((5 + floor / 5) * (boss ? 3 : 1)) * k,
-    // Эмблемы: страж каждого 10-го этажа, рубеж каждого 50-го — щедрее
-    emblems: (floor % 50 === 0 ? 25 : boss ? 4 : 0) * k,
-    skin: TOWER_SKIN_FLOORS[floor] as string | undefined,
+    ...r,
+    day,
+    used: r.day === day ? r.used : 0,
+    bestDay: r.day === day ? r.bestDay : 0,
+    tiers: r.day === day ? r.tiers : [],
+    week,
+    bestWeek: r.week === week ? r.bestWeek : 0,
   };
 }
 
-// ——— экспедиции ———
-
-export function expeditionBoard(ctx: Ctx): string[] {
-  const { s, now } = ctx;
-  const today = dayKey(now);
-  if (s.modes.expeditionBoard.day !== today) {
-    const rng = new Rng(mixSeed(hashStr(s.id), hashStr(today)));
-    const pool = [...EXPEDITION_QUESTS.map((q) => q.id)];
-    rng.shuffle(pool);
-    s.modes.expeditionBoard = { day: today, quests: pool.slice(0, 6) };
-  }
-  return s.modes.expeditionBoard.quests;
+/** Уровень колосса растёт с походом. */
+export function raidLevel(s: PlayerState): number {
+  return Math.max(10, s.progress.stage);
 }
 
-export function expeditionSlots(ctx: Pick<Ctx, 'cfg' | 's'>): number {
-  let n = 3;
-  for (const [lvl, slots] of ctx.cfg.modes.expeditionSlots) if (ctx.s.account.lvl >= lvl) n = slots;
-  return n;
-}
-
-// ——— лабиринт ———
-
-function labNodeOptions(rng: Rng, step: number): string[] {
-  if (step === LAB_STEPS - 1) return ['boss'];
-  const kinds = ['fight', 'fight', 'elite', 'shrine', 'relic', 'spring', 'treasure'];
-  const out = new Set<string>();
-  while (out.size < 3) out.add(rng.pick(kinds));
-  return [...out];
-}
-
-function labExtras(run: LabyrinthRun): { extra: Stats; extraFx: SpecialEffect[] } {
-  const extra: Stats = { ...run.buffs };
-  const extraFx: SpecialEffect[] = [];
-  for (const r of run.relics) {
-    const def = RELIC_MAP[r];
-    if (!def) continue;
-    addStats(extra, def.stats);
-    if (def.fx) extraFx.push(def.fx);
-  }
-  return { extra, extraFx };
-}
-
-function labEnemies(ctx: Ctx, run: LabyrinthRun, kind: string): UnitInit[] {
-  const rng = new Rng(mixSeed(run.seed, run.floor, run.node, 0x1ab));
-  const L = farmLevel(ctx.cfg, ctx.s);
-  const n = Math.max(10, Math.floor(L * 0.92) + run.floor * 3 + run.node);
-  const act = ACTS[rng.int(Math.max(1, Math.min(10, Math.ceil(Math.min(200, L) / 20))))];
-  const list: { id: string; tier: 'normal' | 'elite' | 'mini' | 'boss' }[] = [];
-  if (kind === 'boss') list.push({ id: run.floor === LAB_FLOORS - 1 ? act.boss : act.minis[run.floor % 3], tier: run.floor === LAB_FLOORS - 1 ? 'boss' : 'mini' });
-  if (kind === 'elite') list.push({ id: rng.pick(act.enemies), tier: 'elite' });
-  const count = kind === 'fight' ? 4 : 2;
-  for (let i = 0; i < count; i++) list.push({ id: rng.pick(act.enemies), tier: 'normal' });
-  return customEnemies(ctx.cfg, n, list, kind === 'boss' ? 0.6 : 0.8);
-}
-
-function labAdvance(ctx: Ctx, run: LabyrinthRun) {
-  run.node++;
-  if (run.node >= LAB_STEPS) {
-    run.node = 0;
-    run.floor++;
-  }
-  if (run.floor >= LAB_FLOORS) {
-    run.done = true;
-    run.won = true;
-    const coins = 300 + run.coins;
-    give(ctx, { labCoins: coins, crystals: 150 });
-    track(ctx, 'labWin', 1);
-    ctx.s.modes.labBest = Math.max(ctx.s.modes.labBest, LAB_FLOORS);
-    return;
-  }
-  const rng = new Rng(mixSeed(run.seed, run.floor, run.node));
-  run.choices = labNodeOptions(rng, run.node);
-}
-
-// ——— арена ———
-
-/** Соперник арены — другой отряд Легиона: столько же героинь, сколько у игрока, классы — случайные. */
-function botTeam(rng: Rng, n: number): { id: string; lvl: number; stars: number }[] {
-  const pool = [...ROSTER];
-  rng.shuffle(pool);
-  return pool.slice(0, Math.max(3, Math.min(ROSTER.length, n))).map((id) => ({ id, lvl: 1, stars: 1 }));
-}
-
-function arenaOpponents(ctx: Ctx, force = false): ArenaOpponent[] {
-  const { s, cfg, now } = ctx;
-  const today = dayKey(now);
-  if (!force && s.modes.arena.refreshDay === today && s.modes.arena.opponents.length) return s.modes.arena.opponents;
-  const myPower = Math.max(1000, partyPower(cfg, s));
-  const rating = s.modes.arena.rating;
-  const opps: ArenaOpponent[] = [];
-  for (let i = 0; i < 3; i++) {
-    const seed = ctx.rng.fork();
-    const rng = new Rng(seed);
-    const f = [0.8, 0.95, 1.12][i] * rng.float(0.95, 1.05);
-    opps.push({
-      id: `bot${seed.toString(36)}`,
-      name: `${rng.pick(ARENA_BOT_NAMES)}${rng.int(90) + 10}`,
-      rating: Math.max(0, Math.round(rating + (i - 1) * 60 + rng.range(-20, 20))),
-      power: Math.round(myPower * f),
-      seed,
-      team: botTeam(rng, activeParty(s).length),
-    });
-  }
-  s.modes.arena.opponents = opps;
-  s.modes.arena.refreshDay = today;
-  return opps;
-}
-
-/** Юниты бота арены: героини без снаряжения, масштабированные до заданной силы. */
-function arenaUnits(ctx: Ctx, opp: ArenaOpponent): UnitInit[] {
-  const { cfg, s } = ctx;
-  const fake = { ...s, heroines: {} as Record<string, HeroineState>, items: {}, constellation: 0, ascension: { ...s.ascension, up: {} } };
-  const avgLvl = Math.max(1, Math.round(activeParty(s).reduce((sum, id) => sum + s.heroines[id].lvl, 0) / Math.max(1, activeParty(s).length)));
-  for (const m of opp.team) fake.heroines[m.id] = { id: m.id, lvl: avgLvl, stars: 1, tree: {}, skills: [null, null], gear: {} };
-  const slots = opp.team.map((m) => m.id);
-  const units = heroUnits(cfg, fake as typeof s, slots);
-  const raw = opp.team.reduce((sum, m) => sum + buildHeroine(cfg, fake as typeof s, fake.heroines[m.id], { party: slots }).power, 0);
-  const k = opp.power / Math.max(1, raw);
-  return units.map((u) => ({
-    ...u,
-    side: 1 as const,
-    stats: { ...u.stats, hp: Math.round(u.stats.hp * k), atk: Math.round(u.stats.atk * Math.sqrt(k)), def: Math.round(u.stats.def * Math.sqrt(k)) },
-  }));
-}
-
-/** Награда экспедиции (с множителем и добавкой от события) и её завершение. */
-function grantExpedition(ctx: Ctx, e: Expedition, mult: number, add?: Partial<Record<Currency, number>>) {
-  const { s, cfg } = ctx;
-  const q = EXPEDITION_MAP[e.quest];
-  const r = q.reward;
-  const base = scaleReward(cfg, s, { gold: r.gold, forgeMats: r.forgeMats, dust: r.dust, starDust: r.starDust, crystals: r.crystals, emblems: r.emblems });
-  const cur: Record<string, number> = {};
-  for (const [k, v] of Object.entries(base)) if (v) cur[k] = Math.max(0, Math.round((v as number) * mult));
-  for (const [k, v] of Object.entries(add ?? {})) if (v) cur[k] = (cur[k] ?? 0) + v;
-  give(ctx, cur);
-  s.modes.expeditions = s.modes.expeditions.filter((x) => x.id !== e.id);
-  track(ctx, 'expedition', 1);
-  return { cur };
+/** Колосс дня: юнит и его полное здоровье. */
+export function raidBoss(cfg: Config, s: PlayerState, now: number): { unit: CombatUnitInit; hp: number; id: string } {
+  const id = RAID_COLOSSUS[raidElement(now)];
+  const lvl = raidLevel(s);
+  const unit = enemyUnit(cfg, id, lvl, 'boss', 0, { walkIn: true });
+  const base = enemyStats(cfg, ENEMY_MAP[id], lvl, 'normal').hp;
+  const hp = Math.round(base * RAID_HP);
+  unit.stats = { ...unit.stats, hp };
+  return { unit, hp, id };
 }
 
 export const modeActions = {
-  'dungeon.fight': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'dungeons');
-    const id = vStr(a.id, 'id');
-    assert(DUNGEON_MAP[id], 'badParam', { name: 'id' });
-    const cleared = s.modes.dungeons[id] ?? 0;
-    const level = vInt(a.level, 1, Math.min(cfg.modes.dungeonLevels, cleared + 1), 'level');
-    assert((s.day.keys[id] ?? 0) < cfg.modes.dungeonKeys, 'noKeys');
-    const b = runBattle(ctx, dungeonEnemies(ctx, id, level), heroUnits(cfg, s, currentParty(ctx)), cfg.battle.bossTimeLimit);
-    let reward = null;
-    if (b.win) {
-      s.day.keys[id] = (s.day.keys[id] ?? 0) + 1;
-      s.modes.dungeons[id] = Math.max(cleared, level);
-      reward = grantDungeon(ctx, id, level);
-      track(ctx, 'dungeon', 1);
-    }
-    ctx.events.push({ name: 'dungeon', props: { id, level, win: b.win } });
-    return { battle: stripRaw(b), win: b.win, reward };
-  },
-
-  /** Повтор-зачистка пройденного уровня без боя. */
-  'dungeon.sweep': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'dungeons');
-    const id = vStr(a.id, 'id');
-    assert(DUNGEON_MAP[id], 'badParam', { name: 'id' });
-    const level = vInt(a.level, 1, s.modes.dungeons[id] ?? 0, 'level');
-    const times = a.times === undefined ? 1 : vInt(a.times, 1, cfg.modes.dungeonKeys, 'times');
-    const left = cfg.modes.dungeonKeys - (s.day.keys[id] ?? 0);
-    assert(left >= times, 'noKeys');
-    const rewards = [];
-    for (let i = 0; i < times; i++) {
-      s.day.keys[id] = (s.day.keys[id] ?? 0) + 1;
-      rewards.push(grantDungeon(ctx, id, level));
-      track(ctx, 'dungeon', 1);
-    }
-    return { rewards };
-  },
-
-  /** Этаж Башни: модификатор этажа и по желанию «Испытание» (враги сильнее, награда ×2). */
-  /** Зачистить все подземелья: оставшиеся ключи — на лучший пройденный уровень каждого. */
-  'dungeon.sweepAll': (ctx: Ctx) => {
-    const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'dungeons');
-    const cur: Record<string, number> = {};
-    const gems: Record<string, number> = {};
-    let times = 0;
-    for (const d of DUNGEONS) {
-      const level = s.modes.dungeons[d.id] ?? 0;
-      const left = cfg.modes.dungeonKeys - (s.day.keys[d.id] ?? 0);
-      for (let i = 0; level > 0 && i < left; i++) {
-        s.day.keys[d.id] = (s.day.keys[d.id] ?? 0) + 1;
-        const r = grantDungeon(ctx, d.id, level);
-        for (const [k, v] of Object.entries(r.cur ?? {})) cur[k] = (cur[k] ?? 0) + ((v as number) ?? 0);
-        for (const [k, v] of Object.entries(r.gems ?? {})) gems[k] = (gems[k] ?? 0) + v;
-        track(ctx, 'dungeon', 1);
-        times++;
-      }
-    }
-    assert(times > 0, 'noKeys');
-    return { cur, gems, times };
-  },
-
-  'tower.fight': (ctx: Ctx, a: Action) => {
+  'tower.fight': (ctx: Ctx) => {
     const { s, cfg } = ctx;
     requireUnlocked(ctx, 'tower');
     const floor = s.modes.tower + 1;
-    assert(floor <= cfg.modes.towerFloors, 'maxRank');
-    const hard = a.hard === true;
-    const mod = towerMod(floor);
-    let enemies = modEnemies(towerEnemies(ctx, floor), mod?.enemy);
-    if (hard) enemies = modEnemies(enemies, TOWER_HARD);
-    const b = runBattle(ctx, enemies, heroUnits(cfg, s, currentParty(ctx), { extra: mod?.hero }), cfg.battle.bossTimeLimit);
-    let reward = null;
-    if (b.win) {
-      s.modes.tower = floor;
-      const r = towerReward(floor, hard);
-      give(ctx, { crystals: r.crystals, starDust: r.starDust, emblems: r.emblems });
-      if (r.skin && !s.skins.includes(r.skin)) s.skins.push(r.skin);
-      reward = { ...r, items: undefined as string[] | undefined, hearts: undefined as number | undefined };
-      // Наряд арлекина: за «Испытание» на этаже стража
-      if (hard && floor % 10 === 0) {
-        const uid = grantModeSetPiece(ctx, 'tower');
-        if (uid) reward.items = [uid];
-        // и Сердце Эфира — для нарядов близости
-        reward.hearts = grantHeart(ctx);
-      }
-      track(ctx, 'towerWin', 1);
+    const b = runBattle(ctx, towerEnemies(cfg, floor), heroUnits(cfg, s, currentParty(ctx), { mod: towerMod(floor)?.hero }), cfg.modes.towerTime);
+    if (!b.win) return { battle: stripRaw(b), floor, win: false };
+    s.modes.tower = floor;
+    track(ctx, 'towerWin', 1);
+    trackMax(ctx, 'towerFloor', floor);
+    const r = towerReward(floor);
+    give(ctx, r.cur);
+    const items: string[] = [];
+    if (r.item) {
+      const uid = addItem(ctx, rollLoot(ctx, { lvl: towerLevel(floor), rarity: r.item }), { keep: true });
+      if (uid) items.push(uid);
     }
-    if (b.win && hard) track(ctx, 'towerHard', 1);
-    ctx.events.push({ name: 'tower', props: { floor, win: b.win, hard, mod: mod?.id ?? null } });
-    return { battle: stripRaw(b), win: b.win, floor, reward, hard, mod: mod?.id ?? null };
+    const skin = towerSkin(floor);
+    if (skin && !s.skins.includes(skin)) s.skins.push(skin);
+    return { battle: stripRaw(b), floor, win: true, rewards: { cur: r.cur, items, skin } };
   },
 
-  /**
-   * Бездна: знамение уровня (как в Башне) и договоры по выбору игрока — враги сильнее, отряд слабее или
-   * меньше времени, зато награда больше на суммарный «жар». За рубежи жара — разовые награды.
-   */
-  'abyss.fight': (ctx: Ctx, a: Action) => {
+  'dungeon.fight': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'abyss');
-    const pacts = a.pacts === undefined ? [] : vStrArr(a.pacts, ABYSS_PACTS.length, 'pacts');
-    assert(new Set(pacts).size === pacts.length && pacts.every((id) => ABYSS_PACT_MAP[id]), 'badParam', { name: 'pacts' });
-    const defs = pacts.map((id) => ABYSS_PACT_MAP[id]);
-    const heat = defs.reduce((acc, p) => acc + p.heat, 0);
-    const level = s.modes.abyss + 1;
-    const n = abyssStage(level);
-    const act = ACTS[(level - 1) % 10];
-    const rng = new Rng(mixSeed(level, 0xab55));
-    const list = [
-      { id: level % 5 === 0 ? act.boss : rng.pick(act.enemies), tier: (level % 5 === 0 ? 'boss' : 'elite') as 'boss' | 'elite' },
-      { id: rng.pick(act.enemies), tier: 'normal' as const },
-      { id: rng.pick(act.enemies), tier: 'normal' as const },
-      { id: rng.pick(act.enemies), tier: 'normal' as const },
-    ];
-    const omen = abyssOmen(level);
-    let enemies = modEnemies(customEnemies(cfg, n, list), omen?.enemy);
-    for (const p of defs) enemies = modEnemies(enemies, p.enemy);
-    const extra: Stats = {};
-    for (const st of [omen?.hero, ...defs.map((p) => p.hero)]) for (const [k, v] of Object.entries(st ?? {})) extra[k as keyof Stats] = (extra[k as keyof Stats] ?? 0) + (v ?? 0);
-    const time = Math.round(cfg.battle.bossTimeLimit * defs.reduce((acc, p) => acc * (p.time ?? 1), 1));
-    const b = runBattle(ctx, enemies, heroUnits(cfg, s, currentParty(ctx), { extra }), time);
-    let reward = null;
-    let milestones: ReturnType<typeof abyssReward>['milestones'] = [];
-    if (b.win) {
-      s.modes.abyss = level;
-      const r = abyssReward(level, heat, s.modes.abyssHeatClaimed ?? []);
-      milestones = r.milestones;
-      s.modes.abyssHeat = Math.max(s.modes.abyssHeat ?? 0, heat);
-      s.modes.abyssHeatClaimed = [...(s.modes.abyssHeatClaimed ?? []), ...milestones.map((m) => m.heat)];
-      give(ctx, r.cur);
-      trackMax(ctx, 'abyssBest', level);
-      trackMax(ctx, 'abyssHeat', heat);
-      reward = r.cur;
-    }
-    return { battle: stripRaw(b), win: b.win, level, reward, heat, omen: omen?.id ?? null, milestones };
+    requireUnlocked(ctx, 'dungeons');
+    const id = vOneOf(a.id, DUNGEONS.map((d) => d.id), 'id');
+    const best = s.modes.dungeons[id] ?? 0;
+    const tier = vInt(a.tier, 1, Math.min(cfg.modes.dungeonTiers, best + 1), 'tier');
+    assert(dungeonKeysLeft(ctx, id) > 0, 'noKeys');
+    const b = runBattle(ctx, dungeonEnemies(cfg, id, tier), heroUnits(cfg, s, currentParty(ctx)), cfg.modes.dungeonTime);
+    if (!b.win) return { battle: stripRaw(b), win: false };
+    s.day.keys[id] = (s.day.keys[id] ?? 0) + 1;
+    if (tier > best) s.modes.dungeons[id] = tier;
+    return { battle: stripRaw(b), win: true, rewards: grantDungeon(ctx, id, tier) };
   },
 
-  'expedition.start': (ctx: Ctx, a: Action) => {
-    const { s, now } = ctx;
-    requireUnlocked(ctx, 'expeditions');
-    const questId = vStr(a.quest, 'quest');
-    const board = expeditionBoard(ctx);
-    assert(board.includes(questId), 'badParam', { name: 'quest' });
-    const q = EXPEDITION_MAP[questId];
-    assert(s.modes.expeditions.length < expeditionSlots(ctx), 'noSlots');
-    const heroes = vStrArr(a.heroes, 3, 'heroes');
-    assert(heroes.length === q.heroes && new Set(heroes).size === heroes.length, 'badParam', { name: 'heroes' });
-    // героиня не покидает отряд: в экспедицию уходит её дозор, а она ведёт его на привалах
-    for (const id of heroes) {
-      const h = s.heroines[id];
-      assert(h, 'noHero');
-      assert(!onExpedition(ctx, id), 'onExpedition');
-      assert(h.stars >= q.minStars, 'requirements');
-    }
-    if (q.cls) assert(heroes.some((id) => HEROINE_MAP[id].cls === q.cls), 'requirements');
-    if (q.element) assert(heroes.some((id) => HEROINE_MAP[id].element === q.element), 'requirements');
-    const exp = { id: `e${(s.uidCounter++).toString(36)}`, quest: questId, heroes, start: now, end: now + q.hours * 3600000 };
-    s.modes.expeditions.push(exp);
-    s.modes.expeditionBoard.quests = board.filter((x) => x !== questId);
-    return { expedition: exp };
-  },
-
-  'expedition.claim': (ctx: Ctx, a: Action) => {
-    const { s, now } = ctx;
-    const id = vStr(a.id, 'id');
-    const e = s.modes.expeditions.find((x) => x.id === id);
-    assert(e, 'badParam', { name: 'id' });
-    assert(now >= e.end, 'notDone');
-    // по возвращении может случиться история — награда после выбора игрока
-    if (e.event) return { event: e.event, id };
-    if (ctx.rng.chance(EXPEDITION_EVENT_CHANCE)) {
-      e.event = ctx.rng.pick(EXPEDITION_EVENTS).id;
-      return { event: e.event, id };
-    }
-    return grantExpedition(ctx, e, 1);
-  },
-
-  /** Выбор в событии экспедиции: исход (иногда случайный) меняет добычу. */
-  'expedition.event': (ctx: Ctx, a: Action) => {
+  /** Зачистка пройденной ступени без боя. */
+  'dungeon.sweep': (ctx: Ctx, a: Action) => {
     const { s } = ctx;
-    const id = vStr(a.id, 'id');
-    const e = s.modes.expeditions.find((x) => x.id === id);
-    assert(e && e.event, 'badParam', { name: 'id' });
-    const ev = EXPEDITION_EVENT_MAP[e.event];
-    const choice = vOneOf<ExpeditionChoice>(a.choice, ['a', 'b'], 'choice');
-    const out = ev.choices[choice].outcome;
-    const lucky = out.chance === undefined || ctx.rng.chance(out.chance);
-    const res = lucky || !out.fail ? out.win : out.fail;
-    const r = grantExpedition(ctx, e, res.mult ?? 1, res.add);
-    track(ctx, 'expeditionEvent', 1);
-    return { ...r, event: ev.id, choice, lucky, text: res.text };
+    requireUnlocked(ctx, 'dungeons');
+    const id = vOneOf(a.id, DUNGEONS.map((d) => d.id), 'id');
+    const best = s.modes.dungeons[id] ?? 0;
+    assert(best > 0, 'notCleared');
+    const tier = a.tier === undefined ? best : vInt(a.tier, 1, best, 'tier');
+    assert(dungeonKeysLeft(ctx, id) > 0, 'noKeys');
+    s.day.keys[id] = (s.day.keys[id] ?? 0) + 1;
+    return { rewards: grantDungeon(ctx, id, tier) };
   },
 
-
-  /** Забрать все завершённые экспедиции разом; те, где случилось событие, ждут выбора (список events). */
-  'expedition.claimAll': (ctx: Ctx) => {
-    const done = ctx.s.modes.expeditions.filter((x) => ctx.now >= x.end).map((x) => x.id);
-    assert(done.length > 0, 'notDone');
+  /** Колосс: бой на урон 60 с; новые пороги урона за день дают награды. */
+  'raid.fight': (ctx: Ctx) => {
+    const { s, cfg, now } = ctx;
+    requireUnlocked(ctx, 'raid');
+    const r = raidState(ctx);
+    assert(r.used < cfg.modes.raidAttempts, 'usedToday');
+    const boss = raidBoss(cfg, s, now);
+    const b = runBattle(ctx, [boss.unit], heroUnits(cfg, s, currentParty(ctx)), cfg.modes.raidTime, { endless: true });
+    const dmg = Math.min(boss.hp, b.dmg);
+    const share = dmg / boss.hp;
+    r.used++;
+    r.bestDay = Math.max(r.bestDay, dmg);
+    r.bestWeek = Math.max(r.bestWeek, dmg);
+    r.best = Math.max(r.best, dmg);
     const cur: Record<string, number> = {};
-    const events: { id: string; event: string }[] = [];
-    let n = 0;
-    for (const id of done) {
-      const r = modeActions['expedition.claim'](ctx, { type: 'expedition.claim', id }) as { event?: string; cur?: Record<string, number> };
-      if (r.event) {
-        events.push({ id, event: r.event });
-        continue;
+    RAID_TIERS.forEach((tier, i) => {
+      if (share >= tier.at && !r.tiers.includes(i)) {
+        r.tiers.push(i);
+        for (const [k, v] of Object.entries(tier.cur)) cur[k] = (cur[k] ?? 0) + (v ?? 0);
       }
-      n++;
-      for (const [k, v] of Object.entries(r.cur ?? {})) cur[k] = (cur[k] ?? 0) + (v ?? 0);
-    }
-    return { cur, n, events };
-  },
-
-  'expedition.cancel': (ctx: Ctx, a: Action) => {
-    const id = vStr(a.id, 'id');
-    ctx.s.modes.expeditions = ctx.s.modes.expeditions.filter((x) => x.id !== id);
-    return {};
-  },
-
-  'expedition.board': (ctx: Ctx) => ({ board: expeditionBoard(ctx) }),
-
-  'lab.start': (ctx: Ctx) => {
-    const { s, now } = ctx;
-    requireUnlocked(ctx, 'labyrinth');
-    const week = weekKey(now);
-    assert(!s.modes.lab || s.modes.lab.week !== week, 'usedWeek');
-    const seed = ctx.rng.fork();
-    const party = activeParty(s);
-    const run: LabyrinthRun = {
-      week,
-      floor: 0,
-      node: 0,
-      choices: [],
-      hp: Object.fromEntries(party.map((id) => [id, 1])),
-      relics: [],
-      buffs: {},
-      coins: 0,
-      seed,
-    };
-    run.choices = labNodeOptions(new Rng(mixSeed(seed, 0, 0)), 0);
-    s.modes.lab = run;
-    return { run };
-  },
-
-  'lab.choose': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
-    const run = s.modes.lab;
-    assert(run && !run.done && run.week === weekKey(ctx.now), 'noRun');
-    assert(!run.pending, 'pickFirst');
-    const i = vInt(a.index, 0, run.choices.length - 1, 'index');
-    const kind = run.choices[i];
-    const rng = new Rng(mixSeed(run.seed, run.floor, run.node, 0xc4));
-    if (kind === 'fight' || kind === 'elite' || kind === 'boss') {
-      const { extra, extraFx } = labExtras(run);
-      const slots = currentParty(ctx).map((id) => (id && run.hp[id] !== undefined ? id : null));
-      const heroes = heroUnits(cfg, s, slots, { extra, extraFx, hp: run.hp });
-      const b = runBattle(ctx, labEnemies(ctx, run, kind), heroes, cfg.battle.bossTimeLimit);
-      for (const [id, hp] of Object.entries(b.heroHp ?? {})) run.hp[id] = hp;
-      if (!b.win) {
-        run.done = true;
-        run.won = false;
-        const coins = Math.floor(run.coins / 2) + run.floor * 40;
-        give(ctx, { labCoins: coins });
-        return { battle: stripRaw(b), win: false, coins };
-      }
-      run.coins += kind === 'boss' ? 80 : kind === 'elite' ? 50 : 25;
-      labAdvance(ctx, run);
-      return { battle: stripRaw(b), win: true, run };
-    }
-    if (kind === 'shrine') {
-      const opts = [...LAB_BUFFS.map((x) => x.id)];
-      rng.shuffle(opts);
-      run.pending = { kind: 'buff', options: opts.slice(0, 3) };
-      return { run };
-    }
-    if (kind === 'relic') {
-      const opts = RELICS.map((r) => r.id).filter((id) => !run.relics.includes(id));
-      rng.shuffle(opts);
-      run.pending = { kind: 'relic', options: opts.slice(0, 3) };
-      return { run };
-    }
-    if (kind === 'spring') {
-      for (const id of Object.keys(run.hp)) run.hp[id] = run.hp[id] <= 0 ? 0.3 : Math.min(1, run.hp[id] + 0.4);
-    } else if (kind === 'treasure') {
-      run.coins += 60;
-    }
-    labAdvance(ctx, run);
-    return { run };
-  },
-
-  'lab.pick': (ctx: Ctx, a: Action) => {
-    const run = ctx.s.modes.lab;
-    assert(run && run.pending && !run.done, 'noRun');
-    const i = vInt(a.index, 0, run.pending.options.length - 1, 'index');
-    const id = run.pending.options[i];
-    if (run.pending.kind === 'relic') run.relics.push(id);
-    else addStats(run.buffs, LAB_BUFFS.find((b) => b.id === id)?.stats);
-    run.pending = undefined;
-    labAdvance(ctx, run);
-    return { run };
-  },
-
-  'lab.abandon': (ctx: Ctx) => {
-    const run = ctx.s.modes.lab;
-    assert(run && !run.done, 'noRun');
-    run.done = true;
-    run.won = false;
-    give(ctx, { labCoins: Math.floor(run.coins / 2) });
-    return {};
-  },
-
-  'arena.opponents': (ctx: Ctx) => {
-    requireUnlocked(ctx, 'arena');
-    return { opponents: arenaOpponents(ctx) };
-  },
-
-  'arena.refresh': (ctx: Ctx) => {
-    requireUnlocked(ctx, 'arena');
-    spend(ctx, { crystals: 10 });
-    return { opponents: arenaOpponents(ctx, true) };
-  },
-
-  'arena.fight': (ctx: Ctx, a: Action) => {
-    const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'arena');
-    const opps = arenaOpponents(ctx);
-    const i = vInt(a.index, 0, opps.length - 1, 'index');
-    const limit = cfg.modes.arenaFights + s.day.arenaBought;
-    assert(s.day.arena < limit, 'noAttempts');
-    s.day.arena++;
-    const opp = opps[i];
-    const b = runBattle(ctx, arenaUnits(ctx, opp), heroUnits(cfg, s, currentParty(ctx)), cfg.battle.bossTimeLimit);
-    const ar = s.modes.arena;
-    const diff = opp.rating - ar.rating;
-    const delta = Math.max(8, Math.min(32, Math.round(20 + diff / 25)));
-    if (b.win) {
-      ar.rating += delta;
-      ar.wins++;
-      give(ctx, { arenaTokens: 10 });
-      track(ctx, 'arenaWin', 1);
-    } else {
-      ar.rating = Math.max(0, ar.rating - Math.max(5, Math.round(delta / 2)));
-      ar.losses++;
-      give(ctx, { arenaTokens: 3 });
-    }
-    track(ctx, 'arenaFight', 1);
-    // заменяем побеждённого соперника новым
-    s.modes.arena.opponents = opps;
-    arenaOpponents(ctx, true);
-    return { battle: stripRaw(b), win: b.win, rating: ar.rating, delta: b.win ? delta : -Math.max(5, Math.round(delta / 2)) };
-  },
-
-  'arena.buy': (ctx: Ctx) => {
-    const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'arena');
-    assert(s.day.arenaBought < 5, 'limitReached');
-    spend(ctx, { crystals: cfg.modes.arenaBuyCost });
-    s.day.arenaBought++;
-    return {};
+    });
+    give(ctx, cur);
+    s.modes.raid = r;
+    track(ctx, 'raid', 1);
+    return { battle: stripRaw(b), dmg, share, hp: boss.hp, rewards: { cur } };
   },
 };

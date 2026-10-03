@@ -1,18 +1,14 @@
 import type { Config } from '../config';
-import { ARENA_LEAGUES, arenaLeague } from '../content';
 import { Rng } from '../rng';
 import type { GameEvent, PlayerState } from '../types';
-import { battleActions } from './actions/battle';
+import { campaignActions } from './actions/campaign';
 import { devActions } from './actions/dev';
 import { economyActions } from './actions/economy';
-import { heroActions } from './actions/heroes';
+import { legionActions } from './actions/legion';
 import { itemActions } from './actions/items';
 import { metaActions } from './actions/meta';
 import { modeActions } from './actions/modes';
-import { endgameActions } from './actions/endgame';
-import { encounterActions, rollEncounter } from './actions/encounters';
 import { bondActions } from './actions/bond';
-import { artifactActions } from './actions/artifacts';
 import { festivalActions } from './actions/festival';
 import { mineActions } from './actions/mine';
 import { photoActions } from './actions/photo';
@@ -22,7 +18,8 @@ import { campfireActions } from './actions/campfire';
 import { adjutantActions } from './actions/adjutant';
 import { sortieActions } from './actions/sortie';
 import { serverActions } from './actions/server';
-import { GameError, give, settleChest, track, type Ctx } from './core';
+import type { CombatInput } from './combat';
+import { GameError, settleChest, track, type Ctx } from './core';
 import { dayKey, seasonKey, weekKey, yesterdayKey } from './state';
 
 export interface Action {
@@ -34,16 +31,13 @@ export type Handler = (ctx: Ctx, a: Action) => unknown;
 
 export const HANDLERS: Record<string, Handler> = {
   sync: () => ({}),
-  ...battleActions,
-  ...heroActions,
+  ...campaignActions,
+  ...legionActions,
   ...itemActions,
   ...economyActions,
   ...metaActions,
   ...modeActions,
-  ...endgameActions,
-  ...encounterActions,
   ...bondActions,
-  ...artifactActions,
   ...festivalActions,
   ...mineActions,
   ...photoActions,
@@ -101,17 +95,22 @@ export function applyAction(state: PlayerState, action: Action, opt: ApplyOption
   return { state: s, result: result ?? {}, events: ctx.events };
 }
 
-/** Ручное управление: { manual: true, inputs: [{ t, u, s? }] } в любом боевом действии (s = 1 — фирменное умение). */
+/** Ручное управление: { manual: true, inputs: [{ t, k: 'ult', u } | { t, k: 'guard' } | { t, k: 'auto' }] } в любом боевом действии. */
 export function battleControl(a: Action): Ctx['control'] {
   if (a.manual !== true) return undefined;
   const raw = a.inputs === undefined ? [] : a.inputs;
-  if (!Array.isArray(raw) || raw.length > 200) throw new GameError('badParam', { name: 'inputs' });
-  const inputs = raw.map((x) => {
-    const o = x as { t?: unknown; u?: unknown; s?: unknown };
-    if (!Number.isInteger(o?.t) || !Number.isInteger(o?.u) || (o.t as number) < 0 || (o.t as number) > 3_600_000 || (o.u as number) < -1 || (o.u as number) > 99)
-      throw new GameError('badParam', { name: 'inputs' });
-    if (o.s !== undefined && o.s !== 1) throw new GameError('badParam', { name: 'inputs' });
-    return o.s === 1 ? { t: o.t as number, u: o.u as number, s: 1 as const } : { t: o.t as number, u: o.u as number };
+  if (!Array.isArray(raw) || raw.length > 300) throw new GameError('badParam', { name: 'inputs' });
+  const inputs: CombatInput[] = raw.map((x) => {
+    const o = x as { t?: unknown; k?: unknown; u?: unknown };
+    if (!Number.isInteger(o?.t) || (o.t as number) < 0 || (o.t as number) > 3_600_000) throw new GameError('badParam', { name: 'inputs' });
+    const t = o.t as number;
+    if (o.k === 'ult') {
+      if (!Number.isInteger(o.u) || (o.u as number) < 0 || (o.u as number) > 99) throw new GameError('badParam', { name: 'inputs' });
+      return { t, k: 'ult', u: o.u as number };
+    }
+    if (o.k === 'guard') return { t, k: 'guard' };
+    if (o.k === 'auto') return { t, k: 'auto' };
+    throw new GameError('badParam', { name: 'inputs' });
   });
   return { manual: true, inputs };
 }
@@ -128,7 +127,7 @@ export function tick(ctx: Ctx) {
       login.last = today;
       login.total++;
     }
-    s.day = { key: today, quickFree: false, quickAd: false, quick: 0, ads: 0, keys: {}, arena: 0, arenaBought: 0, gift: false };
+    s.day = { key: today, quickFree: 0, quick: 0, boosts: 0, keys: {}, gift: false };
     s.quests.dayKey = today;
     s.quests.daily = {};
     s.quests.dailyClaimed = [];
@@ -143,24 +142,11 @@ export function tick(ctx: Ctx) {
   }
   const wk = weekKey(now);
   if (s.week.key !== wk) {
-    // еженедельная награда арены по лиге
-    if (s.modes.arena.wins + s.modes.arena.losses > 0) {
-      const league = arenaLeague(s.modes.arena.rating);
-      give(ctx, { crystals: league.weekly });
-      s.mail.push({
-        id: `arena_${s.week.key}`,
-        title: { ru: 'Награда арены', en: 'Arena reward' },
-        body: { ru: `Лига: ${league.name.ru}. Начислено ${league.weekly} кристаллов.`, en: `League: ${league.name.en}. ${league.weekly} crystals granted.` },
-        at: now,
-        claimed: true,
-      });
-      void ARENA_LEAGUES;
-    }
     for (const k of Object.keys(s.shop.bought)) {
       const parts = k.split('@');
       if (parts[1] && parts[1].startsWith('w') && parts[1] !== wk) delete s.shop.bought[k];
     }
-    s.week = { key: wk, treeDiscount: false };
+    s.week = { key: wk };
     s.quests.weekKey = wk;
     s.quests.weekly = {};
     s.quests.weeklyClaimed = [];
@@ -176,7 +162,6 @@ export function tick(ctx: Ctx) {
   // почта: храним не больше 50 писем
   if (s.mail.length > 50) s.mail = s.mail.slice(-50);
   settleChest(ctx);
-  rollEncounter(ctx);
   void cfg;
 }
 

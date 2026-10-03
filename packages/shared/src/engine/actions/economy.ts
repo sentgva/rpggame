@@ -5,45 +5,39 @@ import {
   addAccountXp,
   addItem,
   assert,
-  autoLevelParty,
   capMinutes,
   give,
   goldPerMin,
   grantReward,
-  offlineBonus,
+  levelUpLegion,
   rollLoot,
   settleChest,
   spend,
+  steelPerMin,
   track,
   vInt,
   vOneOf,
   vStr,
   xpPerMin,
-  dustPerMin,
   type Ctx,
-  farmLevel,
 } from '../core';
 import { createPlayer, weekKey } from '../state';
 
-
-/** Бесплатные ускорения ×2: ограничены числом в день (счётчик day.ads). */
+/** Ускорения ×2 на сегодня. */
 export function boostsLeft(ctx: Pick<Ctx, 'cfg' | 's'>): number {
-  return ctx.cfg.income.x2PerDay - ctx.s.day.ads;
+  return ctx.cfg.income.x2PerDay - ctx.s.day.boosts;
 }
 
-/** Сгенерировать предметы сундука; при переполнении — автопереплавка. */
-function chestItems(ctx: Ctx, count: number): { items: string[]; smelted: number } {
-  const n = farmLevel(ctx.cfg, ctx.s);
+/** Вещи из сундука (до 400 за раз); лишнее уходит в авторазбор. */
+function chestItems(ctx: Ctx, count: number): { items: string[]; salvaged: number } {
   const items: string[] = [];
-  let smelted = 0;
-  const limit = Math.min(count, 400);
-  for (let i = 0; i < limit; i++) {
-    const it = rollLoot(ctx, { lvl: n, maxRarity: 5 });
-    const uid = addItem(ctx, it);
+  let salvaged = 0;
+  for (let i = 0; i < Math.min(count, 400); i++) {
+    const uid = addItem(ctx, rollLoot(ctx));
     if (uid) items.push(uid);
-    else smelted++;
+    else salvaged++;
   }
-  return { items, smelted };
+  return { items, salvaged };
 }
 
 export const economyActions = {
@@ -53,28 +47,26 @@ export const economyActions = {
     const c = s.chest;
     const gold = Math.floor(c.gold);
     const xp = Math.floor(c.xp);
-    const dust = Math.floor(c.dust);
+    const steel = Math.floor(c.steel);
     const itemCount = Math.floor(c.itemMin / cfg.income.itemEveryMin);
     const minutes = c.minutes;
-    give(ctx, { gold, xp, dust });
+    give(ctx, { gold, xp, steel });
     addAccountXp(ctx, c.accXp);
     const loot = chestItems(ctx, itemCount);
-    s.chest = { since: ctx.now, minutes: 0, gold: 0, xp: 0, accXp: 0, itemMin: c.itemMin - itemCount * cfg.income.itemEveryMin, dust: 0 };
-    const levels = s.settings.autoLevel ? autoLevelParty(ctx) : {};
+    s.chest = { since: ctx.now, minutes: 0, gold: 0, xp: 0, accXp: 0, itemMin: c.itemMin - itemCount * cfg.income.itemEveryMin, steel: 0 };
+    const levels = s.settings.autoLevel ? levelUpLegion(ctx, 1000) : 0;
     track(ctx, 'chestCollect', 1);
     ctx.events.push({ name: 'chest_collect', props: { minutes: Math.round(minutes), gold, items: itemCount } });
-    return { gold, xp, dust, minutes, items: loot.items, smelted: loot.smelted, levels };
+    return { gold, xp, steel, minutes, items: loot.items, salvaged: loot.salvaged, levels };
   },
 
-  /** Быстрый сбор: мгновенно 2 ч дохода. 2 раза в день бесплатно, дальше 20 → 50 → 100 кристаллов. */
+  /** Быстрый сбор: мгновенно 2 ч дохода. Бесплатно quickFree раз в день, дальше — за кристаллы. */
   'chest.quick': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
     const method = vOneOf(a.method, ['free', 'crystals'] as const, 'method');
     if (method === 'free') {
-      // второй бесплатный сбор хранится во флаге quickAd (раньше — сбор за рекламу)
-      assert(!s.day.quickFree || !s.day.quickAd, 'usedToday');
-      if (!s.day.quickFree) s.day.quickFree = true;
-      else s.day.quickAd = true;
+      assert(s.day.quickFree < cfg.income.quickFree, 'usedToday');
+      s.day.quickFree++;
     } else {
       const costs = cfg.income.quickCrystals;
       assert(s.day.quick < costs.length, 'usedToday');
@@ -82,23 +74,22 @@ export const economyActions = {
       s.day.quick++;
     }
     const minutes = cfg.income.quickHours * 60;
-    const b = 1 + offlineBonus(s);
-    const gold = Math.floor(goldPerMin(cfg, s) * minutes * b);
-    const xp = Math.floor(xpPerMin(cfg, s) * minutes * b);
-    const dust = Math.floor(dustPerMin(cfg, s) * minutes);
-    give(ctx, { gold, xp, dust });
+    const gold = Math.floor(goldPerMin(cfg, s) * minutes);
+    const xp = Math.floor(xpPerMin(cfg, s) * minutes);
+    const steel = Math.floor(steelPerMin(cfg, s) * minutes);
+    give(ctx, { gold, xp, steel });
     const loot = chestItems(ctx, Math.floor(minutes / cfg.income.itemEveryMin));
-    const levels = s.settings.autoLevel ? autoLevelParty(ctx) : {};
+    const levels = s.settings.autoLevel ? levelUpLegion(ctx, 1000) : 0;
     track(ctx, 'quick', 1);
     ctx.events.push({ name: 'quick_collect', props: { method } });
-    return { gold, xp, dust, minutes, items: loot.items, smelted: loot.smelted, levels };
+    return { gold, xp, steel, minutes, items: loot.items, salvaged: loot.salvaged, levels };
   },
 
-  /** Ускорение ×2 на 30 минут: бесплатно, несколько раз в день. */
+  /** Ускорение ×2 на 30 минут: несколько раз в день. */
   'boost.x2': (ctx: Ctx) => {
     const { s, cfg, now } = ctx;
     assert(boostsLeft(ctx) > 0, 'usedToday');
-    s.day.ads++;
+    s.day.boosts++;
     settleChest(ctx);
     s.boosts.x2Until = Math.max(now, s.boosts.x2Until) + cfg.income.x2Minutes * 60000;
     return { x2Until: s.boosts.x2Until };
@@ -126,9 +117,9 @@ export const economyActions = {
       out.skin = offer.give.skin;
     }
     if (offer.give.item) {
-      const rarity = offer.give.item === 'mythic' ? 5 : offer.give.item === 'legendary' ? 4 : 3;
-      const it = rollLoot(ctx, { lvl: farmLevel(ctx.cfg, s), forceRarity: rarity as Item['rarity'] });
-      const uid = addItem(ctx, it, { noAutoSmelt: true });
+      const rarity = offer.give.item === 'legendary' ? 4 : 3;
+      const it = rollLoot(ctx, { rarity: rarity as Item['rarity'] });
+      const uid = addItem(ctx, it, { keep: true });
       assert(uid, 'inventoryFull');
       out.item = uid;
     }
@@ -165,10 +156,10 @@ export const economyActions = {
     if (p.autoLevel !== undefined) st.autoLevel = !!p.autoLevel;
     if (p.autoRetry !== undefined) st.autoRetry = !!p.autoRetry;
     if (p.haptics !== undefined) st.haptics = !!p.haptics;
-    if (p.autoBoss !== undefined) st.autoBoss = !!p.autoBoss && (s.ascension.up.autoBoss ?? 0) > 0;
-    if (p.autoSmelt !== undefined) st.autoSmelt = vInt(p.autoSmelt, -1, 4, 'autoSmelt');
+    if (p.autoBoss !== undefined) st.autoBoss = !!p.autoBoss;
+    if (p.autoSalvage !== undefined) st.autoSalvage = vInt(p.autoSalvage, -1, 4, 'autoSalvage');
     if (p.speed !== undefined) st.speed = p.speed === 2 ? 2 : 1;
-    if (p.manualUlt !== undefined) st.manualUlt = !!p.manualUlt;
+    if (p.manual !== undefined) st.manual = !!p.manual;
     return {};
   },
 

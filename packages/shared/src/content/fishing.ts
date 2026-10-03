@@ -49,11 +49,11 @@ export const FISH_MAP: Record<string, FishDef> = Object.fromEntries(FISH.map((f)
 /**
  * Редкость: шанс поклёвки, сила рыбы в мини-игре (0–1), золото в минутах дохода, кристаллы и Эмблемы.
  */
-export const FISH_RARITY: Record<FishRarity, { name: L10n; color: string; weight: number; power: number; goldMin: number; dust: number; crystals: number; emblems: number }> = {
-  common: { name: L('Обычная', 'Common'), color: '#c8c0b8', weight: 62, power: 0.3, goldMin: 8, dust: 15, crystals: 0, emblems: 0 },
-  rare: { name: L('Редкая', 'Rare'), color: '#5ab8f0', weight: 26, power: 0.5, goldMin: 20, dust: 40, crystals: 5, emblems: 0 },
-  epic: { name: L('Эпическая', 'Epic'), color: '#b04de0', weight: 10, power: 0.72, goldMin: 45, dust: 90, crystals: 15, emblems: 1 },
-  legend: { name: L('Легендарная', 'Legendary'), color: '#ffc040', weight: 2, power: 0.92, goldMin: 120, dust: 200, crystals: 50, emblems: 4 },
+export const FISH_RARITY: Record<FishRarity, { name: L10n; color: string; weight: number; power: number; goldMin: number; steel: number; crystals: number; emblems: number }> = {
+  common: { name: L('Обычная', 'Common'), color: '#c8c0b8', weight: 62, power: 0.3, goldMin: 8, steel: 6, crystals: 0, emblems: 0 },
+  rare: { name: L('Редкая', 'Rare'), color: '#5ab8f0', weight: 26, power: 0.5, goldMin: 20, steel: 15, crystals: 5, emblems: 0 },
+  epic: { name: L('Эпическая', 'Epic'), color: '#b04de0', weight: 10, power: 0.72, goldMin: 45, steel: 35, crystals: 15, emblems: 1 },
+  legend: { name: L('Легендарная', 'Legendary'), color: '#ffc040', weight: 2, power: 0.92, goldMin: 120, steel: 80, crystals: 50, emblems: 4 },
 };
 
 /** Наживка: бесплатная в день, запас, покупка за золото (раз в день ограничено). */

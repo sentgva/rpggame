@@ -19,7 +19,7 @@ export const volleyActions = {
    */
   'volley.start': (ctx: Ctx, a: Action) => {
     const { s, now } = ctx;
-    requireUnlocked(ctx, 'events');
+    requireUnlocked(ctx, 'festival');
     const f = festCopy(ctx, requireFestival(ctx, 'volley'));
     const v = volleyOf(f);
     const heroes = vStrArr(a.heroes, 2, 'heroes');

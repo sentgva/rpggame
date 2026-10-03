@@ -16,11 +16,11 @@ import {
 import { Rng, mixSeed } from '../../rng';
 import type { MineState } from '../../types';
 import type { Action } from '../apply';
-import type { UnitInit } from '../battle';
+import type { CombatUnitInit } from '../combat';
 import { assert, give, requireUnlocked, track, vInt, type Ctx } from '../core';
 import type { Config } from '../../config';
 import { customEnemies, heroUnits } from '../units';
-import { currentParty, runBattle, stripRaw } from './battle';
+import { currentParty, runBattle, stripRaw } from './campaign';
 import { grantHeart } from './bond';
 import { festCopy, mineOf, requireFestival } from './festival';
 
@@ -32,7 +32,7 @@ export function mineNeedsFight(tile: MineTile, floor: number): boolean {
 }
 
 /** Враги клетки: чудовища акта этажа; страж лестницы — мини-босс со свитой. */
-export function mineEnemies(cfg: Config, def: FestivalDef, base: number, m: Pick<MineState, 'seed' | 'floor'>, cell: number, guard: boolean): UnitInit[] {
+export function mineEnemies(cfg: Config, def: FestivalDef, base: number, m: Pick<MineState, 'seed' | 'floor'>, cell: number, guard: boolean): CombatUnitInit[] {
   const acts = def.mine?.acts ?? [8];
   const act = ACTS[acts[(m.floor - 1) % acts.length] - 1];
   const rng = new Rng(mixSeed(m.seed, m.floor, cell, 0x6e11));
@@ -48,7 +48,7 @@ export const mineActions = {
   /** Копать клетку cell (индекс на поле 7×8). Стоит одну кирку; чудовище или страж — бой своим отрядом. */
   'mine.dig': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'events');
+    requireUnlocked(ctx, 'festival');
     const fn = requireFestival(ctx, 'mine');
     const f = festCopy(ctx, fn);
     const m: MineState = { ...mineOf(s, f), dug: [...mineOf(s, f).dug] };
@@ -61,7 +61,7 @@ export const mineActions = {
     const tile = mineBoard(m.seed, m.floor)[cell];
     let battle = null;
     if (mineNeedsFight(tile, m.floor)) {
-      const b = runBattle(ctx, mineEnemies(cfg, fn.def, f.lvl, m, cell, tile === 'stairs'), heroUnits(cfg, s, currentParty(ctx)), cfg.battle.bossTimeLimit);
+      const b = runBattle(ctx, mineEnemies(cfg, fn.def, f.lvl, m, cell, tile === 'stairs'), heroUnits(cfg, s, currentParty(ctx)), cfg.battle.bossTime);
       battle = stripRaw(b);
       if (!b.win) {
         // проиграли — кирка потрачена, клетка осталась нетронутой

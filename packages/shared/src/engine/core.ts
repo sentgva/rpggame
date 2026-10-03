@@ -1,22 +1,11 @@
 import type { Config } from '../config';
-import { ACHIEVEMENTS, HEROINE_MAP, MODE_SET, SET_SLOTS } from '../content';
+import { ACHIEVEMENTS, HEROINE_MAP, STAGES_PER_CIRCLE, stageRef } from '../content';
 import { Rng } from '../rng';
-import type { ClassId, Currency, GameEvent, Item, PlayerState, Reward } from '../types';
+import type { Currency, GameEvent, Item, PlayerState, Reward } from '../types';
 import { CURRENCIES } from '../types';
+import type { CombatInput } from './combat';
 import { generateItem, type LootOpts } from './loot';
-import { diffOfGlobal, powerLevel } from './units';
-import {
-  accountXpToNext,
-  activeParty,
-  ascensionValue,
-  constellationStats,
-  equippedIndex,
-  itemPower,
-  goldToNext,
-  inventoryCap,
-  levelCap,
-  xpToNext,
-} from './stats';
+import { accountXpToNext, bannerValue, equippedIndex, growth, inventoryCap, itemPower, legionMaxLevel, levelCost } from './stats';
 
 export class GameError extends Error {
   constructor(
@@ -35,8 +24,8 @@ export interface Ctx {
   dev: boolean;
   server: boolean;
   events: GameEvent[];
-  /** Ручное управление боем этого действия: ульты по командам игрока. */
-  control?: { manual: boolean; inputs: { t: number; u: number; s?: 1 }[] };
+  /** Ручное управление боем этого действия: ульты и щит по командам игрока. */
+  control?: { manual: boolean; inputs: CombatInput[] };
 }
 
 export function assert(cond: unknown, code: string, params?: Record<string, string | number>): asserts cond {
@@ -94,51 +83,35 @@ export function give(ctx: Ctx, cur: Partial<Record<Currency, number>>) {
 
 // ——— доход ———
 
-/** Сквозной этап, который отряд фармит (последний пройденный). */
+/** Этап, который отряд фармит в сундук (последний пройденный). */
 export function farmStage(s: PlayerState): number {
-  return Math.max(1, s.progress.maxGlobal);
+  return Math.max(1, s.progress.stage);
 }
 
-export function goldMult(s: PlayerState, _cfg: Config): number {
-  const cons = constellationStats(s.constellation).stats;
-  return 1 + (cons.goldPct ?? 0) + ascensionValue(s, 'gold') + ascensionValue(s, 'speed');
+/** Уровень силы фарма: от него зависят доход и уровень вещей. */
+export function farmLevel(_cfg: Config, s: PlayerState): number {
+  return farmStage(s);
 }
 
-export function xpMult(s: PlayerState): number {
-  const cons = constellationStats(s.constellation).stats;
-  return 1 + (cons.xpPct ?? 0) + ascensionValue(s, 'xp') + ascensionValue(s, 'speed');
-}
-
-/** Уровень силы этапа фарма: от него зависят доход и уровень предметов. */
-export function farmLevel(cfg: Config, s: PlayerState): number {
-  return Math.round(powerLevel(cfg, farmStage(s)));
-}
-
-/** Доход золота в минуту на уровне силы L. */
 export function goldPerMin(cfg: Config, s: PlayerState, L = farmLevel(cfg, s)): number {
-  return cfg.income.goldBase * Math.pow(L + 1, cfg.income.goldExp) * goldMult(s, cfg);
+  return cfg.income.goldBase * growth(cfg, L) * (1 + bannerValue(s, 'gold'));
 }
 
 export function xpPerMin(cfg: Config, s: PlayerState, L = farmLevel(cfg, s)): number {
-  return cfg.income.xpBase * Math.pow(L + 1, cfg.income.xpExp) * xpMult(s);
+  return cfg.income.xpBase * growth(cfg, L) * (1 + bannerValue(s, 'xp'));
 }
 
 export function accXpPerMin(cfg: Config, s: PlayerState): number {
   return cfg.income.accXpPerMin * (1 + farmLevel(cfg, s) / 60);
 }
 
-export function dustPerMin(cfg: Config, s: PlayerState): number {
-  return (cfg.income.dustPerHour / 60) * (1 + farmLevel(cfg, s) / 40) * (1 + ascensionValue(s, 'dust'));
+export function steelPerMin(cfg: Config, s: PlayerState): number {
+  return (cfg.income.steelPerHour / 60) * (1 + farmLevel(cfg, s) / 150);
 }
 
-export function offlineBonus(s: PlayerState): number {
-  return constellationStats(s.constellation).offline + ascensionValue(s, 'offline');
-}
-
-/** Лимит накопления сундука: 12 ч базово, до 24 ч звёздами «Песочных часов». */
+/** Лимит накопления сундука (мин): 12 ч + «Привал» Знамени. */
 export function capMinutes(cfg: Config, s: PlayerState, _now?: number): number {
-  const hours = cfg.income.capHours + constellationStats(s.constellation).capHours;
-  return Math.min(cfg.income.maxCapHours, hours) * 60;
+  return cfg.income.capHours * 60 + bannerValue(s, 'chest');
 }
 
 export function x2Active(s: PlayerState, now: number): boolean {
@@ -151,21 +124,18 @@ export function settleChest(ctx: Ctx) {
   const since = s.chest.since;
   if (now <= since) return;
   const realMin = (now - since) / 60000;
-  // ускорение ×2: пересечение [since, now] с окном действия буста
-  const x2End = s.boosts.x2Until;
-  const x2Min = Math.max(0, Math.min(now, x2End) - since) / 60000;
+  const x2Min = Math.max(0, Math.min(now, s.boosts.x2Until) - since) / 60000;
   let eff = realMin + Math.min(realMin, x2Min);
   const cap = capMinutes(cfg, s, now);
   eff = Math.min(eff, Math.max(0, cap - s.chest.minutes));
   s.chest.since = now;
   if (eff <= 0) return;
-  const b = 1 + offlineBonus(s);
   s.chest.minutes += eff;
   s.chest.itemMin += eff;
-  s.chest.gold += goldPerMin(cfg, s) * eff * b;
-  s.chest.xp += xpPerMin(cfg, s) * eff * b;
+  s.chest.gold += goldPerMin(cfg, s) * eff;
+  s.chest.xp += xpPerMin(cfg, s) * eff;
   s.chest.accXp += accXpPerMin(cfg, s) * eff;
-  s.chest.dust += dustPerMin(cfg, s) * eff;
+  s.chest.steel += steelPerMin(cfg, s) * eff;
 }
 
 // ——— предметы ———
@@ -174,64 +144,68 @@ export function newUid(s: PlayerState): string {
   return `i${(s.uidCounter++).toString(36)}`;
 }
 
-export function partyClasses(s: PlayerState): ClassId[] {
-  const p = activeParty(s);
-  const cls = p.map((id) => HEROINE_MAP[id]?.cls).filter(Boolean) as ClassId[];
-  return cls.length ? cls : ['warlock'];
-}
-
-export function lootBonus(s: PlayerState): number {
-  return constellationStats(s.constellation).loot + ascensionValue(s, 'loot');
-}
-
 export function inventoryCount(s: PlayerState): number {
   return Object.keys(s.items).length;
 }
 
-/** Выдать предмет с учётом автопереплавки и лимита инвентаря. Возвращает uid или null, если переплавлен. */
-export function addItem(ctx: Ctx, item: Item, opts: { noAutoSmelt?: boolean } = {}): string | null {
+/** Удача добычи: круг похода и Знамя. */
+export function lootLuck(s: PlayerState, cfg: Config): number {
+  const circle = Math.min(2, Math.floor((farmStage(s) - 1) / STAGES_PER_CIRCLE));
+  return cfg.gear.circleShift[circle] + bannerValue(s, 'loot');
+}
+
+export function rollLoot(ctx: Ctx, o: Partial<LootOpts> & { lvl?: number } = {}): Item {
+  const { s, cfg } = ctx;
+  return generateItem(cfg, ctx.rng, newUid(s), { ...o, lvl: o.lvl ?? farmLevel(cfg, s), luck: o.luck ?? lootLuck(s, cfg), maxRarity: o.maxRarity ?? 4 });
+}
+
+/** Сталь и золото за разбор. */
+export function salvageGain(cfg: Config, s: PlayerState, item: Item): { steel: number; gold: number } {
+  const steel = Math.floor(cfg.gear.salvageSteel[item.rarity] * (1 + item.lvl / 300) + item.enh * item.enh * cfg.gear.enhSteel * 0.5);
+  const gold = Math.floor(goldPerMin(cfg, s, item.lvl) * cfg.gear.salvageGoldMin * (1 + item.rarity));
+  return { steel, gold };
+}
+
+export function salvageItem(ctx: Ctx, item: Item) {
+  give(ctx, salvageGain(ctx.cfg, ctx.s, item));
+  track(ctx, 'salvage', 1);
+}
+
+/**
+ * Положить предмет в сумку: авторазбор ниже порога редкости; если сумка полна — разбирается самая
+ * слабая свободная вещь (или новая, если она слабее). Возвращает uid или null, если вещь разобрана.
+ */
+export function addItem(ctx: Ctx, item: Item, opts: { keep?: boolean } = {}): string | null {
   const { s, cfg } = ctx;
   if (item.rarity >= 4) track(ctx, 'legendaryFound', 1);
-  if (item.rarity >= 5) track(ctx, 'mythicFound', 1);
-  const auto = !opts.noAutoSmelt && s.settings.autoSmelt >= 0 && item.rarity < s.settings.autoSmelt && !item.set;
-  if (!auto && inventoryCount(s) >= inventoryCap(cfg, s)) {
-    // инвентарь полон: переплавляем самый слабый свободный предмет, если новый сильнее
-    const weakest = weakestFreeItem(ctx);
-    if (weakest && cachedPower(cfg, weakest) < cachedPower(cfg, item)) {
-      smeltGain(ctx, weakest);
-      track(ctx, 'smelt', 1);
-      delete s.items[weakest.uid];
-      s.items[item.uid] = item;
-      return item.uid;
-    }
-  }
-  if (auto || inventoryCount(s) >= inventoryCap(cfg, s)) {
-    smeltGain(ctx, item);
-    track(ctx, 'smelt', 1);
+  const auto = !opts.keep && s.settings.autoSalvage >= 0 && item.rarity < s.settings.autoSalvage;
+  if (auto) {
+    salvageItem(ctx, item);
     return null;
+  }
+  if (inventoryCount(s) >= inventoryCap(cfg, s)) {
+    const weakest = weakestFreeItem(ctx);
+    if (weakest && itemPower(cfg, weakest) < itemPower(cfg, item)) {
+      salvageItem(ctx, weakest);
+      delete s.items[weakest.uid];
+    } else {
+      salvageItem(ctx, item);
+      return null;
+    }
   }
   s.items[item.uid] = item;
   return item.uid;
 }
 
-const powerCache = new WeakMap<Item, { enh: number; p: number }>();
-function cachedPower(cfg: Config, it: Item): number {
-  const c = powerCache.get(it);
-  if (c && c.enh === it.enh) return c.p;
-  const p = itemPower(cfg, it);
-  powerCache.set(it, { enh: it.enh, p });
-  return p;
-}
-
-/** Самый слабый предмет, который можно переплавить без потерь: не надет, не заблокирован, без камней. */
+/** Самая слабая вещь, которую можно разобрать без потерь: не надета, не закреплена, не заточена. */
 function weakestFreeItem(ctx: Ctx): Item | null {
   const { s, cfg } = ctx;
   const idx = equippedIndex(s);
   let best: Item | null = null;
   let bestP = Infinity;
   for (const it of Object.values(s.items)) {
-    if (idx[it.uid] || it.lock || it.enh > 0 || it.gems.some(Boolean)) continue;
-    const p = cachedPower(cfg, it);
+    if (idx[it.uid] || it.lock || it.enh > 0) continue;
+    const p = itemPower(cfg, it);
     if (p < bestP) {
       best = it;
       bestP = p;
@@ -240,70 +214,34 @@ function weakestFreeItem(ctx: Ctx): Item | null {
   return best;
 }
 
-/** Предмет уровня lvl (уровень силы); сложность по умолчанию — текущего этапа фарма. */
-export function rollLoot(ctx: Ctx, o: Partial<LootOpts> & { lvl: number }): Item {
-  const { s, cfg } = ctx;
-  return generateItem(cfg, ctx.rng, newUid(s), {
-    diff: diffOfGlobal(farmStage(s)) as 0 | 1 | 2,
-    classes: partyClasses(s),
-    rarityBonus: lootBonus(s),
-    ...o,
-  });
-}
-
-/** Предмет сета режима (легендарный или выше) — сразу в инвентарь; null, если некуда положить. */
-export function grantModeSetPiece(ctx: Ctx, mode: keyof typeof MODE_SET, rarity: 4 | 5 = 4): string | null {
-  const slot = SET_SLOTS[ctx.rng.int(SET_SLOTS.length)];
-  const item = rollLoot(ctx, { lvl: farmLevel(ctx.cfg, ctx.s), forceRarity: rarity, slot, set: MODE_SET[mode] });
-  return addItem(ctx, item, { noAutoSmelt: true });
-}
-
-export function smeltGain(ctx: Ctx, item: Item) {
-  const { cfg } = ctx;
-  const dust = Math.floor(cfg.gear.smeltDust[item.rarity] * (1 + item.lvl / 50) + item.enh * item.enh * 3);
-  const forge = cfg.gear.smeltForge[item.rarity];
-  give(ctx, { dust, forgeMats: forge });
-  if (item.rarity >= 5) give(ctx, { divineMats: item.rarity === 6 ? 20 : 5 });
-  for (const g of item.gems) if (g) ctx.s.gems[g] = (ctx.s.gems[g] ?? 0) + 1;
-}
-
-// ——— героини ———
-
-/** Автопрокачка: тратим опыт и золото на самых отстающих героинь отряда. */
-export function autoLevelParty(ctx: Ctx): Record<string, number> {
-  const { s, cfg } = ctx;
-  const gained: Record<string, number> = {};
-  const party = activeParty(s);
-  for (let guard = 0; guard < 2000; guard++) {
-    let target: string | null = null;
-    for (const id of party) {
-      const h = s.heroines[id];
-      if (h.lvl >= levelCap(cfg, h)) continue;
-      if (!target || h.lvl < s.heroines[target].lvl) target = id;
-    }
-    if (!target) break;
-    const h = s.heroines[target];
-    const xp = xpToNext(cfg, h.lvl);
-    const gold = goldToNext(cfg, h.lvl);
-    if (s.cur.xp < xp || s.cur.gold < gold) break;
-    s.cur.xp -= xp;
-    s.cur.gold -= gold;
-    h.lvl++;
-    gained[target] = (gained[target] ?? 0) + 1;
-    track(ctx, 'heroLevel', 1);
-  }
-  return gained;
-}
+// ——— Легион ———
 
 export function addHeroine(ctx: Ctx, id: string): boolean {
-  const { s, cfg } = ctx;
-  if (s.heroines[id]) return false;
-  const def = HEROINE_MAP[id];
-  if (!def) return false;
-  void cfg;
-  s.heroines[id] = { id, lvl: 1, stars: 1, tree: {}, skills: [null, null], gear: {} };
+  const { s } = ctx;
+  if (s.heroines[id] || !HEROINE_MAP[id]) return false;
+  s.heroines[id] = { id, rank: 1, skill: 1, ult: 1, gear: {} };
   ctx.events.push({ name: 'hero_join', props: { hero: id } });
   return true;
+}
+
+/** Поднять уровень Легиона на n (пока хватает золота и опыта). Возвращает, на сколько поднялся. */
+export function levelUpLegion(ctx: Ctx, n: number): number {
+  const { s, cfg } = ctx;
+  let done = 0;
+  const max = legionMaxLevel(cfg);
+  while (done < n && s.legion.lvl < max) {
+    const c = levelCost(cfg, s.legion.lvl);
+    if (s.cur.gold < c.gold || s.cur.xp < c.xp) break;
+    s.cur.gold -= c.gold;
+    s.cur.xp -= c.xp;
+    s.legion.lvl++;
+    done++;
+  }
+  if (done) {
+    track(ctx, 'legionLevel', done);
+    trackMax(ctx, 'legionLevelMax', s.legion.lvl);
+  }
+  return done;
 }
 
 // ——— аккаунт ———
@@ -339,21 +277,15 @@ export function trackMax(ctx: Ctx, key: string, v: number) {
 export function metric(s: PlayerState, key: string): number {
   switch (key) {
     case 'maxStage':
-      return s.progress.maxGlobalEver;
+      return s.progress.stage;
+    case 'legionLevel':
+      return s.legion.lvl;
     case 'heroCount':
       return Object.keys(s.heroines).length;
     case 'rankTotal':
-      return Object.values(s.heroines).reduce((n, h) => n + h.stars, 0);
-    case 'maxHeroLevel':
-      return Math.max(0, ...Object.values(s.heroines).map((h) => h.lvl));
+      return Object.values(s.heroines).reduce((n, h) => n + h.rank, 0);
     case 'towerFloor':
       return s.modes.tower;
-    case 'ascensions':
-      return s.ascension.count;
-    case 'constellation':
-      return s.constellation;
-    case 'abyssLevel':
-      return s.modes.abyss;
     case 'loginDays':
       return s.quests.login.total;
     case 'accountLevel':
@@ -367,7 +299,7 @@ export function achievementClaimable(s: PlayerState): number {
   let n = 0;
   for (const a of ACHIEVEMENTS) {
     const claimed = s.achievements[a.id] ?? 0;
-    const v = metric(s, a.id === 'stage' ? 'maxStage' : a.metric);
+    const v = metric(s, a.metric);
     for (let i = claimed; i < a.tiers.length; i++) if (v >= a.tiers[i]) n++;
   }
   return n;
@@ -397,12 +329,8 @@ export function grantReward(ctx: Ctx, r: Reward): Reward {
     out.items = [];
     for (const it of r.items) {
       const item = { ...it, uid: newUid(ctx.s) };
-      if (addItem(ctx, item, { noAutoSmelt: true })) out.items.push(item);
+      if (addItem(ctx, item, { keep: true })) out.items.push(item);
     }
-  }
-  if (r.gems) {
-    for (const [g, n] of Object.entries(r.gems)) ctx.s.gems[g] = (ctx.s.gems[g] ?? 0) + n;
-    out.gems = r.gems;
   }
   if (r.skins) {
     for (const sk of r.skins) if (!ctx.s.skins.includes(sk)) ctx.s.skins.push(sk);
@@ -416,7 +344,7 @@ export function isUnlocked(ctx: Ctx | { s: PlayerState; cfg: Config }, feature: 
   const { s, cfg } = ctx;
   if (s.dev.unlockAll) return true;
   const byStage = (cfg.unlocks.stage as Record<string, number>)[feature];
-  if (byStage !== undefined) return s.progress.maxGlobalEver + 1 >= byStage;
+  if (byStage !== undefined) return s.progress.stage + 1 >= byStage;
   const byLevel = (cfg.unlocks.level as Record<string, number>)[feature];
   if (byLevel !== undefined) return s.account.lvl >= byLevel;
   return true;
@@ -424,6 +352,11 @@ export function isUnlocked(ctx: Ctx | { s: PlayerState; cfg: Config }, feature: 
 
 export function requireUnlocked(ctx: Ctx, feature: string) {
   assert(isUnlocked(ctx, feature), 'locked', { feature });
+}
+
+/** Подпись этапа n для уведомлений. */
+export function stageOf(n: number) {
+  return stageRef(Math.max(1, n));
 }
 
 export { equippedIndex };

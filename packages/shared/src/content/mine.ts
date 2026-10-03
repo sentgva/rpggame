@@ -110,8 +110,8 @@ export function mineReward(tile: MineTile, floor: number): { tokens: number; poi
 export function mineChest(rng: Rng, floor: number): { cur?: Partial<Record<Currency, number>> } {
   const r = rng.next();
   if (r < 0.3) return { cur: { crystals: 20 + floor * 2 } };
-  if (r < 0.55) return { cur: { starDust: 30 + floor * 3 } };
-  if (r < 0.75) return { cur: { dust: 120 + floor * 15 } };
+  if (r < 0.55) return { cur: { books: 2 + Math.floor(floor / 3) } };
+  if (r < 0.75) return { cur: { steel: 40 + floor * 6 } };
   if (r < 0.9) return { cur: { emblems: 2 } };
   return { cur: { emblems: 4 } };
 }

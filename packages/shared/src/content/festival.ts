@@ -1,6 +1,6 @@
 import type { Currency, Element, L10n } from '../types';
 import { ENEMY_MAP, type EnemyDef } from './acts';
-import type { SkillDef } from './effects';
+import type { SkillDef } from './classes';
 import { SKINS, SKIN_MAP, type SkinDef } from './heroines';
 import { TOWER_MODS, type TowerMod } from './modes';
 
@@ -369,7 +369,7 @@ export const FEST_TICKETS = 5;
 /** Попыток в день. */
 export const FEST_BOSS_ATTEMPTS = 3;
 /** Запас HP босса относительно обычного босса того же уровня; растёт с каждым уровнем. */
-export const FEST_BOSS_HP = 2;
+export const FEST_BOSS_HP = 30;
 export const FEST_BOSS_HP_GROWTH = 0.3;
 export function festBossLevel(base: number, lvl: number): number {
   return base + (lvl - 1) * 2;
@@ -416,16 +416,16 @@ export const FEST_TASKS_KIND: Record<FestivalKind, FestTaskDef[]> = {
 /** Задания пути — для совместимости со старыми ссылками. */
 export const FEST_TASKS_FEST: FestTaskDef[] = FEST_TASKS_KIND.trail;
 export const FEST_TASKS_COMMON: FestTaskDef[] = [
-  { id: 'fc_boss', name: L('Победить 3 боссов кампании', 'Defeat 3 campaign bosses'), counter: 'bossWin', target: 3 },
+  { id: 'fc_boss', name: L('Победить 3 стражей похода', 'Defeat 3 march guardians'), counter: 'bossWin', target: 3 },
   { id: 'fc_kills', name: L('Одолеть 150 врагов', 'Defeat 150 enemies'), counter: 'kills', target: 150 },
   { id: 'fc_dungeon', name: L('Пройти подземелье 2 раза', 'Clear dungeons 2 times'), counter: 'dungeon', target: 2 },
-  { id: 'fc_enhance', name: L('Заточить предметы 5 раз', 'Enhance items 5 times'), counter: 'enhance', target: 5 },
-  { id: 'fc_level', name: L('Повысить уровень героев 5 раз', 'Level up heroes 5 times'), counter: 'heroLevel', target: 5 },
+  { id: 'fc_enhance', name: L('Слить или заточить снаряжение 5 раз', 'Merge or enhance gear 5 times'), counter: 'forge', target: 5 },
+  { id: 'fc_level', name: L('Повысить уровень Легиона 5 раз', 'Raise the Legion level 5 times'), counter: 'legionLevel', target: 5 },
   { id: 'fc_chest', name: L('Собрать сундук 3 раза', 'Collect the chest 3 times'), counter: 'chestCollect', target: 3 },
-  { id: 'fc_smelt', name: L('Переплавить 10 предметов', 'Smelt 10 items'), counter: 'smelt', target: 10 },
+  { id: 'fc_ult', name: L('Выпустить 40 ульт', 'Unleash 40 ultimates'), counter: 'ult', target: 40 },
   { id: 'fc_care', name: L('Позаботиться о героях 3 раза', 'Care for heroes 3 times'), counter: 'bondCare', target: 3 },
-  { id: 'fc_combo', name: L('Провести 30 связок классов', 'Land 30 class combos'), counter: 'combo', target: 30 },
-  { id: 'fc_exped', name: L('Завершить 2 экспедиции', 'Complete 2 expeditions'), counter: 'expedition', target: 2 },
+  { id: 'fc_chain', name: L('Собрать 6 цепей Легиона', 'Build 6 Legion chains'), counter: 'chain', target: 6 },
+  { id: 'fc_raid', name: L('Сразиться с Колоссом', 'Fight the Colossus'), counter: 'raid', target: 1 },
 ];
 export const FEST_TASK_MAP: Record<string, FestTaskDef> = Object.fromEntries([...Object.values(FEST_TASKS_KIND).flat(), ...FEST_TASKS_COMMON].map((t) => [t.id, t]));
 /** Награда за задание дня. */
@@ -451,7 +451,7 @@ export type FestGoalMetric =
   | 'kills'
   | 'tasks'
   | 'bossWin'
-  | 'hordeWave'
+  | 'raid'
   | 'combo'
   | 'towerWin'
   | 'dungeon'
@@ -483,21 +483,21 @@ export const FEST_GOALS: FestGoalDef[] = [
   { id: 'fg_mfloor5', kind: 'mine', name: L('Спуститься на 5-й этаж копей', 'Reach mine floor 5'), metric: 'mineFloor', target: 5, points: 150, cur: { crystals: 80 } },
   { id: 'fg_mfloor10', kind: 'mine', name: L('Спуститься на 10-й этаж', 'Reach floor 10'), metric: 'mineFloor', target: 10, points: 250, cur: { crystals: 150 } },
   { id: 'fg_mfloor15', kind: 'mine', name: L('Спуститься на 15-й этаж', 'Reach floor 15'), metric: 'mineFloor', target: 15, points: 300, cur: { crystals: 200, emblems: 2 } },
-  { id: 'fg_mchest', kind: 'mine', name: L('Открыть 15 сундуков', 'Open 15 chests'), metric: 'mineChests', target: 15, points: 150, cur: { starDust: 80 } },
+  { id: 'fg_mchest', kind: 'mine', name: L('Открыть 15 сундуков', 'Open 15 chests'), metric: 'mineChests', target: 15, points: 150, cur: { books: 8 } },
   { id: 'fg_msteps', kind: 'mine', name: L('Сделать 250 шагов', 'Take 250 steps'), metric: 'mineSteps', target: 250, points: 200, cur: { crystals: 120 } },
   { id: 'fg_vr4', kind: 'volley', name: L('Обыграть 4 пары лестницы', 'Beat 4 pairs of the ladder'), metric: 'volBest', target: 4, points: 150, cur: { crystals: 80 } },
   { id: 'fg_vr8', kind: 'volley', name: L('Обыграть королеву пляжа', 'Beat the queen of the beach'), metric: 'volBest', target: 8, points: 300, cur: { crystals: 200, emblems: 2 } },
   { id: 'fg_vw15', kind: 'volley', name: L('Выиграть 15 матчей', 'Win 15 matches'), metric: 'volWins', target: 15, points: 150, cur: { crystals: 80 } },
   { id: 'fg_vw40', kind: 'volley', name: L('Выиграть 40 матчей', 'Win 40 matches'), metric: 'volWins', target: 40, points: 250, cur: { crystals: 150 } },
   { id: 'fg_vbig', kind: 'volley', name: L('Разгромить соперниц 8 раз (5:0 или 5:1)', 'Crush rivals 8 times (5:0 or 5:1)'), metric: 'volBig', target: 8, points: 200, cur: { crystals: 120, emblems: 1 } },
-  { id: 'fg_task10', name: L('Выполнить 10 заданий праздника', 'Complete 10 festival tasks'), metric: 'tasks', target: 10, points: 120, cur: { starDust: 60 } },
+  { id: 'fg_task10', name: L('Выполнить 10 заданий праздника', 'Complete 10 festival tasks'), metric: 'tasks', target: 10, points: 120, cur: { books: 6 } },
   { id: 'fg_task30', name: L('Выполнить 30 заданий праздника', 'Complete 30 festival tasks'), metric: 'tasks', target: 30, points: 200, cur: { emblems: 2 } },
   { id: 'fg_task50', name: L('Выполнить 50 заданий праздника', 'Complete 50 festival tasks'), metric: 'tasks', target: 50, points: 300, cur: { crystals: 200 } },
-  { id: 'fg_boss', name: L('Победить 40 боссов кампании', 'Defeat 40 campaign bosses'), metric: 'bossWin', target: 40, points: 150, cur: { dust: 400 } },
-  { id: 'fg_horde', name: L('Пройти 40 волн Нашествия', 'Clear 40 Horde waves'), metric: 'hordeWave', target: 40, points: 150, cur: { crystals: 80 } },
-  { id: 'fg_combo', name: L('Провести 1200 связок классов', 'Land 1200 class combos'), metric: 'combo', target: 1200, points: 150, cur: { starDust: 80 } },
+  { id: 'fg_boss', name: L('Победить 40 стражей похода', 'Defeat 40 march guardians'), metric: 'bossWin', target: 40, points: 150, cur: { steel: 200 } },
+  { id: 'fg_raid', name: L('Сразиться с Колоссом 8 раз', 'Fight the Colossus 8 times'), metric: 'raid', target: 8, points: 150, cur: { crystals: 80 } },
+  { id: 'fg_combo', name: L('Сыграть 30 связок в цепях', 'Land 30 chain combos'), metric: 'combo', target: 30, points: 150, cur: { books: 8 } },
   { id: 'fg_tower', name: L('Покорить 10 этажей Башни', 'Conquer 10 Tower floors'), metric: 'towerWin', target: 10, points: 120, cur: { crystals: 60 } },
-  { id: 'fg_dungeon', name: L('Пройти 20 подземелий', 'Clear 20 dungeons'), metric: 'dungeon', target: 20, points: 120, cur: { forgeMats: 20 } },
+  { id: 'fg_dungeon', name: L('Пройти 20 подземелий', 'Clear 20 dungeons'), metric: 'dungeon', target: 20, points: 120, cur: { steel: 150 } },
 ];
 export const FEST_GOAL_MAP: Record<string, FestGoalDef> = Object.fromEntries(FEST_GOALS.map((g) => [g.id, g]));
 /** Цели этого вида праздника: свои и общие. */
@@ -521,19 +521,19 @@ export const FEST_MILESTONES: FestMilestone[] = [
   { at: 100, cur: { eventTokens: 100, gold: 60 } },
   { at: 250, cur: { crystals: 50 } },
   { at: 400, cur: { emblems: 10 } },
-  { at: 600, cur: { emblems: 5, dust: 200 } },
+  { at: 600, cur: { emblems: 5, steel: 100 } },
   { at: 800, cur: { eventTokens: 200 } },
   { at: 1000, item: 'legendary' },
   { at: 1250, cur: { emblems: 10 } },
-  { at: 1500, cur: { crystals: 100, starDust: 50 } },
+  { at: 1500, cur: { crystals: 100, books: 6 } },
   { at: 1800, heart: true },
   { at: 2100, cur: { emblems: 10 } },
   { at: 2400, cur: { emblems: 10 } },
   { at: 2700, cur: { eventTokens: 300 } },
-  { at: 3000, item: 'legendary', cur: { forgeMats: 20 } },
+  { at: 3000, item: 'legendary', cur: { steel: 150 } },
   { at: 3350, cur: { crystals: 150 } },
   { at: 3700, cur: { emblems: 15 } },
-  { at: 4050, cur: { emblems: 10, starDust: 80 } },
+  { at: 4050, cur: { emblems: 10, books: 10 } },
   { at: 4400, heart: true },
   { at: 4750, cur: { eventTokens: 400 } },
   { at: 5100, cur: { emblems: 15 } },
@@ -592,21 +592,24 @@ export function festShop(def: FestivalDef): FestOfferDef[] {
     { id: 'fs_legend', name: L('Легендарный предмет', 'Legendary item'), cost: 600, limit: 3, give: { item: 'legendary' } },
     { id: 'fs_emblem', name: L('Эмблемы ×3', 'Emblems ×3'), cost: 150, limit: 10, give: { cur: { emblems: 3 } } },
     { id: 'fs_crystals', name: L('Кристаллы ×100', 'Crystals ×100'), cost: 300, limit: 5, give: { cur: { crystals: 100 } } },
-    { id: 'fs_stardust', name: L('Звёздная пыль ×80', 'Star dust ×80'), cost: 150, limit: 5, give: { cur: { starDust: 80 } } },
-    { id: 'fs_forge', name: L('Материалы кузницы ×15', 'Forge materials ×15'), cost: 150, limit: 5, give: { cur: { forgeMats: 15 } } },
+    { id: 'fs_books', name: L('Тома знаний ×6', 'Tomes ×6'), cost: 150, limit: 5, give: { cur: { books: 6 } } },
+    { id: 'fs_steel', name: L('Сталь ×80', 'Steel ×80'), cost: 150, limit: 5, give: { cur: { steel: 80 } } },
   ];
 }
 
 // ——— Враги праздников ———
 
 /** Умения боссов праздников. */
+const FS = (id: string, ru: string, en: string, target: SkillDef['target'], cd: number, fx: SkillDef['fx'], vfx: string): SkillDef => ({ id, kind: 'skill', name: L(ru, en), desc: L('', ''), cd, first: 3000, target, fx, vfx });
+
+/** Умения боссов праздников. */
 export const FESTIVAL_SKILLS: SkillDef[] = [
-  { id: 'fest.moonKiss', cls: 'enemy', kind: 'active', name: L('Поцелуй луны', 'Moon Kiss'), target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 1.6, lifesteal: 0.5 }, { t: 'debuff', stat: 'healRecv', value: -0.4, turns: 2 }], vfx: 'dark' },
-  { id: 'fest.whirlpool', cls: 'enemy', kind: 'active', name: L('Водоворот', 'Whirlpool'), target: 'enemyAll', cd: 4, effects: [{ t: 'dmg', mult: 0.9 }, { t: 'debuff', stat: 'spd', value: -20, turns: 2 }, { t: 'cc', cc: 'stun', chance: 0.15, turns: 1 }], vfx: 'ice' },
-  { id: 'fest.petalStorm', cls: 'enemy', kind: 'active', name: L('Буря лепестков', 'Petal Storm'), target: 'enemyRandom', cd: 3, effects: [{ t: 'dmg', mult: 0.55, hits: 5 }, { t: 'dot', dot: 'bleed', mult: 0.25, turns: 2 }], vfx: 'poison' },
-  { id: 'fest.silverVolley', cls: 'enemy', kind: 'active', name: L('Серебряный залп', 'Silver Volley'), target: 'enemyRandom', cd: 3, effects: [{ t: 'dmg', mult: 0.7, hits: 4 }], vfx: 'arrow' },
-  { id: 'fest.trident', cls: 'enemy', kind: 'active', name: L('Удар трезубца', 'Trident Strike'), target: 'enemyFront', cd: 3, effects: [{ t: 'dmg', mult: 1.4 }, { t: 'cc', cc: 'freeze', chance: 0.3, turns: 1 }], vfx: 'ice' },
-  { id: 'fest.iai', cls: 'enemy', kind: 'active', name: L('Иайдо', 'Iaido'), target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 2.1 }, { t: 'dot', dot: 'bleed', mult: 0.4, turns: 2 }], vfx: 'slash' },
+  FS('fest.moonKiss', 'Поцелуй луны', 'Moon Kiss', 'back', 8000, [{ fx: { t: 'dmg', mult: 1.6, ls: 0.5 } }], 'dark'),
+  FS('fest.whirlpool', 'Водоворот', 'Whirlpool', 'all', 10000, [{ fx: { t: 'dmg', mult: 0.9 } }, { fx: { t: 'buff', stat: 'haste', v: -0.2, ms: 4000 } }], 'ice'),
+  FS('fest.petalStorm', 'Буря лепестков', 'Petal Storm', 'random', 9000, [{ fx: { t: 'dmg', mult: 0.55, hits: 5 } }, { fx: { t: 'dot', mult: 0.4, ms: 3000, kind: 'bleed' } }], 'poison'),
+  FS('fest.silverVolley', 'Серебряный залп', 'Silver Volley', 'random', 8000, [{ fx: { t: 'dmg', mult: 0.7, hits: 4 } }], 'arrow'),
+  FS('fest.trident', 'Удар трезубца', 'Trident Strike', 'target', 8000, [{ fx: { t: 'dmg', mult: 1.4 } }, { fx: { t: 'stun', ms: 1000 } }], 'ice'),
+  FS('fest.iai', 'Иайдо', 'Iaido', 'back', 8000, [{ fx: { t: 'dmg', mult: 2.1 } }, { fx: { t: 'dot', mult: 0.6, ms: 3000, kind: 'bleed' } }], 'slash'),
 ];
 
 const FL = (hair: string, style: EnemyDef['look']['style'], skin: string, eyes: string, outfit: string, trim: string, acc: EnemyDef['look']['acc'], accColor: string, extra: EnemyDef['look']['extra'], wear?: EnemyDef['look']['wear']): EnemyDef['look'] => ({

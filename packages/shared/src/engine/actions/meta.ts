@@ -1,11 +1,9 @@
 import {
   ACHIEVEMENTS,
-  ASCENSION_UPGRADES,
-  ASC_MAP,
+  BANNER_MAP,
   DAILY_CHESTS,
   DAILY_QUESTS,
   LOGIN_REWARDS,
-  LORE,
   PASS_BONUS_XP,
   PASS_LEVELS,
   PASS_SKIN_DUPE_CRYSTALS,
@@ -13,40 +11,21 @@ import {
   passBonusReward,
   WEEKLY_CHESTS,
   WEEKLY_QUESTS,
-  ascensionCost,
   passReward,
   type QuestDef,
 } from '../../content';
+import type { Config } from '../../config';
+import type { PlayerState } from '../../types';
 import type { Action } from '../apply';
-import {
-  addItem,
-  assert,
-  give,
-  metric,
-  requireUnlocked,
-  rollLoot,
-  scaleReward,
-  spend,
-  track,
-  vInt,
-  vOneOf,
-  vStr,
-  type Ctx,
-  farmLevel,
-} from '../core';
-import { activeParty } from '../stats';
-import { autoEquipHero } from './items';
+import { addItem, assert, give, goldPerMin, metric, requireUnlocked, rollLoot, scaleReward, spend, track, vInt, vOneOf, vStr, type Ctx } from '../core';
 
-export function constellationCost(ctx: Pick<Ctx, 'cfg'>, k: number): number {
-  const C = ctx.cfg.constellation;
-  return Math.floor(C.costBase * Math.pow(k + 1, 1.2));
-}
-
-export function etherForStage(ctx: Pick<Ctx, 'cfg' | 's'>, stageMax: number): number {
-  const A = ctx.cfg.ascension;
-  const base = Math.floor(A.etherBase * Math.pow(stageMax / A.etherDiv, A.etherExp));
-  const bonus = 1 + (ctx.s.ascension.up.ether ?? 0) * (ASC_MAP.ether?.per ?? 0);
-  return Math.floor(base * bonus);
+/** Цена следующего уровня Знамени (null — максимум). Цена — в минутах дохода золота. */
+export function bannerCost(cfg: Config, s: PlayerState, id: string): number | null {
+  const def = BANNER_MAP[id];
+  if (!def) return null;
+  const lvl = s.banner[id] ?? 0;
+  if (lvl >= def.max) return null;
+  return Math.ceil(goldPerMin(cfg, s) * def.price * Math.pow(cfg.banner.costGrowth, lvl));
 }
 
 function questActivity(q: QuestDef) {
@@ -96,8 +75,8 @@ function grantPassLevel(ctx: Ctx, level: number, out: PassOut) {
     }
   }
   if (r.item) {
-    const it = rollLoot(ctx, { lvl: farmLevel(cfg, s), forceRarity: r.item === 'legendary' ? 4 : 3 });
-    (out.items ??= []).push(addItem(ctx, it, { noAutoSmelt: true }));
+    const it = rollLoot(ctx, { rarity: r.item === 'legendary' ? 4 : 3 });
+    (out.items ??= []).push(addItem(ctx, it, { keep: true }));
   }
 }
 
@@ -212,72 +191,18 @@ export const metaActions = {
     return { crystals, tiers };
   },
 
-  'constellation.buy': (ctx: Ctx, a: Action) => {
+  /** Знамя Легиона: улучшение аккаунта за золото. */
+  'banner.buy': (ctx: Ctx, a: Action) => {
     const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'constellation');
-    const max = cfg.constellation.count * cfg.constellation.stars;
-    const count = a.count === undefined ? 1 : vInt(a.count, 1, max, 'count');
-    let bought = 0;
-    for (let i = 0; i < count && s.constellation < max; i++) {
-      const cost = constellationCost(ctx, s.constellation);
-      if (s.cur.starDust < cost) break;
-      s.cur.starDust -= cost;
-      s.constellation++;
-      bought++;
-    }
-    assert(bought > 0, s.constellation >= max ? 'maxRank' : 'notEnough', { cur: 'starDust' });
-    return { constellation: s.constellation, bought };
-  },
-
-  /** Вознесение: сброс этапов и уровней героинь ради Эфира. */
-  ascend: (ctx: Ctx) => {
-    const { s, cfg } = ctx;
-    requireUnlocked(ctx, 'ascension');
-    assert(s.progress.maxGlobal >= cfg.ascension.unlockGlobal || ctx.dev, 'ascendTooEarly', { stage: cfg.ascension.unlockGlobal });
-    const ether = etherForStage(ctx, s.progress.maxGlobal);
-    give(ctx, { ether });
-    s.ascension.ether += ether;
-    s.ascension.count++;
-    const start = Math.min(180, (s.ascension.up.start ?? 0) * (ASC_MAP.start?.per ?? 10));
-    s.progress = {
-      diff: 0,
-      cleared: [start, 0, 0],
-      wave: 0,
-      bossFails: 0,
-      retryAt: 0,
-      maxGlobal: start,
-      maxGlobalEver: s.progress.maxGlobalEver,
-    };
-    for (const h of Object.values(s.heroines)) {
-      h.lvl = 1;
-      h.tree = {};
-      h.skills = [null, null];
-    }
-    s.cur.gold = 0;
-    s.cur.xp = 0;
-    s.chest = { since: ctx.now, minutes: 0, gold: 0, xp: 0, accXp: 0, itemMin: 0, dust: 0 };
-    // новый фрагмент сюжета каждый цикл
-    const lore = LORE.filter((l) => l.id.startsWith('asc'));
-    const next = lore[Math.min(lore.length - 1, s.ascension.count - 1)];
-    if (next && !s.story.includes(next.id)) s.story.push(next.id);
-    s.ascension.story = s.ascension.count;
-    track(ctx, 'ascend', 1);
-    ctx.events.push({ name: 'ascend', props: { count: s.ascension.count, ether } });
-    return { ether, count: s.ascension.count, start };
-  },
-
-  'ascension.buy': (ctx: Ctx, a: Action) => {
-    const { s } = ctx;
+    requireUnlocked(ctx, 'banner');
     const id = vStr(a.id, 'id');
-    const def = ASCENSION_UPGRADES.find((u) => u.id === id);
-    assert(def, 'badParam', { name: 'id' });
-    const rank = s.ascension.up[id] ?? 0;
-    assert(rank < def.max, 'maxRank');
-    if (def.req) assert((s.ascension.up[def.req.id] ?? 0) >= def.req.rank, 'tierLocked');
-    spend(ctx, { ether: ascensionCost(def, rank) });
-    s.ascension.up[id] = rank + 1;
-    if (id === 'autoBoss') s.settings.autoBoss = true;
-    return { rank: rank + 1 };
+    assert(BANNER_MAP[id], 'badParam', { name: 'id' });
+    const cost = bannerCost(cfg, s, id);
+    assert(cost !== null, 'maxRank');
+    spend(ctx, { gold: cost });
+    s.banner[id] = (s.banner[id] ?? 0) + 1;
+    track(ctx, 'banner', 1);
+    return { lvl: s.banner[id] };
   },
 
   'pass.claim': (ctx: Ctx, a: Action) => {
@@ -311,12 +236,5 @@ export const metaActions = {
     s.shop.passBonus = Math.max(b.claimed, b.earned);
     assert(n > 0, 'notDone');
     return out;
-  },
-
-  /** Удобство: одной кнопкой надеть лучшее на весь отряд. */
-  'party.autoEquip': (ctx: Ctx) => {
-    let n = 0;
-    for (const id of activeParty(ctx.s)) n += autoEquipHero(ctx, id);
-    return { changes: n };
   },
 };

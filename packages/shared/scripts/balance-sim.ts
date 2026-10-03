@@ -1,281 +1,177 @@
 /**
- * Балансовый симулятор: F2P-игрок с разумной стратегией играет N дней.
- * Проверяем темп из ТЗ: Акт 1 — день 1; Акт 5 — ~неделя 3; Акт 10 Normal — ~месяц 2;
- * Nightmare 10-20 — 6–9 месяцев; первое Вознесение — через 3–4 недели.
+ * Балансовый симулятор Легиона 3.0: игрок с разумной стратегией играет N дней.
+ * Каждая сессия: сундук, задания, уровень Легиона, ранги, навыки, слияние и «Надеть лучшее»,
+ * Знамя, подземелья, Башня, Колосс, затем активный поход (волны и стражи), пока отряд побеждает.
  *
- *   npx tsx scripts/balance-sim.ts [days=60] [sessionsPerDay=6]
+ *   npm run balance -- [days=30] [sessionsPerDay=5] [activeMinutes=20]
+ *   CFG='{"growth":1.05}' npm run balance
  */
 import {
-  DAILY_CHESTS,
-  DAILY_QUESTS,
-  DUNGEONS,
-  EXPEDITION_MAP,
-  HEROINE_MAP,
-  TREES,
-  WEEKLY_CHESTS,
-  WEEKLY_QUESTS,
-  ASCENSION_UPGRADES,
-  applyAction,
-  ascensionCost,
-  buildHeroine,
-  constellationCost,
-  createPlayer,
-  enhanceCost,
-  equippedIndex,
-  etherForStage,
-  isUnlocked,
-  levelCap,
-  partyPower,
-  activeParty,
-  maxRank,
-  stageFromGlobal,
-  targetStage,
-  bossUnits,
-  heroUnits,
-  GameError,
+  BANNER,
   DEFAULT_CONFIG,
+  DUNGEONS,
+  GameError,
+  STAGE_COUNT,
+  applyAction,
+  bannerCost,
+  createPlayer,
+  isUnlocked,
   mergeConfig,
+  partyPower,
+  rankCap,
+  rankCost,
+  skillCost,
+  stageLabel,
+  stageRef,
   type Action,
   type Config,
   type PlayerState,
 } from '../src';
 
-const DAYS = Number(process.argv[2] ?? 60);
-const SESSIONS = Number(process.argv[3] ?? 6);
+const days = Number(process.argv[2] ?? 30);
+const perDay = Number(process.argv[3] ?? 5);
+const activeMin = Number(process.argv[4] ?? 20);
 const cfg: Config = process.env.CFG ? mergeConfig(DEFAULT_CONFIG, JSON.parse(process.env.CFG)) : DEFAULT_CONFIG;
-const DAY = 86400000;
-const START = Date.UTC(2026, 0, 1, 8);
 
-let s: PlayerState = createPlayer(cfg, 'sim', 'Sim', START);
-let now = START;
-const log: string[] = [];
-const milestones: Record<string, number> = {};
-let crystalsEarned = 0;
-let lastAscendDay = 0;
-let stalledSince = 0;
-let lastMax = 0;
-let wallLogged = 0;
-let crystalsAtReport = 0;
-let reportDay = 0;
+let now = Date.UTC(2026, 9, 1, 6);
+let s: PlayerState = createPlayer(cfg, 'sim', 'Sim', now);
 
-function act(type: string, params: Record<string, unknown> = {}): any {
+function act(type: string, p: Record<string, unknown> = {}): any {
   try {
-    const before = s.cur.crystals;
-    const r = applyAction(s, { type, ...params } as Action, { cfg, now, server: true });
+    const r = applyAction(s, { type, ...p } as Action, { cfg, now, server: true, mutate: true });
     s = r.state;
-    if (s.cur.crystals > before) crystalsEarned += s.cur.crystals - before;
-    return r.result ?? {};
+    return r.result;
   } catch (e) {
     if (e instanceof GameError) return null;
     throw e;
   }
 }
 
-function day() {
-  return (now - START) / DAY;
+const milestones: string[] = [];
+const seen = new Set<string>();
+function mark(key: string, text: string) {
+  if (seen.has(key)) return;
+  seen.add(key);
+  const d = (now - Date.UTC(2026, 9, 1, 6)) / 86400000;
+  milestones.push(`день ${d.toFixed(1).padStart(5)} · ${text}`);
 }
 
-function mark(key: string) {
-  if (milestones[key] === undefined) {
-    milestones[key] = day();
-    log.push(`${key.padEnd(22)} day ${day().toFixed(2)}  power ${partyPower(cfg, s).toExponential(2)}  lvls ${party().map((id) => s.heroines[id].lvl).join('/')}`);
+function upgrade() {
+  act('quest.claimAll');
+  act('login.claim');
+  act('mail.claim', { id: 'all' });
+  act('ach.claim', { id: 'all' });
+  act('pass.claimAll');
+  // слияние и лучшее снаряжение
+  act('item.mergeAll');
+  act('party.autoEquip');
+  // ранги: если упёрлись в потолок
+  for (const h of Object.values(s.heroines)) {
+    const c = rankCost(cfg, h.rank);
+    if (c && s.legion.lvl >= rankCap(cfg, h.rank)) act('hero.rank', { id: h.id });
   }
-}
-
-function party(): string[] {
-  return activeParty(s);
-}
-
-function learnTrees() {
-  if (!isUnlocked({ s, cfg }, 'tree')) return;
-  for (const id of party()) {
-    const cls = HEROINE_MAP[id].cls;
-    const order = [0, 2, 1];
-    for (const b of order) {
-      for (const node of TREES[cls].filter((n) => n.branch === b)) {
-        for (let k = 0; k < node.max; k++) if (!act('tree.learn', { id, node: node.id })) break;
+  // навыки — пока хватает Томов (ульта важнее)
+  for (let guard = 0; guard < 60; guard++) {
+    let did = false;
+    for (const h of Object.values(s.heroines)) {
+      for (const which of ['ult', 'skill'] as const) {
+        const c = skillCost(cfg, s, h[which]);
+        if (c && s.cur.books >= c.books && s.cur.gold >= c.gold * 3) did = !!act('hero.skill', { id: h.id, which }) || did;
       }
     }
+    if (!did) break;
   }
-}
-
-function spendGold() {
-  // заточка надетого, пока хватает; оставляем запас на уровни
-  const idx = equippedIndex(s);
-  const eq = Object.keys(idx)
-    .map((u) => s.items[u])
-    .filter(Boolean)
-    .sort((a, b) => a.enh - b.enh);
-  for (const it of eq) {
-    for (let k = 0; k < 15; k++) {
-      const c = enhanceCost({ cfg }, it);
-      if (s.cur.gold < c.gold * 2 || s.cur.dust < c.dust) break;
-      if (!act('item.enhance', { uid: it.uid })) break;
-    }
-  }
-}
-
-function claimAll() {
-  for (const q of [...DAILY_QUESTS, ...WEEKLY_QUESTS]) act('quest.claim', { id: q.id });
-  DAILY_CHESTS.forEach((_, i) => act('quest.chest', { kind: 'daily', index: i }));
-  WEEKLY_CHESTS.forEach((_, i) => act('quest.chest', { kind: 'weekly', index: i }));
-  act('login.claim');
-  act('ach.claim', { id: 'all' });
-  act('mail.claim', { id: 'all' });
-}
-
-/** Ранги: Эмблемы — в самую отстающую героиню; излишек кристаллов — в лавку эмблем. */
-function ranks() {
-  for (const o of ['em_5', 'em_25', 'em_80']) while (s.cur.crystals >= 3000 && act('shop.buy', { offer: o }));
-  for (let guard = 0; guard < 30; guard++) {
-    const ids = party().filter((id) => s.heroines[id].stars < maxRank(cfg)).sort((a, b) => s.heroines[a].stars - s.heroines[b].stars);
-    if (!ids.length || !act('hero.rank', { id: ids[0] })) break;
-  }
-  for (const id of party()) act('hero.awaken', { id });
-}
-
-function pushStages(maxAttempts = 25) {
-  let fails = 0;
-  for (let i = 0; i < maxAttempts; i++) {
-    const t = targetStage({ s });
-    if (!t) {
-      if (s.progress.diff < 2 && act('stage.diff', { diff: s.progress.diff + 1 })) continue;
-      break;
-    }
-    while (s.progress.wave < 3) {
-      const r = act('battle.wave');
-      if (!r || !r.battle.win) return;
-    }
-    const b = act('battle.boss');
-    if (b && !b.win && process.env.WALL && wallLogged !== t.n) {
-      wallLogged = t.n;
-      const en = bossUnits(cfg, t);
-      const hp = en.reduce((a, u) => a + u.stats.hp, 0);
-      const hs = heroUnits(cfg, s, party());
-      const dmg = Object.entries(b.battle.dmgDone as Record<string, number>).reduce((a, [k, v]) => (Number(k) < hs.length ? a + v : a), 0);
-      const alive = Object.values(b.battle.heroHp as Record<string, number>).filter((v) => v > 0).length;
-      const atk = hs.reduce((a, u) => a + u.stats.atk, 0);
-      const hhp = hs.reduce((a, u) => a + u.stats.hp, 0);
-      if (process.env.DUMP && Number(process.env.DUMP) === t.n) require('fs').writeFileSync(process.env.DUMP_FILE ?? 'wall-state.json', JSON.stringify(s));
-      log.push(`  wall d${day().toFixed(1)} n=${t.n} ${t.kind} timeout=${b.battle.timeout} t=${b.battle.time} dmg=${dmg.toExponential(2)} enemyHP=${hp.toExponential(2)} enemyATK=${en[0].stats.atk.toExponential(2)} alive=${alive} partyATK=${atk.toExponential(2)} partyHP=${hhp.toExponential(2)} def=${hs.map((u) => u.stats.def).join('/')} lvls=${hs.map((u) => (u.lvl ?? 0) + '*' + (u.stars ?? 0)).join(',')}`);
-    }
-    if (!b || !b.win) {
-      fails++;
-      if (fails >= 2) return;
-    }
-  }
+  // кристаллы — на Эмблемы в лавке
+  for (let i = 0; i < 3; i++) act('shop.buy', { offer: 'sh_emblem' });
+  for (let i = 0; i < 5; i++) act('shop.buy', { offer: 'em_10' });
+  // уровень Легиона — основная трата; золото на ранг откладываем, если Эмблем на него уже хватает
+  const reserve = Object.values(s.heroines).reduce((n, h) => {
+    const c = rankCost(cfg, h.rank);
+    return c && s.legion.lvl >= rankCap(cfg, h.rank) && s.cur.emblems >= c.emblems ? Math.max(n, c.gold) : n;
+  }, 0);
+  if (s.cur.gold > reserve * 2 || reserve === 0) act('legion.level', { n: 0 });
+  // Знамя: дешёвые улучшения на остатки (не трогая запас на ранг)
+  if (isUnlocked({ s, cfg }, 'banner'))
+    for (let i = 0; i < 5; i++)
+      for (const b of BANNER) {
+        const c = bannerCost(cfg, s, b.id);
+        if (c !== null && c < (s.cur.gold - reserve) * 0.2) act('banner.buy', { id: b.id });
+      }
+  // заточка надетого (Сталь)
+  for (const h of Object.values(s.heroines)) for (const uid of Object.values(h.gear)) if (uid) act('item.enhance', { uid, n: 3 });
 }
 
 function modes() {
-  if (isUnlocked({ s, cfg }, 'dungeons')) {
-    for (const d of DUNGEONS) {
-      const cleared = s.modes.dungeons[d.id] ?? 0;
-      for (let k = 0; k < 3; k++) {
-        const r = act('dungeon.fight', { id: d.id, level: Math.min(20, cleared + 1) });
-        if (!r || !r.win) {
-          if (cleared > 0) act('dungeon.sweep', { id: d.id, level: cleared, times: 3 - (s.day.keys[d.id] ?? 0) });
-          break;
-        }
-      }
+  for (const d of DUNGEONS) {
+    for (let k = 0; k < cfg.modes.dungeonKeys; k++) {
+      const best = s.modes.dungeons[d.id] ?? 0;
+      const r = act('dungeon.fight', { id: d.id, tier: Math.min(cfg.modes.dungeonTiers, best + 1) });
+      if (!r || !r.win) act('dungeon.sweep', { id: d.id });
     }
   }
-  if (isUnlocked({ s, cfg }, 'tower')) for (let k = 0; k < 10; k++) if (!act('tower.fight')?.win) break;
-  if (isUnlocked({ s, cfg }, 'constellation')) {
-    while (s.cur.starDust >= constellationCost({ cfg }, s.constellation) && s.constellation < 240) act('constellation.buy');
+  for (let i = 0; i < 3; i++) {
+    const r = act('tower.fight');
+    if (!r || !r.win) break;
   }
+  for (let i = 0; i < cfg.modes.raidAttempts; i++) act('raid.fight');
 }
 
-function expeditions() {
-  if (!isUnlocked({ s, cfg }, 'expeditions')) return;
-  for (const e of [...s.modes.expeditions]) act('expedition.claim', { id: e.id });
-  const board: string[] = act('expedition.board')?.board ?? [];
-  for (const qid of board) {
-    const q = EXPEDITION_MAP[qid];
-    const busy = new Set(s.modes.expeditions.flatMap((e) => e.heroes));
-    const avail = Object.values(s.heroines)
-      .filter((h) => !busy.has(h.id) && h.stars >= q.minStars)
-      .map((h) => h.id);
-    const pick: string[] = [];
-    const need = avail.find((id) => (!q.cls || HEROINE_MAP[id].cls === q.cls) && (!q.element || HEROINE_MAP[id].element === q.element));
-    if ((q.cls || q.element) && !need) continue;
-    if (need) pick.push(need);
-    for (const id of avail) if (pick.length < q.heroes && !pick.includes(id)) pick.push(id);
-    if (pick.length < q.heroes) continue;
-    act('expedition.start', { quest: qid, heroes: pick });
-  }
-}
-
-function arena() {
-  if (!isUnlocked({ s, cfg }, 'arena')) return;
-  for (let k = 0; k < cfg.modes.arenaFights; k++) if (!act('arena.fight', { index: 2 })) break;
-}
-
-function maybeAscend() {
-  if (!isUnlocked({ s, cfg }, 'ascension')) return;
-  if (s.progress.maxGlobal > lastMax) {
-    lastMax = s.progress.maxGlobal;
-    stalledSince = day();
-  }
-  const stalled = day() - stalledSince > 2;
-  // игрок вознесётся, когда прокачка упёрлась в потолок (иначе сброс уровней невыгоден)
-  const capped = party().every((id) => s.heroines[id].lvl >= levelCap(cfg, s.heroines[id]) * 0.9);
-  if (!capped && day() - stalledSince < 6) return;
-  const ether = etherForStage({ cfg, s }, s.progress.maxGlobal);
-  if (stalled && s.progress.maxGlobal >= cfg.ascension.unlockGlobal && ether >= 15 && day() - lastAscendDay > 4) {
-    const r = act('ascend');
-    if (r) {
-      log.push(`ASCEND #${r.count} day ${day().toFixed(1)} at stage ${stageFromGlobal(lastMax).act}-${stageFromGlobal(lastMax).stage} (n=${lastMax}) ether +${r.ether}`);
-      mark(`ascension${r.count}`);
-      lastAscendDay = day();
-      lastMax = 0;
-      stalledSince = day();
-      // покупаем улучшения, дешёвые первыми
-      for (let guard = 0; guard < 100; guard++) {
-        const opts = ASCENSION_UPGRADES.filter((u) => (s.ascension.up[u.id] ?? 0) < u.max).sort((a, b) => ascensionCost(a, s.ascension.up[a.id] ?? 0) - ascensionCost(b, s.ascension.up[b.id] ?? 0));
-        if (!opts.length || !act('ascension.buy', { id: opts[0].id })) break;
+/** Активный поход: бьём волны и стражей, пока не кончится время сессии или не проиграем стража дважды. */
+function march(minutes: number) {
+  let budget = minutes * 60000;
+  let fails = 0;
+  while (budget > 0 && s.progress.stage < STAGE_COUNT) {
+    if (s.progress.wave < 3) {
+      const r = act('battle.wave');
+      if (!r) break;
+      budget -= r.battle.time + 3000;
+      now += r.battle.time + 3000;
+      if (!r.battle.win) break;
+    } else {
+      const r = act('battle.boss');
+      if (!r) break;
+      budget -= r.battle.time + 3000;
+      now += r.battle.time + 3000;
+      if (!r.win) {
+        fails++;
+        upgrade();
+        if (fails >= 2) break;
+        continue;
       }
+      fails = 0;
+      const ref = stageRef(s.progress.stage);
+      if (ref.kind === 'boss') mark(`act${ref.circle}-${ref.act}`, `пройден ${stageLabel(ref)} (сила ${fmt(partyPower(cfg, s))}, ур. ${s.legion.lvl})`);
+      for (const id of Object.keys(s.heroines)) mark(`hero-${id}`, `в Легионе: ${id}`);
+      if (s.progress.stage % 2 === 0) upgrade();
     }
   }
 }
 
-function session() {
-  act('chest.collect');
-  act('chest.quick', { method: 'free' });
-  claimAll();
-  ranks();
-  act('item.autoEquip');
-  learnTrees();
-  spendGold();
-  pushStages();
-  modes();
-  expeditions();
-  arena();
-  act('item.smeltFilter', { below: 3 });
-  maybeAscend();
-  const n = s.progress.maxGlobalEver;
-  if (n >= 20) mark('act1 cleared');
-  if (n >= 80) mark('act4 cleared (act5)');
-  if (n >= 100) mark('act5 cleared');
-  if (n >= 200) mark('normal 10-20');
-  if (n >= 400) mark('hard 10-20');
-  if (n >= 600) mark('nightmare 10-20');
+function fmt(n: number): string {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return String(Math.round(n));
 }
 
 const t0 = Date.now();
-for (let d = 0; d < DAYS; d++) {
-  const dayStart = START + d * DAY;
-  for (let k = 0; k < SESSIONS; k++) {
-    now = dayStart + Math.round((k * 16 * 3600000) / Math.max(1, SESSIONS - 1));
-    session();
+for (let d = 0; d < days; d++) {
+  for (let k = 0; k < perDay; k++) {
+    act('chest.collect');
+    act('chest.quick', { method: 'free' });
+    act('boost.x2');
+    upgrade();
+    modes();
+    march(activeMin);
+    upgrade();
+    now += (24 / perDay) * 3600000 - activeMin * 60000;
   }
-  if ((d + 1) % (DAYS > 100 ? 14 : 7) === 0 || d === 0 || d === 2) {
-    const ref = stageFromGlobal(Math.max(1, s.progress.maxGlobal));
-    log.push(
-      `day ${String(d + 1).padStart(3)}: stage ${['N', 'H', 'NM'][ref.diff]} ${ref.act}-${ref.stage} (best n=${s.progress.maxGlobalEver}) power ${partyPower(cfg, s).toExponential(2)} lvl ${party().map((id) => s.heroines[id].lvl).join('/')} heroes ${Object.keys(s.heroines).length} acc ${s.account.lvl} cons ${s.constellation} tower ${s.modes.tower} crystals/wk ${Math.round(((crystalsEarned - crystalsAtReport) / Math.max(1, d + 1 - reportDay)) * 7)}`,
-    );
-    crystalsAtReport = crystalsEarned;
-    reportDay = d + 1;
-  }
+  const ranks = Object.values(s.heroines)
+    .map((h) => h.rank)
+    .join('');
+  console.log(
+    `день ${String(d + 1).padStart(3)} · этап ${stageLabel(stageRef(Math.max(1, s.progress.stage))).padEnd(8)} (${String(s.progress.stage).padStart(3)}) · ур. ${String(s.legion.lvl).padStart(3)} · ранги ${ranks} · сила ${fmt(partyPower(cfg, s)).padStart(6)} · башня ${String(s.modes.tower).padStart(3)} · эмбл ${String(s.cur.emblems).padStart(4)} · томов ${String(s.cur.books).padStart(4)} · сталь ${fmt(s.cur.steel).padStart(5)} · вещей ${Object.keys(s.items).length}`,
+  );
 }
-console.log(log.join('\n'));
-console.log(`\nsimulated ${DAYS} days in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+console.log('\n' + milestones.join('\n'));
+console.log(`\n(${((Date.now() - t0) / 1000).toFixed(1)} с)`);

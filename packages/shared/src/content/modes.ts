@@ -1,409 +1,173 @@
-import type { ClassId, Currency, Element, L10n, Stats, SpecialEffect } from '../types';
+import type { Currency, Element, FinalStats, L10n } from '../types';
 
-// ——— Подземелья ресурсов ———
-export interface DungeonDef {
+/** Режимы 3.0: Башня испытаний, Подземелья, Колосс и Знамя Легиона. */
+
+/** Множители характеристик врагов. */
+export interface EnemyMod {
+  hp?: number;
+  atk?: number;
+  def?: number;
+  haste?: number;
+}
+
+/** Прибавки отряду: atk/hp/def — проценты к характеристике, остальное — прибавка к значению. */
+export type HeroMod = Partial<Record<keyof FinalStats, number>>;
+
+export interface TowerMod {
   id: string;
   name: L10n;
-  reward: Currency | 'gems';
-  element: Element;
-  enemies: string[];
-  boss: string;
+  desc: L10n;
+  enemy?: EnemyMod;
+  hero?: HeroMod;
+}
+
+export const TOWER_MODS: TowerMod[] = [
+  { id: 'giants', name: { ru: 'Великаны', en: 'Giants' }, desc: { ru: 'Враги: +40% здоровья, −10% скорости', en: 'Enemies: +40% HP, −10% speed' }, enemy: { hp: 1.4, haste: 0.9 } },
+  { id: 'frenzy', name: { ru: 'Бешенство', en: 'Frenzy' }, desc: { ru: 'Враги: +20% атаки и +15% скорости', en: 'Enemies: +20% attack, +15% speed' }, enemy: { atk: 1.2, haste: 1.15 } },
+  { id: 'ironclad', name: { ru: 'Железная шкура', en: 'Ironclad' }, desc: { ru: 'Враги: +60% защиты', en: 'Enemies: +60% defense' }, enemy: { def: 1.6 } },
+  { id: 'glass', name: { ru: 'Стеклянные пушки', en: 'Glass Cannons' }, desc: { ru: 'Враги: −30% здоровья, но +35% атаки', en: 'Enemies: −30% HP, but +35% attack' }, enemy: { hp: 0.7, atk: 1.35 } },
+  { id: 'blessing', name: { ru: 'Благословение', en: 'Blessing' }, desc: { ru: 'Ваш отряд: +25% лечения и +10% здоровья', en: 'Your squad: +25% healing, +10% HP' }, hero: { heal: 0.25, hp: 0.1 } },
+  { id: 'storm', name: { ru: 'Эфирная буря', en: 'Aether Storm' }, desc: { ru: 'Ваш отряд: +30% урона навыков и +25% энергии', en: 'Your squad: +30% skill damage, +25% energy' }, hero: { skillDmg: 0.3, energy: 0.25 } },
+  { id: 'calm', name: { ru: 'Затишье', en: 'Calm' }, desc: { ru: 'Без особых условий', en: 'No special conditions' } },
+];
+export const TOWER_MOD_MAP: Record<string, TowerMod> = Object.fromEntries(TOWER_MODS.map((m) => [m.id, m]));
+
+/** Условие этажа Башни (на каждом 10-м — хозяйка этажа без условий). */
+export function towerMod(floor: number): TowerMod | null {
+  if (floor % 10 === 0) return null;
+  return TOWER_MODS[(floor * 5 + Math.floor(floor / 7)) % TOWER_MODS.length];
+}
+
+/** Уровень врагов этажа Башни. */
+export function towerLevel(floor: number): number {
+  return Math.round(6 + floor * 1.7);
+}
+
+/** Награда за первое прохождение этажа: кристаллы и Тома; каждый 10-й — веха. */
+export function towerReward(floor: number): { cur: Partial<Record<Currency, number>>; item?: 3 | 4; milestone: boolean } {
+  const milestone = floor % 10 === 0;
+  const cur: Partial<Record<Currency, number>> = { crystals: 10 + Math.floor(floor / 5) * 2 };
+  if (floor % 3 === 0) cur.books = 1 + Math.floor(floor / 60);
+  if (floor % 5 === 0) cur.emblems = 3 + Math.floor(floor / 25);
+  if (milestone) {
+    cur.crystals = (cur.crystals ?? 0) + 80;
+    cur.emblems = (cur.emblems ?? 0) + 10;
+  }
+  return { cur, item: milestone ? (floor % 50 === 0 ? 4 : 3) : undefined, milestone };
+}
+
+/** Этажи, где Башня дарит облик коллекции (по порядку из пула 'tower'). */
+export const TOWER_SKIN_EVERY = 25;
+
+// ——— Тактики (бой с боссом праздника) ———
+
+export interface Tactic {
+  id: string;
+  name: L10n;
+  desc: L10n;
+  mod: HeroMod;
+}
+export const TACTICS: Tactic[] = [
+  { id: 'none', name: { ru: 'Без тактики', en: 'No tactic' }, desc: { ru: 'Отряд как есть', en: 'The squad as is' }, mod: {} },
+  { id: 'assault', name: { ru: 'Натиск', en: 'Assault' }, desc: { ru: '+30% атаки, −20% здоровья', en: '+30% attack, −20% health' }, mod: { atk: 0.3, hp: -0.2 } },
+  { id: 'bastion', name: { ru: 'Бастион', en: 'Bastion' }, desc: { ru: '+35% здоровья, −12% урона по вам, −15% атаки', en: '+35% health, −12% damage taken, −15% attack' }, mod: { hp: 0.35, dmgRed: 0.12, atk: -0.15 } },
+  { id: 'ritual', name: { ru: 'Ритуал', en: 'Ritual' }, desc: { ru: '+40% урона навыков, +30% энергии, −10% атаки', en: '+40% skill damage, +30% energy, −10% attack' }, mod: { skillDmg: 0.4, energy: 0.3, atk: -0.1 } },
+];
+export const TACTIC_MAP: Record<string, Tactic> = Object.fromEntries(TACTICS.map((x) => [x.id, x]));
+
+// ——— Подземелья ———
+
+export interface DungeonDef {
+  id: 'gold' | 'library' | 'forge';
+  name: L10n;
+  desc: L10n;
+  icon: string;
+  /** Стихия врагов и фон. */
+  act: number;
 }
 
 export const DUNGEONS: DungeonDef[] = [
-  { id: 'gold', name: { ru: 'Сокровищница гномок', en: 'Gnome Treasury' }, reward: 'gold', element: 'light', enemies: ['a8_golem', 'a8_automaton', 'a8_gnome_engineer', 'a8_mechanic'], boss: 'a8_mb2' },
-  { id: 'xp', name: { ru: 'Библиотека валькирий', en: 'Valkyrie Library' }, reward: 'xp', element: 'light', enemies: ['a7_fallen_shield', 'a7_cloud_mage', 'a7_sky_priestess', 'a7_harpy_archer'], boss: 'a7_mb3' },
-  { id: 'dust', name: { ru: 'Кузня вулкана', en: 'Volcano Forge' }, reward: 'dust', element: 'fire', enemies: ['a6_magma_warden', 'a6_demoness', 'a6_salamander', 'a6_pyromancer'], boss: 'a6_mb1' },
-  { id: 'gems', name: { ru: 'Кристальные копи', en: 'Crystal Mines' }, reward: 'gems', element: 'water', enemies: ['a3_yeti', 'a3_ice_berserker', 'a3_snow_witch', 'a3_pass_archer'], boss: 'a3_mb1' },
-  { id: 'starDust', name: { ru: 'Обсерватория', en: 'Observatory' }, reward: 'starDust', element: 'dark', enemies: ['a9_bone_warden', 'a9_banshee', 'a9_moon_archer', 'a9_lich'], boss: 'a9_mb2' },
+  { id: 'gold', name: { ru: 'Золотая жила', en: 'Gold Vein' }, desc: { ru: 'Много золота', en: 'Lots of gold' }, icon: 'gold', act: 2 },
+  { id: 'library', name: { ru: 'Библиотека', en: 'Library' }, desc: { ru: 'Тома знаний и опыт', en: 'Tomes and XP' }, icon: 'books', act: 9 },
+  { id: 'forge', name: { ru: 'Кузня', en: 'Forge' }, desc: { ru: 'Сталь и снаряжение', en: 'Steel and gear' }, icon: 'steel', act: 6 },
 ];
 export const DUNGEON_MAP: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
 
-/** Подземелье дня: награда ×1.5 (подземелья сменяются по кругу каждый день, UTC). */
+/** Уровни врагов по ступеням подземелья. */
+export const DUNGEON_LEVELS = [8, 20, 35, 55, 80, 110, 150, 200, 260, 330, 410, 500];
+
+/** Подземелье дня: награда ×1,5. */
 export const DUNGEON_DAY_BONUS = 1.5;
-export function dungeonOfDay(now: number): string {
-  return DUNGEONS[Math.floor(now / 86400000) % DUNGEONS.length].id;
+export function dungeonOfDay(now: number): DungeonDef['id'] {
+  const day = Math.floor(now / 86400000);
+  return DUNGEONS[day % DUNGEONS.length].id;
 }
 
-/** Уровень силы врагов подземелья (1 → 10, 20 → 257 ≈ Hard 10-20). */
-export function dungeonStage(level: number): number {
-  return 13 * level - 3;
+/** Награда ступени: золото и опыт — в минутах дохода на уровне ступени, остальное — штуками. */
+export function dungeonReward(id: DungeonDef['id'], tier: number): { goldMin?: number; xpMin?: number; books?: number; steel?: number; items?: number } {
+  const t = tier;
+  switch (id) {
+    case 'gold':
+      return { goldMin: 60 + t * 10 };
+    case 'library':
+      return { books: 2 + t, xpMin: 30 + t * 5 };
+    case 'forge':
+      return { steel: 20 + t * 12, items: 1 + Math.floor(t / 4) };
+  }
 }
 
-// ——— Башня испытаний ———
-/** Уровень силы врагов этажа Башни (500-й этаж ≈ 283, чуть выше Nightmare 10-20). */
-export function towerStage(floor: number): number {
-  return Math.round(8 + floor * 0.55);
-}
+// ——— Колосс (рейд-босс) ———
 
-/** Облики за рубежи Башни (появятся вместе с коллекциями обликов). */
-export const TOWER_SKIN_FLOORS: Record<number, string> = {};
-
-// ——— Экспедиции ———
-export interface ExpeditionQuestDef {
-  id: string;
-  name: L10n;
-  hours: number;
-  heroes: number;
-  minStars: number;
-  cls?: ClassId;
-  element?: Element;
-  reward: { gold?: number; forgeMats?: number; dust?: number; starDust?: number; crystals?: number; emblems?: number };
-}
-
-export const EXPEDITION_QUESTS: ExpeditionQuestDef[] = [
-  { id: 'patrol', name: { ru: 'Патруль опушки', en: 'Glade Patrol' }, hours: 1, heroes: 1, minStars: 1, reward: { gold: 60, dust: 5 } },
-  { id: 'escort', name: { ru: 'Сопровождение каравана', en: 'Caravan Escort' }, hours: 2, heroes: 2, minStars: 1, reward: { gold: 150, forgeMats: 3 } },
-  { id: 'herbs', name: { ru: 'Сбор трав', en: 'Herb Gathering' }, hours: 2, heroes: 1, minStars: 2, element: 'nature', reward: { gold: 100, emblems: 3 } },
-  { id: 'ruins', name: { ru: 'Разведка руин', en: 'Ruin Scouting' }, hours: 4, heroes: 2, minStars: 2, reward: { gold: 280, dust: 25, starDust: 5 } },
-  { id: 'hunt', name: { ru: 'Большая охота', en: 'Great Hunt' }, hours: 4, heroes: 2, minStars: 2, cls: 'ranger', reward: { gold: 320, emblems: 5 } },
-  { id: 'library', name: { ru: 'Запретная библиотека', en: 'Forbidden Library' }, hours: 6, heroes: 2, minStars: 3, cls: 'warlock', reward: { gold: 420, emblems: 4, starDust: 8 } },
-  { id: 'shrine', name: { ru: 'Очищение святилища', en: 'Shrine Cleansing' }, hours: 6, heroes: 3, minStars: 3, element: 'light', reward: { gold: 500, emblems: 8, crystals: 20 } },
-  { id: 'mine', name: { ru: 'Заброшенная шахта', en: 'Abandoned Mine' }, hours: 8, heroes: 3, minStars: 3, reward: { gold: 700, forgeMats: 12, dust: 60 } },
-  { id: 'crypt', name: { ru: 'Склеп королей', en: 'Crypt of Kings' }, hours: 8, heroes: 3, minStars: 4, element: 'dark', reward: { gold: 800, emblems: 12, starDust: 20 } },
-  { id: 'siege', name: { ru: 'Снятие осады', en: 'Lifting the Siege' }, hours: 12, heroes: 3, minStars: 4, cls: 'knight', reward: { gold: 1200, crystals: 40, forgeMats: 20 } },
-  { id: 'dragon', name: { ru: 'Логово дракониды', en: "Dragoness's Lair" }, hours: 12, heroes: 3, minStars: 5, element: 'fire', reward: { gold: 1500, emblems: 20, crystals: 50 } },
-  { id: 'stars', name: { ru: 'Звёздный маяк', en: 'Star Beacon' }, hours: 12, heroes: 3, minStars: 5, reward: { gold: 1400, starDust: 50, emblems: 6 } },
-];
-export const EXPEDITION_MAP: Record<string, ExpeditionQuestDef> = Object.fromEntries(EXPEDITION_QUESTS.map((q) => [q.id, q]));
-
-// ——— Лабиринт ———
-export type LabNodeKind = 'fight' | 'elite' | 'shrine' | 'relic' | 'spring' | 'treasure' | 'boss';
-
-export interface RelicDef {
-  id: string;
-  name: L10n;
-  stats?: Stats;
-  fx?: SpecialEffect;
-}
-
-export const RELICS: RelicDef[] = [
-  { id: 'r_blade', name: { ru: 'Древний клинок', en: 'Ancient Blade' }, stats: { atkPct: 0.2 } },
-  { id: 'r_aegis', name: { ru: 'Малая эгида', en: 'Lesser Aegis' }, stats: { hpPct: 0.25 } },
-  { id: 'r_boots', name: { ru: 'Сапоги ветра', en: 'Wind Boots' }, stats: { spd: 15 } },
-  { id: 'r_eye', name: { ru: 'Око ястреба', en: "Hawk's Eye" }, stats: { crit: 0.15, acc: 0.1 } },
-  { id: 'r_fang', name: { ru: 'Клык вампира', en: 'Vampire Fang' }, stats: { lifesteal: 0.12 } },
-  { id: 'r_chalice', name: { ru: 'Святой кубок', en: 'Holy Chalice' }, stats: { healPower: 0.4 } },
-  { id: 'r_skull', name: { ru: 'Череп лича', en: "Lich's Skull" }, stats: { dmgDot: 0.5 } },
-  { id: 'r_hourglass', name: { ru: 'Песочные часы', en: 'Hourglass' }, stats: { energyRegen: 0.3 } },
-  { id: 'r_phoenix', name: { ru: 'Перо феникса', en: 'Phoenix Feather' }, fx: { id: 'phoenix', v: 0.3 } },
-  { id: 'r_mirror', name: { ru: 'Зеркало шипов', en: 'Mirror of Thorns' }, fx: { id: 'thorns', v: 0.25 } },
-  { id: 'r_bell', name: { ru: 'Колокол оглушения', en: 'Stunning Bell' }, fx: { id: 'critStun', v: 0.25 } },
-  { id: 'r_crown', name: { ru: 'Корона воли', en: 'Crown of Will' }, fx: { id: 'ccImmuneFirst' } },
-  { id: 'r_horn', name: { ru: 'Рог атаки', en: 'Horn of Assault' }, fx: { id: 'firstStrike', v: 0.6 } },
-  { id: 'r_orb', name: { ru: 'Сфера заряда', en: 'Charged Orb' }, fx: { id: 'startEnergy', n: 40 } },
-  { id: 'r_scales', name: { ru: 'Весы судьбы', en: 'Scales of Fate' }, stats: { critDmg: 0.5 } },
-];
-export const RELIC_MAP: Record<string, RelicDef> = Object.fromEntries(RELICS.map((r) => [r.id, r]));
-
-export const LAB_BUFFS: { id: string; name: L10n; stats: Stats }[] = [
-  { id: 'b_atk', name: { ru: 'Благословение силы', en: 'Blessing of Might' }, stats: { atkPct: 0.1 } },
-  { id: 'b_hp', name: { ru: 'Благословение жизни', en: 'Blessing of Life' }, stats: { hpPct: 0.12 } },
-  { id: 'b_def', name: { ru: 'Благословение стали', en: 'Blessing of Steel' }, stats: { defPct: 0.15 } },
-  { id: 'b_spd', name: { ru: 'Благословение ветра', en: 'Blessing of Wind' }, stats: { spd: 8 } },
-  { id: 'b_crit', name: { ru: 'Благословение удачи', en: 'Blessing of Luck' }, stats: { crit: 0.08 } },
-  { id: 'b_energy', name: { ru: 'Благословение эфира', en: 'Blessing of Aether' }, stats: { energyRegen: 0.15 } },
-];
-
-export const LAB_FLOORS = 3;
-export const LAB_STEPS = 6;
-
-// ——— Арена ———
-export const ARENA_LEAGUES: { id: string; name: L10n; min: number; weekly: number }[] = [
-  { id: 'bronze', name: { ru: 'Бронза', en: 'Bronze' }, min: 0, weekly: 100 },
-  { id: 'silver', name: { ru: 'Серебро', en: 'Silver' }, min: 1200, weekly: 200 },
-  { id: 'gold', name: { ru: 'Золото', en: 'Gold' }, min: 1400, weekly: 350 },
-  { id: 'platinum', name: { ru: 'Платина', en: 'Platinum' }, min: 1600, weekly: 500 },
-  { id: 'diamond', name: { ru: 'Алмаз', en: 'Diamond' }, min: 1800, weekly: 700 },
-  { id: 'master', name: { ru: 'Мастер', en: 'Master' }, min: 2000, weekly: 900 },
-  { id: 'legend', name: { ru: 'Легенда', en: 'Legend' }, min: 2200, weekly: 1200 },
-];
-
-export function arenaLeague(rating: number) {
-  let l = ARENA_LEAGUES[0];
-  for (const x of ARENA_LEAGUES) if (rating >= x.min) l = x;
-  return l;
-}
-
-export const ARENA_BOT_NAMES = [
-  'Freya', 'Hilda', 'Runa', 'Svala', 'Eira', 'Kara', 'Nessa', 'Mira', 'Tova', 'Ylva', 'Brynja', 'Alva',
-  'Ingrid', 'Solveig', 'Thyra', 'Gunnhild', 'Revna', 'Asta', 'Liv', 'Sigrun',
-];
-
-// ——— Бездна ———
-/** Уровень силы врагов Бездны: продолжение после Nightmare 10-20 (≈270). */
-export function abyssStage(level: number): number {
-  return 270 + level;
-}
-
-// ——— Разлом Колосса (мировой босс) ———
-/** Колосс дня: пн — пламя, вт — глубины, ср — чаща, чт — заря, пт — бездна; в выходные — по кругу. */
-export const RIFT_ROTATION: Element[] = ['fire', 'water', 'nature', 'light', 'dark'];
-
-export const RIFT_COLOSSUS: Record<Element, string> = {
+/** Колосс дня недели: стихия → id колосса. */
+export const RAID_ROTATION: Element[] = ['fire', 'water', 'nature', 'light', 'dark'];
+export const RAID_COLOSSUS: Record<Element, string> = {
   fire: 'colossus_pyra',
   water: 'colossus_tidea',
   nature: 'colossus_verda',
   light: 'colossus_sola',
   dark: 'colossus_umbra',
 };
-
-/** Пороги ярусов награды: доля HP Колосса, снятая за бой (ярус 10 — убийство или 40%). */
-export const RIFT_TIERS = [0.01, 0.02, 0.035, 0.05, 0.07, 0.1, 0.14, 0.2, 0.28, 0.4];
-
-export function riftElement(now: number): Element {
-  const day = new Date(now).getUTCDay(); // 0 — воскресенье
-  if (day >= 1 && day <= 5) return RIFT_ROTATION[day - 1];
-  const week = Math.floor(now / (7 * 86400000));
-  return RIFT_ROTATION[(week * 2 + (day === 6 ? 0 : 1)) % RIFT_ROTATION.length];
+export function raidElement(now: number): Element {
+  const day = Math.floor(now / 86400000);
+  return RAID_ROTATION[day % RAID_ROTATION.length];
 }
 
-export function riftTier(dmg: number, hp: number, killed = false): number {
-  if (killed) return RIFT_TIERS.length;
-  let t = 0;
-  for (const th of RIFT_TIERS) if (dmg >= hp * th) t++;
-  return t;
-}
+/** Здоровье колосса в «здоровьях обычного врага» его уровня. */
+export const RAID_HP = 400;
+/** Пороги урона (доля здоровья колосса) и награды за них — раз в день. */
+export const RAID_TIERS: { at: number; cur: Partial<Record<Currency, number>> }[] = [
+  { at: 0.02, cur: { crystals: 20, steel: 20 } },
+  { at: 0.05, cur: { books: 2, steel: 30 } },
+  { at: 0.1, cur: { crystals: 30, emblems: 3 } },
+  { at: 0.18, cur: { books: 3, steel: 50 } },
+  { at: 0.28, cur: { crystals: 50, emblems: 5 } },
+  { at: 0.4, cur: { books: 4, steel: 80 } },
+  { at: 0.55, cur: { crystals: 80, emblems: 8 } },
+  { at: 0.75, cur: { books: 6, steel: 120 } },
+  { at: 1, cur: { crystals: 150, emblems: 15 } },
+];
 
-// ——— Стихийные шпили ———
-/** Какие шпили открыты: в будни — по одному, в выходные — все. */
-export function spireOpen(el: Element, now: number): boolean {
-  const day = new Date(now).getUTCDay();
-  if (day === 0 || day === 6) return true;
-  return RIFT_ROTATION[day - 1] === el;
-}
+// ——— Знамя Легиона ———
 
-/** Уровень силы врагов шпиля: враги одной стихии, растут чуть мягче Башни. */
-export function spireStage(floor: number): number {
-  return Math.round(6 + floor * 2);
-}
-
-// ——— Нашествие ———
-/** Уровень силы волны: от чуть ниже текущего фарма и выше с каждой волной. */
-export function hordeStage(farm: number, wave: number): number {
-  return Math.max(1, farm - 12) + Math.round(wave * 2.2);
-}
-
-// ——— Интерактивность режимов: решения игрока ———
-
-/** Множители характеристик врагов (1 — без изменений). */
-export interface EnemyMod {
-  hp?: number;
-  atk?: number;
-  def?: number;
-  spd?: number;
-}
-
-/** Нашествие: каждые N волн — выбор одного из трёх благословений на весь забег. */
-export const HORDE_BLESS_EVERY = 3;
-export interface HordeBlessing {
-  id: string;
+export interface BannerDef {
+  id: 'atk' | 'hp' | 'def' | 'gold' | 'xp' | 'loot' | 'chest';
   name: L10n;
   desc: L10n;
-  /** Бонус отряду до конца забега (складывается). */
-  stats?: Stats;
-  /** Мгновенно: лечение выживших (доля HP) и подъём павших (доля HP). */
-  heal?: number;
-  revive?: number;
-  /** Надбавка к золоту и пыли за волны. */
-  rewardPct?: number;
-}
-export const HORDE_BLESSINGS: HordeBlessing[] = [
-  { id: 'fury', name: { ru: 'Ярость', en: 'Fury' }, desc: { ru: '+20% к атаке отряда', en: '+20% squad attack' }, stats: { atkPct: 0.2 } },
-  { id: 'bulwark', name: { ru: 'Стена щитов', en: 'Shield Wall' }, desc: { ru: '+25% к здоровью', en: '+25% health' }, stats: { hpPct: 0.25 } },
-  { id: 'haste', name: { ru: 'Попутный ветер', en: 'Tailwind' }, desc: { ru: '+12 к скорости', en: '+12 speed' }, stats: { spd: 12 } },
-  { id: 'keen', name: { ru: 'Острый глаз', en: 'Keen Eye' }, desc: { ru: '+10% шанса и +25% урона крита', en: '+10% crit chance, +25% crit damage' }, stats: { crit: 0.1, critDmg: 0.25 } },
-  { id: 'leech', name: { ru: 'Жажда крови', en: 'Bloodthirst' }, desc: { ru: '+10% вампиризма', en: '+10% lifesteal' }, stats: { lifesteal: 0.1 } },
-  { id: 'arcane', name: { ru: 'Эфирный прилив', en: 'Aether Surge' }, desc: { ru: '+30% урона ультимейтов и +20% энергии', en: '+30% ultimate damage, +20% energy' }, stats: { dmgUlt: 0.3, energyRegen: 0.2 } },
-  { id: 'stone', name: { ru: 'Каменная кожа', en: 'Stoneskin' }, desc: { ru: '−12% получаемого урона', en: '−12% damage taken' }, stats: { dmgReduce: 0.12 } },
-  { id: 'pact', name: { ru: 'Кровавый пакт', en: 'Blood Pact' }, desc: { ru: '+40% к атаке, но −20% здоровья', en: '+40% attack, but −20% health' }, stats: { atkPct: 0.4, hpPct: -0.2 } },
-  { id: 'mend', name: { ru: 'Передышка', en: 'Respite' }, desc: { ru: 'Выжившие лечатся на 50%, павшие встают с 30% HP', en: 'Survivors heal 50%, the fallen rise with 30% HP' }, heal: 0.5, revive: 0.3 },
-  { id: 'greed', name: { ru: 'Жадность', en: 'Greed' }, desc: { ru: '+50% золота и пыли за волны', en: '+50% gold and dust per wave' }, rewardPct: 0.5 },
-];
-export const HORDE_BLESSING_MAP: Record<string, HordeBlessing> = Object.fromEntries(HORDE_BLESSINGS.map((b) => [b.id, b]));
-
-/** Башня: у каждого обычного этажа свой модификатор (у этажей со стражем — нет). */
-export interface TowerMod {
-  id: string;
-  name: L10n;
-  desc: L10n;
-  enemy?: EnemyMod;
-  hero?: Stats;
-}
-export const TOWER_MODS: TowerMod[] = [
-  { id: 'giants', name: { ru: 'Великаны', en: 'Giants' }, desc: { ru: 'Враги: +40% здоровья, −10% скорости', en: 'Enemies: +40% HP, −10% speed' }, enemy: { hp: 1.4, spd: 0.9 } },
-  { id: 'frenzy', name: { ru: 'Бешенство', en: 'Frenzy' }, desc: { ru: 'Враги: +20% атаки и +15% скорости', en: 'Enemies: +20% attack, +15% speed' }, enemy: { atk: 1.2, spd: 1.15 } },
-  { id: 'ironclad', name: { ru: 'Железная шкура', en: 'Ironclad' }, desc: { ru: 'Враги: +60% защиты', en: 'Enemies: +60% defense' }, enemy: { def: 1.6 } },
-  { id: 'glass', name: { ru: 'Стеклянные пушки', en: 'Glass Cannons' }, desc: { ru: 'Враги: −30% здоровья, но +35% атаки', en: 'Enemies: −30% HP, but +35% attack' }, enemy: { hp: 0.7, atk: 1.35 } },
-  { id: 'blessing', name: { ru: 'Благословение', en: 'Blessing' }, desc: { ru: 'Ваш отряд: +25% лечения и +10% здоровья', en: 'Your squad: +25% healing, +10% HP' }, hero: { healPower: 0.25, hpPct: 0.1 } },
-  { id: 'storm', name: { ru: 'Эфирная буря', en: 'Aether Storm' }, desc: { ru: 'Ваш отряд: +40% урона ультимейтов и +25% энергии', en: 'Your squad: +40% ultimate damage, +25% energy' }, hero: { dmgUlt: 0.4, energyRegen: 0.25 } },
-  { id: 'calm', name: { ru: 'Затишье', en: 'Calm' }, desc: { ru: 'Без особых условий', en: 'No special conditions' } },
-];
-export const TOWER_MOD_MAP: Record<string, TowerMod> = Object.fromEntries(TOWER_MODS.map((m) => [m.id, m]));
-
-export function towerMod(floor: number): TowerMod | null {
-  if (floor % 10 === 0) return null;
-  // перемешиваем, чтобы соседние этажи не повторялись по кругу
-  return TOWER_MODS[(floor * 5 + Math.floor(floor / 7)) % TOWER_MODS.length];
-}
-
-/** Испытание в Башне: враги сильнее, награда вдвое больше. */
-export const TOWER_HARD: EnemyMod = { hp: 1.6, atk: 1.3 };
-export const TOWER_HARD_REWARD = 2;
-
-/** Разлом: тактика перед атакой на Колосса. */
-export interface RiftTactic {
-  id: string;
-  name: L10n;
-  desc: L10n;
-  stats: Stats;
-}
-export const RIFT_TACTICS: RiftTactic[] = [
-  { id: 'none', name: { ru: 'Без тактики', en: 'No tactic' }, desc: { ru: 'Отряд как есть', en: 'The squad as is' }, stats: {} },
-  { id: 'assault', name: { ru: 'Натиск', en: 'Assault' }, desc: { ru: '+30% атаки, −20% здоровья', en: '+30% attack, −20% health' }, stats: { atkPct: 0.3, hpPct: -0.2 } },
-  { id: 'bastion', name: { ru: 'Бастион', en: 'Bastion' }, desc: { ru: '+35% здоровья, −12% урона по вам, −15% атаки', en: '+35% health, −12% damage taken, −15% attack' }, stats: { hpPct: 0.35, dmgReduce: 0.12, atkPct: -0.15 } },
-  { id: 'ritual', name: { ru: 'Ритуал', en: 'Ritual' }, desc: { ru: '+40% урона ультимейтов, +30% энергии, −10% атаки', en: '+40% ultimate damage, +30% energy, −10% attack' }, stats: { dmgUlt: 0.4, energyRegen: 0.3, atkPct: -0.1 } },
-];
-export const RIFT_TACTIC_MAP: Record<string, RiftTactic> = Object.fromEntries(RIFT_TACTICS.map((x) => [x.id, x]));
-
-// ——— Бездна: договоры (по мотивам «Договора наказания» Hades) ———
-
-/**
- * Договор усложняет бой в Бездне и увеличивает награду на heat процентов. Договоры складываются;
- * лучший суммарный «жар» победы — рекорд, за рубежи жара — разовые награды.
- */
-export interface AbyssPact {
-  id: string;
   icon: string;
-  name: L10n;
-  desc: L10n;
-  heat: number;
-  enemy?: EnemyMod;
-  hero?: Stats;
-  /** множитель лимита времени боя */
-  time?: number;
+  /** Прибавка за уровень (доля или минуты для chest). */
+  per: number;
+  max: number;
+  /** Множитель цены (в минутах дохода золота). */
+  price: number;
 }
-export const ABYSS_PACTS: AbyssPact[] = [
-  { id: 'blood', icon: '🩸', name: { ru: 'Кровь за кровь', en: 'Blood for Blood' }, desc: { ru: 'Враги: +30% атаки', en: 'Enemies: +30% attack' }, heat: 30, enemy: { atk: 1.3 } },
-  { id: 'bastion', icon: '🛡️', name: { ru: 'Твердыня', en: 'Bastion' }, desc: { ru: 'Враги: +50% здоровья', en: 'Enemies: +50% HP' }, heat: 35, enemy: { hp: 1.5 } },
-  { id: 'haste', icon: '💨', name: { ru: 'Спешка', en: 'Haste' }, desc: { ru: 'Враги: +20% скорости', en: 'Enemies: +20% speed' }, heat: 30, enemy: { spd: 1.2 } },
-  { id: 'iron', icon: '⛓️', name: { ru: 'Железо', en: 'Iron' }, desc: { ru: 'Враги: +60% защиты', en: 'Enemies: +60% defense' }, heat: 25, enemy: { def: 1.6 } },
-  { id: 'nomend', icon: '🥀', name: { ru: 'Без лекаря', en: 'No Mending' }, desc: { ru: 'Ваше лечение −50%', en: 'Your healing −50%' }, heat: 25, hero: { healPower: -0.5 } },
-  { id: 'frail', icon: '💔', name: { ru: 'Хрупкость', en: 'Frailty' }, desc: { ru: 'Здоровье отряда −20%', en: 'Squad HP −20%' }, heat: 30, hero: { hpPct: -0.2 } },
-  { id: 'hourglass', icon: '⏳', name: { ru: 'Песочные часы', en: 'Hourglass' }, desc: { ru: 'Времени на бой на 40% меньше', en: '40% less time for the fight' }, heat: 35, time: 0.6 },
+
+export const BANNER: BannerDef[] = [
+  { id: 'atk', name: { ru: 'Клинок', en: 'Blade' }, desc: { ru: '+2% атаки Легиона', en: '+2% Legion attack' }, icon: 'sword', per: 0.02, max: 50, price: 8 },
+  { id: 'hp', name: { ru: 'Щит', en: 'Shield' }, desc: { ru: '+2% здоровья Легиона', en: '+2% Legion health' }, icon: 'shield', per: 0.02, max: 50, price: 8 },
+  { id: 'def', name: { ru: 'Твердь', en: 'Bedrock' }, desc: { ru: '+2% защиты Легиона', en: '+2% Legion defense' }, icon: 'armor', per: 0.02, max: 50, price: 6 },
+  { id: 'gold', name: { ru: 'Казна', en: 'Treasury' }, desc: { ru: '+5% золота', en: '+5% gold' }, icon: 'gold', per: 0.05, max: 60, price: 10 },
+  { id: 'xp', name: { ru: 'Летопись', en: 'Chronicle' }, desc: { ru: '+5% опыта', en: '+5% XP' }, icon: 'xp', per: 0.05, max: 60, price: 10 },
+  { id: 'loot', name: { ru: 'Удача', en: 'Fortune' }, desc: { ru: '+4% к шансу редких вещей', en: '+4% rare item chance' }, icon: 'clover', per: 0.04, max: 25, price: 14 },
+  { id: 'chest', name: { ru: 'Привал', en: 'Rest' }, desc: { ru: '+30 мин к лимиту сундука', en: '+30 min chest limit' }, icon: 'chest', per: 30, max: 24, price: 16 },
 ];
-export const ABYSS_PACT_MAP: Record<string, AbyssPact> = Object.fromEntries(ABYSS_PACTS.map((p) => [p.id, p]));
-/** Рубежи жара: разовая награда за первую победу с таким суммарным жаром. */
-export const ABYSS_HEAT_MILESTONES: { heat: number; crystals: number; emblems?: number; divineMats?: number }[] = [
-  { heat: 60, crystals: 100 },
-  { heat: 120, crystals: 200, emblems: 1 },
-  { heat: 180, crystals: 300, emblems: 2, divineMats: 10 },
-  { heat: 240, crystals: 500, emblems: 3, divineMats: 20 },
-];
-
-/**
- * Награда за победу в Бездне с жаром heat: базовая (мифрил и кристаллы) × (1 + heat/100)
- * плюс ещё не взятые рубежи жара (claimed — уже полученные).
- */
-export function abyssReward(level: number, heat: number, claimed: readonly number[]): { cur: Record<string, number>; milestones: typeof ABYSS_HEAT_MILESTONES } {
-  const mult = 1 + heat / 100;
-  const cur: Record<string, number> = { divineMats: Math.round((1 + Math.floor(level / 5)) * mult), crystals: Math.round((level % 10 === 0 ? 100 : 10) * mult) };
-  const milestones = ABYSS_HEAT_MILESTONES.filter((m) => heat >= m.heat && !claimed.includes(m.heat));
-  for (const m of milestones) {
-    cur.crystals += m.crystals;
-    if (m.emblems) cur.emblems = (cur.emblems ?? 0) + m.emblems;
-    if (m.divineMats) cur.divineMats += m.divineMats;
-  }
-  return { cur, milestones };
-}
-
-/** Знамение уровня Бездны — как модификатор этажа Башни, у уровней стража (каждый 5-й) — без знамения. */
-export function abyssOmen(level: number): TowerMod | null {
-  if (level % 5 === 0) return null;
-  return TOWER_MODS[(level * 3 + Math.floor(level / 4)) % TOWER_MODS.length];
-}
-
-// ——— Экспедиции: события при возвращении (по мотивам FTL и Darkest Dungeon) ———
-
-export type ExpeditionChoice = 'a' | 'b';
-/**
- * Исход выбора: множители награды экспедиции и добавки. chance — вероятность удачного исхода (иначе fail);
- * без chance — исход один.
- */
-export interface ExpeditionOutcome {
-  chance?: number;
-  win: { mult?: number; add?: Partial<Record<Currency, number>>; text: L10n };
-  fail?: { mult?: number; add?: Partial<Record<Currency, number>>; text: L10n };
-}
-export interface ExpeditionEvent {
-  id: string;
-  icon: string;
-  title: L10n;
-  text: L10n;
-  choices: Record<ExpeditionChoice, { label: L10n; outcome: ExpeditionOutcome }>;
-}
-/** Шанс, что по возвращении случится событие. */
-export const EXPEDITION_EVENT_CHANCE = 0.4;
-export const EXPEDITION_EVENTS: ExpeditionEvent[] = [
-  {
-    id: 'chest',
-    icon: '🧰',
-    title: { ru: 'Запертый сундук', en: 'A Locked Chest' },
-    text: { ru: 'У дороги отряд нашёл окованный сундук. Замок старый, но на крышке — подозрительные царапины.', en: 'By the road the squad finds an iron-bound chest. The lock is old, but the lid has suspicious scratches.' },
-    choices: {
-      a: { label: { ru: 'Вскрыть', en: 'Break it open' }, outcome: { chance: 0.6, win: { mult: 2, text: { ru: 'Внутри — чужой клад! Добыча удвоена.', en: 'Someone\'s hoard! The loot is doubled.' } }, fail: { mult: 0.6, text: { ru: 'Ловушка! Отряд еле унёс ноги и часть добычи.', en: 'A trap! The squad barely escaped with part of the loot.' } } } },
-      b: { label: { ru: 'Не рисковать', en: 'Don\'t risk it' }, outcome: { win: { mult: 1, text: { ru: 'Отряд вернулся с тем, что было.', en: 'The squad returns with what they had.' } } } },
-    },
-  },
-  {
-    id: 'merchant',
-    icon: '🧕',
-    title: { ru: 'Бродячая торговка', en: 'A Wandering Merchant' },
-    text: { ru: 'Торговка с караваном предлагает обменять часть добычи на кристаллы. Говорит, по-честному.', en: 'A merchant with a caravan offers crystals for part of the loot. Fair and square, she says.' },
-    choices: {
-      a: { label: { ru: 'Обменять', en: 'Trade' }, outcome: { win: { mult: 0.6, add: { crystals: 30 }, text: { ru: 'Сделка! Меньше золота, зато кристаллы.', en: 'Deal! Less gold, but crystals.' } } } },
-      b: { label: { ru: 'Отказаться', en: 'Decline' }, outcome: { win: { mult: 1, text: { ru: 'Торговка пожала плечами и ушла.', en: 'The merchant shrugs and leaves.' } } } },
-    },
-  },
-  {
-    id: 'traveler',
-    icon: '🩹',
-    title: { ru: 'Раненая путница', en: 'A Wounded Traveler' },
-    text: { ru: 'На обочине — раненая путница. Помочь — значит задержаться и потратить припасы.', en: 'A wounded traveler lies by the road. Helping means delay and spent supplies.' },
-    choices: {
-      a: { label: { ru: 'Помочь', en: 'Help her' }, outcome: { win: { mult: 0.8, add: { emblems: 4 }, text: { ru: 'В благодарность она отдала старые эмблемы Легиона.', en: 'In thanks she gives old Legion emblems.' } } } },
-      b: { label: { ru: 'Пройти мимо', en: 'Walk past' }, outcome: { win: { mult: 1, text: { ru: 'Отряд молча прошёл мимо.', en: 'The squad walks past in silence.' } } } },
-    },
-  },
-  {
-    id: 'shrine',
-    icon: '⛩️',
-    title: { ru: 'Древний алтарь', en: 'An Ancient Altar' },
-    text: { ru: 'В чаще — алтарь, покрытый звёздной пылью. Говорят, он одаривает смелых. Или наказывает.', en: 'In the thicket stands an altar dusted with stardust. They say it rewards the bold. Or punishes them.' },
-    choices: {
-      a: { label: { ru: 'Помолиться', en: 'Pray' }, outcome: { chance: 0.5, win: { mult: 1, add: { starDust: 15 }, text: { ru: 'Алтарь засиял — звёздная пыль сама легла в сумки.', en: 'The altar glows — stardust fills the bags.' } }, fail: { mult: 0.85, text: { ru: 'Тишина. А часть добычи куда-то пропала…', en: 'Silence. And part of the loot is gone…' } } } },
-      b: { label: { ru: 'Уйти', en: 'Leave' }, outcome: { win: { mult: 1, text: { ru: 'Лучше не трогать чужих богов.', en: 'Better not to touch foreign gods.' } } } },
-    },
-  },
-  {
-    id: 'cards',
-    icon: '🃏',
-    title: { ru: 'Карты у костра', en: 'Cards by the Fire' },
-    text: { ru: 'Разбойницы у костра зовут сыграть «на всё». Улыбаются слишком широко.', en: 'Bandit girls by the fire invite a game "for everything". Their smiles are too wide.' },
-    choices: {
-      a: { label: { ru: 'Сыграть', en: 'Play' }, outcome: { chance: 0.5, win: { mult: 2, text: { ru: 'Отряд обыграл разбойниц — добыча вдвое!', en: 'The squad beats the bandits — double loot!' } }, fail: { mult: 0.5, text: { ru: 'Разбойницы явно мухлевали. Половины добычи как не бывало.', en: 'The bandits clearly cheated. Half the loot is gone.' } } } },
-      b: { label: { ru: 'Отказаться', en: 'Decline' }, outcome: { win: { mult: 1, text: { ru: 'Отряд вежливо отказался и ушёл спать.', en: 'The squad politely declines and goes to sleep.' } } } },
-    },
-  },
-  {
-    id: 'spring',
-    icon: '♨️',
-    title: { ru: 'Горячий источник', en: 'A Hot Spring' },
-    text: { ru: 'По пути — горячий источник. Отряд просит задержаться и отдохнуть.', en: 'On the way — a hot spring. The squad asks to stop and rest.' },
-    choices: {
-      a: { label: { ru: 'Отдохнуть', en: 'Rest' }, outcome: { win: { mult: 0.9, add: { dust: 30 }, text: { ru: 'Отдохнувший отряд по пути собрал магическую пыль.', en: 'Well-rested, the squad gathers magic dust on the way.' } } } },
-      b: { label: { ru: 'Спешить', en: 'Hurry on' }, outcome: { win: { mult: 1.1, text: { ru: 'Спешка окупилась: успели продать добычу подороже.', en: 'The hurry paid off: the loot sold for more.' } } } },
-    },
-  },
-];
-export const EXPEDITION_EVENT_MAP: Record<string, ExpeditionEvent> = Object.fromEntries(EXPEDITION_EVENTS.map((e) => [e.id, e]));
+export const BANNER_MAP: Record<string, BannerDef> = Object.fromEntries(BANNER.map((b) => [b.id, b]));

@@ -1,6 +1,6 @@
 import type { Element, L10n } from '../types';
 import type { Look } from './heroines';
-import type { SkillDef } from './effects';
+import type { SkillDef } from './classes';
 
 export type EnemyRole = 'tank' | 'brute' | 'ranged' | 'caster' | 'healer' | 'rogue';
 
@@ -12,14 +12,15 @@ export interface EnemyDef {
   element: Element;
   look: Look;
   kind: 'normal' | 'mini' | 'boss' | 'summon';
+  /** Умения (id из ENEMY_SKILLS); у боссов последнее — «Сокрушительный удар» (ульта). */
   skills: string[];
   mechanic?: BossMechanic;
-  /** id героини, если босс становится играбельным. */
+  /** id героя, если босс выглядит как играбельный. */
   hero?: string;
   /** Класс внешности (наряд и оружие) вместо роли — у владычиц и боссов праздников. */
   cls?: string;
   title?: L10n;
-  /** Колосс Разлома: гигантский босс мирового режима, крупнее обычных боссов, со своей анимацией. */
+  /** Колосс: гигантский рейд-босс, крупнее обычных боссов, со своей анимацией. */
   colossus?: boolean;
 }
 
@@ -36,37 +37,16 @@ export type BossMechanic =
   | 'mirror';
 
 export const MECHANIC_TEXT: Record<BossMechanic, L10n> = {
-  vines: {
-    ru: 'Призывает лозы: если не убить их за 10 с, они лечат её',
-    en: 'Summons vines: if not killed within 10s they heal her',
-  },
-  sandstorm: { ru: 'Песчаная буря: −50% точности отряда каждые 15 с', en: 'Sandstorm: −50% party accuracy every 15s' },
-  freeze: {
-    ru: 'Замораживает героя; помогают огонь или очищение',
-    en: 'Freezes a hero; fire or cleansing helps',
-  },
-  tideShield: {
-    ru: 'Щит приливов пробивается только умениями и ультимейтами',
-    en: 'Tide shield can only be broken by skills and ultimates',
-  },
-  bloodThirst: {
-    ru: 'Вампиризм 100%, сила растёт каждые 10 с — наказывает медленные отряды',
-    en: '100% lifesteal, grows stronger every 10s — punishes slow parties',
-  },
-  fireField: { ru: 'Огненное поле: урон растёт каждый ход', en: 'Fire field: damage increases every turn' },
-  skyborne: {
-    ru: 'Сражается с воздуха: ближний бой наносит вдвое меньше урона',
-    en: 'Fights from the air: melee deals half damage',
-  },
-  phases: {
-    ru: 'Три фазы, в каждой новая слабость к стихии',
-    en: 'Three phases, each with a new elemental weakness',
-  },
-  raiseDead: {
-    ru: 'Воскрешает врагов, если не добить её за 3 хода',
-    en: 'Raises fallen enemies unless finished within 3 turns',
-  },
-  mirror: { ru: 'Копирует сильнейшего героя игрока', en: "Copies the player's strongest hero" },
+  vines: { ru: 'Каждые 12 с выращивает лозы — пока они живы, лечат её', en: 'Grows vines every 12 s — while they live, they heal her' },
+  sandstorm: { ru: 'Песчаная буря каждые 15 с: отряд 4 с наносит вдвое меньше урона', en: 'Sandstorm every 15 s: the party deals half damage for 4 s' },
+  freeze: { ru: 'Каждые 10 с замораживает героя на 3 с — Свет Эфира снимает лёд', en: 'Freezes a hero for 3 s every 10 s — Aether Light melts the ice' },
+  tideShield: { ru: 'Щит приливов: обычные атаки почти не пробивают его — нужны умения и ульты', en: 'Tide shield: basic attacks barely dent it — use skills and ultimates' },
+  bloodThirst: { ru: 'Пьёт кровь и каждые 10 с становится сильнее на 12% — бейте быстро', en: 'Drinks blood and grows 12% stronger every 10 s — strike fast' },
+  fireField: { ru: 'Огненное поле: отряд горит, и с каждым мгновением жарче', en: 'Fire field: the party burns, hotter with every moment' },
+  skyborne: { ru: 'Сражается в воздухе: ближний бой наносит вдвое меньше урона', en: 'Fights in the air: melee deals half damage' },
+  phases: { ru: 'На 66% и 33% здоровья — ударная волна и ускорение', en: 'At 66% and 33% health — a shockwave and a speed-up' },
+  raiseDead: { ru: 'Каждые 12 с поднимает павших слуг', en: 'Raises fallen servants every 12 s' },
+  mirror: { ru: 'Призывает тёмного двойника сильнейшего героя', en: "Summons a dark double of the strongest hero" },
 };
 
 export interface ActDef {
@@ -274,97 +254,119 @@ export const ACTS: ActDef[] = [
 
 export const STAGES_PER_ACT = 20;
 export const ACT_COUNT = 10;
-export const STAGES_PER_DIFF = STAGES_PER_ACT * ACT_COUNT;
-
-export const ROLE_STATS: Record<EnemyRole, { hp: number; atk: number; def: number; spd: number; row: 'front' | 'back' }> = {
-  tank: { hp: 1.6, atk: 0.7, def: 1.5, spd: 90, row: 'front' },
-  brute: { hp: 1.15, atk: 1.15, def: 1.0, spd: 100, row: 'front' },
-  ranged: { hp: 0.8, atk: 1.1, def: 0.7, spd: 104, row: 'back' },
-  caster: { hp: 0.75, atk: 1.1, def: 0.6, spd: 100, row: 'back' },
-  healer: { hp: 0.85, atk: 0.75, def: 0.8, spd: 98, row: 'back' },
-  rogue: { hp: 0.8, atk: 1.2, def: 0.7, spd: 115, row: 'back' },
-};
-
-/** Умения врагов, мини-боссов и боссов. */
-export const ENEMY_SKILLS: SkillDef[] = [
-  { id: 'enemy.basic', cls: 'enemy', kind: 'basic', name: { ru: 'Атака', en: 'Attack' }, target: 'enemy', effects: [{ t: 'dmg', mult: 1 }], vfx: 'slash' },
-  { id: 'wolf.bite', cls: 'enemy', kind: 'basic', name: { ru: 'Укус', en: 'Bite' }, target: 'enemy', effects: [{ t: 'dmg', mult: 1 }], vfx: 'slash' },
-  { id: 'enemy.basicBack', cls: 'enemy', kind: 'basic', name: { ru: 'Атака', en: 'Attack' }, target: 'enemyBack', effects: [{ t: 'dmg', mult: 1 }], vfx: 'slash' },
-  { id: 'enemy.tank', cls: 'enemy', kind: 'active', name: { ru: 'Глухая оборона', en: 'Guard' }, target: 'self', cd: 4, effects: [{ t: 'taunt', turns: 2 }, { t: 'buff', stat: 'dmgTaken', value: -0.3, turns: 2 }], vfx: 'shield' },
-  { id: 'enemy.brute', cls: 'enemy', kind: 'active', name: { ru: 'Сокрушение', en: 'Smash' }, target: 'enemy', cd: 3, effects: [{ t: 'dmg', mult: 1.7 }], vfx: 'slash' },
-  { id: 'enemy.ranged', cls: 'enemy', kind: 'active', name: { ru: 'Залп', en: 'Volley' }, target: 'enemyRandom', cd: 3, effects: [{ t: 'dmg', mult: 0.6, hits: 3 }], vfx: 'arrow' },
-  { id: 'enemy.caster', cls: 'enemy', kind: 'active', name: { ru: 'Волна силы', en: 'Power Wave' }, target: 'enemyAll', cd: 3, effects: [{ t: 'dmg', mult: 0.75 }], vfx: 'nova' },
-  { id: 'enemy.healer', cls: 'enemy', kind: 'active', name: { ru: 'Исцеление', en: 'Mend' }, target: 'allyLowest', cd: 2, effects: [{ t: 'heal', mult: 1.5 }], vfx: 'heal' },
-  { id: 'enemy.rogue', cls: 'enemy', kind: 'active', name: { ru: 'Засада', en: 'Ambush' }, target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 1.9 }], vfx: 'dark' },
-  // мини-боссы
-  { id: 'mb.enrage', cls: 'enemy', kind: 'active', name: { ru: 'Ярость', en: 'Enrage' }, target: 'self', cd: 4, effects: [{ t: 'buff', stat: 'atk', value: 0.4, turns: 3 }, { t: 'heal', mult: 0.05, scale: 'hp' }], vfx: 'fire' },
-  { id: 'mb.heal', cls: 'enemy', kind: 'active', name: { ru: 'Живительный сок', en: 'Living Sap' }, target: 'allyAll', cd: 3, effects: [{ t: 'heal', mult: 1.2 }], vfx: 'heal' },
-  { id: 'mb.storm', cls: 'enemy', kind: 'active', name: { ru: 'Буря', en: 'Storm' }, target: 'enemyAll', cd: 3, effects: [{ t: 'dmg', mult: 1.0 }, { t: 'cc', cc: 'stun', chance: 0.2, turns: 1 }], vfx: 'bolt' },
-  { id: 'mb.stomp', cls: 'enemy', kind: 'active', name: { ru: 'Топот', en: 'Stomp' }, target: 'enemyFront', cd: 3, effects: [{ t: 'dmg', mult: 1.3 }, { t: 'cc', cc: 'stun', chance: 0.35, turns: 1 }], vfx: 'nova' },
-  { id: 'mb.curse', cls: 'enemy', kind: 'active', name: { ru: 'Проклятие', en: 'Curse' }, target: 'enemyAll', cd: 4, effects: [{ t: 'debuff', stat: 'atk', value: -0.2, turns: 2 }, { t: 'dot', dot: 'poison', mult: 0.4, turns: 3 }], vfx: 'poison' },
-  { id: 'mb.volley', cls: 'enemy', kind: 'active', name: { ru: 'Шквал', en: 'Barrage' }, target: 'enemyRandom', cd: 3, effects: [{ t: 'dmg', mult: 0.7, hits: 4 }], vfx: 'arrow' },
-  { id: 'mb.freeze', cls: 'enemy', kind: 'active', name: { ru: 'Ледяное дыхание', en: 'Frost Breath' }, target: 'enemyAll', cd: 4, effects: [{ t: 'dmg', mult: 0.8 }, { t: 'cc', cc: 'freeze', chance: 0.3, turns: 1 }], vfx: 'ice' },
-  { id: 'mb.charm', cls: 'enemy', kind: 'active', name: { ru: 'Чары', en: 'Charm' }, target: 'enemy', cd: 3, effects: [{ t: 'cc', cc: 'stun', chance: 0.7, turns: 1 }, { t: 'dmg', mult: 1.2 }], vfx: 'song' },
-  { id: 'mb.drain', cls: 'enemy', kind: 'active', name: { ru: 'Кровопийца', en: 'Blood Drain' }, target: 'enemy', cd: 3, effects: [{ t: 'dmg', mult: 1.8, lifesteal: 0.8 }], vfx: 'dark' },
-  { id: 'mb.summon', cls: 'enemy', kind: 'active', name: { ru: 'Подмога', en: 'Reinforcements' }, target: 'self', cd: 5, effects: [{ t: 'summon', unit: 'minion', count: 1, mult: 0.5 }], vfx: 'dark' },
-  // боссы актов
-  { id: 'boss.thornWhip', cls: 'enemy', kind: 'active', name: { ru: 'Терновый хлыст', en: 'Thorn Whip' }, target: 'enemyAll', cd: 3, effects: [{ t: 'dmg', mult: 0.8 }, { t: 'dot', dot: 'bleed', mult: 0.3, turns: 2 }], vfx: 'poison' },
-  { id: 'boss.entangle', cls: 'enemy', kind: 'active', name: { ru: 'Оплетение', en: 'Entangle' }, target: 'enemyRandom', cd: 4, effects: [{ t: 'cc', cc: 'stun', chance: 0.6, turns: 1 }, { t: 'dmg', mult: 0.6, hits: 2 }], vfx: 'poison' },
-  { id: 'boss.sunBlast', cls: 'enemy', kind: 'active', name: { ru: 'Солнечный удар', en: 'Sun Blast' }, target: 'enemyAll', cd: 3, effects: [{ t: 'dmg', mult: 0.9 }, { t: 'dot', dot: 'burn', mult: 0.3, turns: 2 }], vfx: 'fire' },
-  { id: 'boss.curseOfSands', cls: 'enemy', kind: 'active', name: { ru: 'Проклятие песков', en: 'Curse of Sands' }, target: 'enemyBack', cd: 4, effects: [{ t: 'dmg', mult: 1.6 }, { t: 'debuff', stat: 'def', value: -0.25, turns: 2 }], vfx: 'dark' },
-  { id: 'boss.frostArrow', cls: 'enemy', kind: 'active', name: { ru: 'Ледяная стрела', en: 'Frost Arrow' }, target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 1.8 }, { t: 'debuff', stat: 'spd', value: -25, turns: 2 }], vfx: 'ice' },
-  { id: 'boss.hailstorm', cls: 'enemy', kind: 'active', name: { ru: 'Град', en: 'Hailstorm' }, target: 'enemyRandom', cd: 4, effects: [{ t: 'dmg', mult: 0.6, hits: 5 }], vfx: 'ice' },
-  { id: 'boss.tidalWave', cls: 'enemy', kind: 'active', name: { ru: 'Приливная волна', en: 'Tidal Wave' }, target: 'enemyAll', cd: 3, effects: [{ t: 'dmg', mult: 1.0 }, { t: 'debuff', stat: 'spd', value: -15, turns: 2 }], vfx: 'ice' },
-  { id: 'boss.drown', cls: 'enemy', kind: 'active', name: { ru: 'Утопление', en: 'Drown' }, target: 'enemy', cd: 4, effects: [{ t: 'cc', cc: 'stun', chance: 0.8, turns: 1 }, { t: 'dot', dot: 'poison', mult: 0.8, turns: 3 }], vfx: 'ice' },
-  { id: 'boss.bloodKiss', cls: 'enemy', kind: 'active', name: { ru: 'Кровавый поцелуй', en: 'Blood Kiss' }, target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 2.0 }], vfx: 'dark' },
-  { id: 'boss.batSwarm', cls: 'enemy', kind: 'active', name: { ru: 'Стая летучих мышей', en: 'Bat Swarm' }, target: 'enemyRandom', cd: 4, effects: [{ t: 'dmg', mult: 0.5, hits: 6 }], vfx: 'dark' },
-  { id: 'boss.magmaFist', cls: 'enemy', kind: 'active', name: { ru: 'Магмовый кулак', en: 'Magma Fist' }, target: 'enemy', cd: 3, effects: [{ t: 'dmg', mult: 2.2 }, { t: 'dot', dot: 'burn', mult: 0.5, turns: 3 }], vfx: 'fire' },
-  { id: 'boss.eruption', cls: 'enemy', kind: 'active', name: { ru: 'Извержение', en: 'Eruption' }, target: 'enemyAll', cd: 4, effects: [{ t: 'dmg', mult: 1.1 }, { t: 'cc', cc: 'stun', chance: 0.2, turns: 1 }], vfx: 'fire' },
-  { id: 'boss.spearDive', cls: 'enemy', kind: 'active', name: { ru: 'Пике с копьём', en: 'Spear Dive' }, target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 2.1 }], vfx: 'holy' },
-  { id: 'boss.valkyrieCry', cls: 'enemy', kind: 'active', name: { ru: 'Клич валькирии', en: "Valkyrie's Cry" }, target: 'allyAll', cd: 6, effects: [{ t: 'buff', stat: 'atk', value: 0.3, turns: 3 }, { t: 'shield', mult: 0.02, scale: 'hp' }], vfx: 'holy' },
-  { id: 'boss.laser', cls: 'enemy', kind: 'active', name: { ru: 'Лазер', en: 'Laser' }, target: 'enemyAll', cd: 3, effects: [{ t: 'dmg', mult: 1.0 }], vfx: 'bolt' },
-  { id: 'boss.overclock', cls: 'enemy', kind: 'active', name: { ru: 'Разгон', en: 'Overclock' }, target: 'self', cd: 4, effects: [{ t: 'buff', stat: 'spd', value: 40, turns: 3 }, { t: 'summon', unit: 'drone', count: 1, mult: 0.3 }], vfx: 'bolt' },
-  { id: 'boss.soulRend', cls: 'enemy', kind: 'active', name: { ru: 'Разрыв души', en: 'Soul Rend' }, target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 1.8, lifesteal: 0.3 }], vfx: 'dark' },
-  { id: 'boss.deathCoil', cls: 'enemy', kind: 'active', name: { ru: 'Лик смерти', en: 'Death Coil' }, target: 'enemyAll', cd: 4, effects: [{ t: 'dmg', mult: 0.9 }, { t: 'debuff', stat: 'healRecv', value: -0.5, turns: 2 }], vfx: 'dark' },
-  { id: 'boss.voidRay', cls: 'enemy', kind: 'active', name: { ru: 'Луч Пустоты', en: 'Void Ray' }, target: 'enemyBack', cd: 3, effects: [{ t: 'dmg', mult: 2.4 }], vfx: 'dark' },
-  { id: 'boss.chaosNova', cls: 'enemy', kind: 'active', name: { ru: 'Сверхновая хаоса', en: 'Chaos Nova' }, target: 'enemyAll', cd: 4, effects: [{ t: 'dmg', mult: 1.2 }, { t: 'debuff', stat: 'def', value: -0.3, turns: 2 }], vfx: 'nova' },
-  // ультимейты боссов (срабатывают на 100 энергии)
-  { id: 'boss.ultNature', cls: 'enemy', kind: 'ult', name: { ru: 'Гнев леса', en: "Forest's Wrath" }, target: 'enemyAll', effects: [{ t: 'dmg', mult: 1.6 }, { t: 'heal', target: 'allyAll', mult: 1.0 }], vfx: 'poison' },
-  { id: 'boss.ultFire', cls: 'enemy', kind: 'ult', name: { ru: 'Солнечная кара', en: 'Solar Wrath' }, target: 'enemyAll', effects: [{ t: 'dmg', mult: 1.8 }, { t: 'dot', dot: 'burn', mult: 0.5, turns: 3 }], vfx: 'fire' },
-  { id: 'boss.ultWater', cls: 'enemy', kind: 'ult', name: { ru: 'Вечная зима', en: 'Eternal Winter' }, target: 'enemyAll', effects: [{ t: 'dmg', mult: 1.6 }, { t: 'cc', cc: 'freeze', chance: 0.3, turns: 1 }], vfx: 'ice' },
-  { id: 'boss.ultDark', cls: 'enemy', kind: 'ult', name: { ru: 'Кровавая луна', en: 'Blood Moon' }, target: 'enemyAll', effects: [{ t: 'dmg', mult: 1.8, lifesteal: 0.3 }], vfx: 'dark' },
-  { id: 'boss.ultLight', cls: 'enemy', kind: 'ult', name: { ru: 'Небесный приговор', en: 'Heavenly Verdict' }, target: 'enemyAll', effects: [{ t: 'dmg', mult: 1.9 }, { t: 'cc', cc: 'stun', chance: 0.2, turns: 1 }], vfx: 'holy' },
+/** Круг похода — 10 актов по 20 этапов. */
+export const STAGES_PER_CIRCLE = STAGES_PER_ACT * ACT_COUNT;
+export const CIRCLES = 3;
+export const STAGE_COUNT = STAGES_PER_CIRCLE * CIRCLES;
+export const CIRCLE_NAMES: L10n[] = [
+  { ru: 'Круг I', en: 'Circle I' },
+  { ru: 'Круг II', en: 'Circle II' },
+  { ru: 'Круг III', en: 'Circle III' },
 ];
 
+/** Поведение врагов по ролям: множители характеристик, дальность, скорость, интервал атаки, место в строю. */
+export const ROLE_STATS: Record<EnemyRole, { hp: number; atk: number; def: number; range: number; speed: number; interval: number; x: number }> = {
+  tank: { hp: 1.8, atk: 0.7, def: 1.5, range: 9, speed: 9, interval: 1400, x: 66 },
+  brute: { hp: 1.2, atk: 1.15, def: 1.0, range: 9, speed: 10, interval: 1200, x: 70 },
+  ranged: { hp: 0.8, atk: 1.05, def: 0.7, range: 42, speed: 10, interval: 1100, x: 84 },
+  caster: { hp: 0.75, atk: 1.1, def: 0.6, range: 38, speed: 9, interval: 1500, x: 88 },
+  healer: { hp: 0.85, atk: 0.7, def: 0.8, range: 36, speed: 9, interval: 1300, x: 90 },
+  rogue: { hp: 0.85, atk: 1.15, def: 0.7, range: 8, speed: 16, interval: 800, x: 78 },
+};
+
+const S = (id: string, ru: string, en: string, target: SkillDef['target'], cd: number, fx: SkillDef['fx'], vfx: string, first = 3000): SkillDef => ({
+  id,
+  kind: 'skill',
+  name: { ru, en },
+  desc: { ru: '', en: '' },
+  cd,
+  first,
+  target,
+  fx,
+  vfx,
+});
+const U = (id: string, ru: string, en: string, vfx: string): SkillDef => ({ id, kind: 'ult', name: { ru, en }, desc: { ru: '', en: '' }, target: 'all', fx: [], vfx });
+
+/** Умения врагов, мини-боссов и боссов. У боссов «ульта» — имя и вид «Сокрушительного удара». */
+export const ENEMY_SKILLS: Record<string, SkillDef> = Object.fromEntries(
+  [
+    S('enemy.tank', 'Глухая оборона', 'Guard', 'self', 9000, [{ fx: { t: 'shield', mult: 0.15, of: 'hp' } }, { fx: { t: 'taunt', ms: 2500 }, to: 'all' }], 'shield'),
+    S('enemy.brute', 'Сокрушение', 'Smash', 'target', 7000, [{ fx: { t: 'dmg', mult: 1.8 } }], 'slash', 2500),
+    S('enemy.ranged', 'Залп', 'Volley', 'random', 8000, [{ fx: { t: 'dmg', mult: 0.6, hits: 3 } }], 'arrow'),
+    S('enemy.caster', 'Волна силы', 'Power Wave', 'all', 9000, [{ fx: { t: 'dmg', mult: 0.7 } }], 'nova', 3500),
+    S('enemy.healer', 'Исцеление', 'Mend', 'allyLowest', 6000, [{ fx: { t: 'heal', mult: 1.6 } }], 'heal', 2500),
+    S('enemy.rogue', 'Засада', 'Ambush', 'back', 7000, [{ fx: { t: 'dmg', mult: 1.9 } }], 'dark', 2000),
+    // мини-боссы
+    S('mb.enrage', 'Ярость', 'Enrage', 'self', 10000, [{ fx: { t: 'buff', stat: 'atk', v: 0.4, ms: 6000 } }, { fx: { t: 'shield', mult: 0.08, of: 'hp' } }], 'fire', 4000),
+    S('mb.heal', 'Живительный сок', 'Living Sap', 'allies', 9000, [{ fx: { t: 'heal', mult: 1.4 } }], 'heal', 4000),
+    S('mb.storm', 'Буря', 'Storm', 'all', 10000, [{ fx: { t: 'dmg', mult: 0.9 } }], 'bolt', 4000),
+    S('mb.stomp', 'Топот', 'Stomp', 'target', 9000, [{ fx: { t: 'dmg', mult: 1.4 } }, { fx: { t: 'stun', ms: 1200 } }], 'nova', 4000),
+    S('mb.curse', 'Проклятие', 'Curse', 'all', 11000, [{ fx: { t: 'dot', mult: 0.8, ms: 4000, kind: 'poison' } }, { fx: { t: 'buff', stat: 'atk', v: -0.2, ms: 4000 } }], 'poison', 4000),
+    S('mb.volley', 'Шквал', 'Barrage', 'random', 9000, [{ fx: { t: 'dmg', mult: 0.7, hits: 4 } }], 'arrow', 4000),
+    S('mb.freeze', 'Ледяное дыхание', 'Frost Breath', 'all', 11000, [{ fx: { t: 'dmg', mult: 0.8 } }, { fx: { t: 'buff', stat: 'haste', v: -0.3, ms: 4000 } }], 'ice', 4000),
+    S('mb.charm', 'Чары', 'Charm', 'target', 9000, [{ fx: { t: 'stun', ms: 1500 } }, { fx: { t: 'dmg', mult: 1.2 } }], 'song', 4000),
+    S('mb.drain', 'Кровопийца', 'Blood Drain', 'target', 9000, [{ fx: { t: 'dmg', mult: 1.8, ls: 0.8 } }], 'dark', 4000),
+    S('mb.summon', 'Подмога', 'Reinforcements', 'self', 12000, [{ fx: { t: 'summon', unit: 'skeleton', count: 2, mult: 0.35 } }], 'dark', 4000),
+    // боссы актов
+    S('boss.thornWhip', 'Терновый хлыст', 'Thorn Whip', 'all', 8000, [{ fx: { t: 'dmg', mult: 0.8 } }, { fx: { t: 'dot', mult: 0.6, ms: 3000, kind: 'bleed' } }], 'poison'),
+    S('boss.entangle', 'Оплетение', 'Entangle', 'random', 11000, [{ fx: { t: 'stun', ms: 1500 } }, { fx: { t: 'dmg', mult: 0.9 } }], 'poison', 5000),
+    S('boss.sunBlast', 'Солнечный удар', 'Sun Blast', 'all', 8000, [{ fx: { t: 'dmg', mult: 0.9 } }, { fx: { t: 'dot', mult: 0.6, ms: 3000, kind: 'burn' } }], 'fire'),
+    S('boss.curseOfSands', 'Проклятие песков', 'Curse of Sands', 'back', 11000, [{ fx: { t: 'dmg', mult: 1.6 } }, { fx: { t: 'buff', stat: 'vuln', v: 0.2, ms: 4000 } }], 'dark', 5000),
+    S('boss.frostArrow', 'Ледяная стрела', 'Frost Arrow', 'back', 8000, [{ fx: { t: 'dmg', mult: 1.8 } }, { fx: { t: 'buff', stat: 'haste', v: -0.3, ms: 4000 } }], 'ice'),
+    S('boss.hailstorm', 'Град', 'Hailstorm', 'random', 11000, [{ fx: { t: 'dmg', mult: 0.6, hits: 5 } }], 'ice', 5000),
+    S('boss.tidalWave', 'Приливная волна', 'Tidal Wave', 'all', 8000, [{ fx: { t: 'dmg', mult: 1.0 } }, { fx: { t: 'buff', stat: 'haste', v: -0.2, ms: 4000 } }], 'ice'),
+    S('boss.drown', 'Утопление', 'Drown', 'target', 11000, [{ fx: { t: 'stun', ms: 1500 } }, { fx: { t: 'dot', mult: 1.2, ms: 3000, kind: 'poison' } }], 'ice', 5000),
+    S('boss.bloodKiss', 'Кровавый поцелуй', 'Blood Kiss', 'back', 8000, [{ fx: { t: 'dmg', mult: 2.0, ls: 0.5 } }], 'dark'),
+    S('boss.batSwarm', 'Стая летучих мышей', 'Bat Swarm', 'random', 11000, [{ fx: { t: 'dmg', mult: 0.5, hits: 6 } }], 'dark', 5000),
+    S('boss.magmaFist', 'Магмовый кулак', 'Magma Fist', 'target', 8000, [{ fx: { t: 'dmg', mult: 2.2 } }, { fx: { t: 'dot', mult: 1.0, ms: 3000, kind: 'burn' } }], 'fire'),
+    S('boss.eruption', 'Извержение', 'Eruption', 'all', 11000, [{ fx: { t: 'dmg', mult: 1.1 } }], 'fire', 5000),
+    S('boss.spearDive', 'Пике с копьём', 'Spear Dive', 'back', 8000, [{ fx: { t: 'dmg', mult: 2.1 } }], 'holy'),
+    S('boss.valkyrieCry', 'Клич валькирии', "Valkyrie's Cry", 'allies', 12000, [{ fx: { t: 'buff', stat: 'atk', v: 0.3, ms: 6000 } }, { fx: { t: 'shield', mult: 0.03, of: 'hp' } }], 'holy', 5000),
+    S('boss.laser', 'Лазер', 'Laser', 'all', 8000, [{ fx: { t: 'dmg', mult: 1.0 } }], 'bolt'),
+    S('boss.overclock', 'Разгон', 'Overclock', 'self', 12000, [{ fx: { t: 'buff', stat: 'haste', v: 0.4, ms: 6000 } }, { fx: { t: 'summon', unit: 'drone', count: 1, mult: 0.3 } }], 'bolt', 5000),
+    S('boss.soulRend', 'Разрыв души', 'Soul Rend', 'back', 8000, [{ fx: { t: 'dmg', mult: 1.8, ls: 0.3 } }], 'dark'),
+    S('boss.deathCoil', 'Лик смерти', 'Death Coil', 'all', 11000, [{ fx: { t: 'dmg', mult: 0.9 } }], 'dark', 5000),
+    S('boss.voidRay', 'Луч Пустоты', 'Void Ray', 'back', 8000, [{ fx: { t: 'dmg', mult: 2.4 } }], 'dark'),
+    S('boss.chaosNova', 'Сверхновая хаоса', 'Chaos Nova', 'all', 11000, [{ fx: { t: 'dmg', mult: 1.2 } }, { fx: { t: 'buff', stat: 'vuln', v: 0.2, ms: 4000 } }], 'nova', 5000),
+    // «Сокрушительные удары» боссов (по стихии)
+    U('boss.ultNature', 'Гнев леса', "Forest's Wrath", 'poison'),
+    U('boss.ultFire', 'Солнечная кара', 'Solar Wrath', 'fire'),
+    U('boss.ultWater', 'Вечная зима', 'Eternal Winter', 'ice'),
+    U('boss.ultDark', 'Кровавая луна', 'Blood Moon', 'dark'),
+    U('boss.ultLight', 'Небесный приговор', 'Heavenly Verdict', 'holy'),
+  ].map((s) => [s.id, s]),
+);
+
+/** «Сокрушительный удар» по стихии (для мини-боссов, элиты и колоссов без своей ульты). */
+export const HEAVY_BY_ELEMENT: Record<Element, string> = {
+  nature: 'boss.ultNature',
+  fire: 'boss.ultFire',
+  water: 'boss.ultWater',
+  dark: 'boss.ultDark',
+  light: 'boss.ultLight',
+};
+
 export interface StageRef {
-  diff: 0 | 1 | 2;
-  /** Номер этапа внутри сложности, 1…200. */
-  idx: number;
-  act: number;
-  stage: number;
-  /** Сквозной номер с учётом сложности (1…600). */
+  /** Сквозной номер этапа 1…600. */
   n: number;
+  /** Круг 0…2. */
+  circle: number;
+  act: number;
+  /** Этап внутри акта 1…20. */
+  stage: number;
+  /** Страж этапа: элита, мини-босс (5, 10, 15) или владычица акта (20). */
   kind: 'normal' | 'mini' | 'boss';
 }
 
-export function stageRef(diff: 0 | 1 | 2, idx: number): StageRef {
+export function stageRef(n: number): StageRef {
+  const k = Math.max(1, Math.min(STAGE_COUNT, Math.floor(n)));
+  const circle = Math.floor((k - 1) / STAGES_PER_CIRCLE);
+  const idx = k - circle * STAGES_PER_CIRCLE;
   const act = Math.ceil(idx / STAGES_PER_ACT);
   const stage = ((idx - 1) % STAGES_PER_ACT) + 1;
-  return {
-    diff,
-    idx,
-    act,
-    stage,
-    n: diff * STAGES_PER_DIFF + idx,
-    kind: stage === 20 ? 'boss' : stage % 5 === 0 ? 'mini' : 'normal',
-  };
+  return { n: k, circle, act, stage, kind: stage === 20 ? 'boss' : stage % 5 === 0 ? 'mini' : 'normal' };
 }
 
-export function stageFromGlobal(n: number): StageRef {
-  const diff = Math.min(2, Math.floor((n - 1) / STAGES_PER_DIFF)) as 0 | 1 | 2;
-  return stageRef(diff, n - diff * STAGES_PER_DIFF);
-}
-
-export function stageLabel(ref: { act: number; stage: number }): string {
-  return `${ref.act}-${ref.stage}`;
+export function stageLabel(ref: { act: number; stage: number; circle?: number }): string {
+  return `${ref.circle ? `${'I'.repeat(ref.circle + 1)}·` : ''}${ref.act}-${ref.stage}`;
 }

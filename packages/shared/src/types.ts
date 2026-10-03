@@ -1,4 +1,4 @@
-/** Базовые типы игры, общие для клиента и сервера. */
+/** Базовые типы игры, общие для клиента и сервера (Легион 3.0). */
 
 export type Lang = 'ru' | 'en';
 /** Локализованная строка. */
@@ -7,258 +7,80 @@ export type L10n = { ru: string; en: string };
 export type Element = 'fire' | 'nature' | 'water' | 'light' | 'dark';
 export const ELEMENTS: Element[] = ['fire', 'nature', 'water', 'light', 'dark'];
 
-/** Шесть классов — по одной героине на класс. */
+/** Шесть классов — по одному герою на класс. */
 export type ClassId = 'knight' | 'assassin' | 'priestess' | 'ranger' | 'warlock' | 'hunter';
 export const CLASS_IDS: ClassId[] = ['knight', 'assassin', 'priestess', 'ranger', 'warlock', 'hunter'];
 
+// ——— снаряжение ———
 
-/** 0 обычный … 6 божественный */
-export type ItemRarity = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-export const ITEM_RARITY_KEYS = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'divine'] as const;
+/** 0 обычный … 5 мифический (мифический — только слиянием). */
+export type ItemRarity = 0 | 1 | 2 | 3 | 4 | 5;
+export const RARITY_KEYS = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const;
+export const MAX_RARITY = 5;
 
-export type Difficulty = 0 | 1 | 2;
-export const DIFFICULTY_KEYS = ['normal', 'hard', 'nightmare'] as const;
+/** Четыре слота: оружие (атака), шлем (здоровье), доспех (защита), сапоги (скорость). */
+export type GearSlot = 'weapon' | 'helmet' | 'armor' | 'boots';
+export const GEAR_SLOTS: GearSlot[] = ['weapon', 'helmet', 'armor', 'boots'];
 
-export type ItemSlot =
-  | 'weapon'
-  | 'offhand'
-  | 'helmet'
-  | 'armor'
-  | 'gloves'
-  | 'boots'
-  | 'belt'
-  | 'cloak'
-  | 'amulet'
-  | 'ring';
-export type EquipSlot = Exclude<ItemSlot, 'ring'> | 'ring1' | 'ring2';
-export const EQUIP_SLOTS: EquipSlot[] = [
-  'weapon',
-  'offhand',
-  'helmet',
-  'armor',
-  'gloves',
-  'boots',
-  'belt',
-  'cloak',
-  'amulet',
-  'ring1',
-  'ring2',
-];
-export const ITEM_SLOTS: ItemSlot[] = [
-  'weapon',
-  'offhand',
-  'helmet',
-  'armor',
-  'gloves',
-  'boots',
-  'belt',
-  'cloak',
-  'amulet',
-  'ring',
-];
+/** Дополнительные свойства предметов. */
+export type SubStat = 'atkPct' | 'hpPct' | 'defPct' | 'crit' | 'critDmg' | 'haste' | 'skillDmg' | 'lifesteal';
+export const SUB_STATS: SubStat[] = ['atkPct', 'hpPct', 'defPct', 'crit', 'critDmg', 'haste', 'skillDmg', 'lifesteal'];
 
-export function equipSlotToItemSlot(s: EquipSlot): ItemSlot {
-  return s === 'ring1' || s === 'ring2' ? 'ring' : s;
-}
-
-/** Все характеристики и бонусы, которые могут давать предметы, древо, созвездие и т. д. */
-export type StatKey =
-  | 'hp'
-  | 'atk'
-  | 'def'
-  | 'spd'
-  | 'hpPct'
-  | 'atkPct'
-  | 'defPct'
-  | 'crit'
-  | 'critDmg'
-  | 'acc'
-  | 'eva'
-  | 'pen'
-  | 'lifesteal'
-  | 'healPower'
-  | 'resist'
-  | 'energyRegen'
-  | 'dmgFire'
-  | 'dmgNature'
-  | 'dmgWater'
-  | 'dmgLight'
-  | 'dmgDark'
-  | 'dmgBoss'
-  | 'dmgSkill'
-  | 'dmgUlt'
-  | 'dmgBasic'
-  | 'dmgDot'
-  | 'dmgReduce'
-  | 'shieldPower'
-  | 'goldPct'
-  | 'xpPct'
-  | 'lootDouble'
-  | 'skillRank';
-
-export type Stats = Partial<Record<StatKey, number>>;
-
-/** Итоговые боевые характеристики юнита. */
-export interface FinalStats {
-  hp: number;
-  atk: number;
-  def: number;
-  spd: number;
-  crit: number;
-  critDmg: number;
-  acc: number;
-  eva: number;
-  pen: number;
-  lifesteal: number;
-  healPower: number;
-  resist: number;
-  energyRegen: number;
-  /** Прочие бонусы (урон по стихиям, по боссам и т. д.). */
-  bonus: Stats;
-}
-
-export type Currency =
-  | 'gold'
-  | 'xp'
-  | 'crystals'
-  | 'emblems'
-  | 'dust'
-  | 'starDust'
-  | 'ether'
-  | 'arenaTokens'
-  | 'guildCoins'
-  | 'forgeMats'
-  | 'divineMats'
-  | 'labCoins'
-  | 'eventTokens';
-export const CURRENCIES: Currency[] = [
-  'gold',
-  'xp',
-  'crystals',
-  'emblems',
-  'dust',
-  'starDust',
-  'ether',
-  'arenaTokens',
-  'guildCoins',
-  'forgeMats',
-  'divineMats',
-  'labCoins',
-  'eventTokens',
-];
-
-/** Особый эффект (ключевой талант, легендарка, сет, пробуждение…) с параметрами. */
-export interface SpecialEffect {
-  id: string;
-  /** Основной числовой параметр (проценты — в долях). */
-  v?: number;
-  /** Дополнительный параметр. */
-  n?: number;
-  /** Строковый параметр, например id умения. */
-  s?: string;
-}
-
-export interface ItemAffix {
-  id: string;
-  tier: number;
-  v: number;
-}
+export type SetId = 'fury' | 'bastion' | 'gale' | 'predator' | 'grace' | 'eclipse';
+export const SET_IDS: SetId[] = ['fury', 'bastion', 'gale', 'predator', 'grace', 'eclipse'];
 
 export interface Item {
   uid: string;
-  base: string;
-  slot: ItemSlot;
+  slot: GearSlot;
   rarity: ItemRarity;
+  /** Уровень предмета (= этап, где он найден). */
   lvl: number;
-  main: { stat: StatKey; v: number };
-  affixes: ItemAffix[];
-  set?: string;
-  fx?: string;
+  /** Вид для иконки и названия (меч, лук, тяжёлый доспех…). */
+  kind: string;
+  /** Доп. свойства: значения в долях (0.06 = 6%). */
+  subs: { s: SubStat; v: number }[];
+  set?: SetId;
+  /** Заточка 0…15. */
   enh: number;
-  luck?: number;
-  sockets: number;
-  gems: (string | null)[];
   lock?: boolean;
   isNew?: boolean;
 }
 
-export interface HeroineState {
-  id: string;
-  lvl: number;
-  stars: number;
-  tree: Record<string, number>;
-  skills: (string | null)[];
-  spec?: 'A' | 'B';
-  skin?: string;
-  awakened?: boolean;
-  gear: Partial<Record<EquipSlot, string>>;
-  treeResets?: number;
+// ——— характеристики ———
+
+/** Итоговые характеристики бойца. Проценты — в долях. */
+export interface FinalStats {
+  hp: number;
+  atk: number;
+  def: number;
+  /** Скорость: ускоряет атаки и перезарядку умений. */
+  haste: number;
+  crit: number;
+  critDmg: number;
+  /** Урон умений и ульт. */
+  skillDmg: number;
+  lifesteal: number;
+  /** Сила лечения. */
+  heal: number;
+  /** Снижение получаемого урона. */
+  dmgRed: number;
+  /** Прибавка к набору энергии. */
+  energy: number;
+  /** Урон по боссам. */
+  bossDmg: number;
 }
 
-export interface Expedition {
-  id: string;
-  quest: string;
-  heroes: string[];
-  start: number;
-  end: number;
-  /** событие по возвращении, ждущее выбора игрока */
-  event?: string;
-}
+export type StatKey = keyof FinalStats;
 
-export interface FishingState {
-  day: string;
-  /** наживка в запасе */
-  bait: number;
-  /** пачек наживки куплено сегодня */
-  bought: number;
-  /** клюнувшая рыба (решена при забросе) */
-  hook?: { fish: string; spot: string; weight: number; hero?: string };
-  /** пойманные виды: сколько и лучший вес */
-  log: Record<string, { n: number; best: number }>;
-  /** полученные награды коллекции (число видов) */
-  milestones: number[];
-  /** героиня, с которой рыбачили в последний раз */
-  buddy?: string;
-}
+export type Currency = 'gold' | 'xp' | 'crystals' | 'emblems' | 'books' | 'steel' | 'eventTokens';
+export const CURRENCIES: Currency[] = ['gold', 'xp', 'crystals', 'emblems', 'books', 'steel', 'eventTokens'];
 
-export interface RiftState {
-  day: string;
-  used: number;
-  /** лучший ярус награды за сегодня (для быстрой зачистки) */
-  bestTierToday: number;
-  bestDmgToday: number;
-  week: string;
-  bestDmgWeek: number;
-  bestDmgEver: number;
-}
-
-export interface HordeState {
-  day: string;
-  wave: number;
-  hp: Record<string, number>;
-  active: boolean;
-  best: number;
-  week: string;
-  bestWeek: number;
-  /** Благословения забега (id из HORDE_BLESSINGS, могут повторяться). */
-  blessings?: string[];
-  /** Предложенный выбор благословения — до выбора следующая волна недоступна. */
-  offer?: string[];
-}
-
-export interface LabyrinthRun {
-  week: string;
-  floor: number;
-  node: number;
-  choices: string[];
-  hp: Record<string, number>;
-  relics: string[];
-  buffs: Stats;
-  pending?: { kind: 'relic' | 'buff'; options: string[] };
-  coins: number;
-  done?: boolean;
-  won?: boolean;
-  seed: number;
+export interface Reward {
+  cur?: Partial<Record<Currency, number>>;
+  heroes?: string[];
+  items?: Item[];
+  skins?: string[];
+  accXp?: number;
 }
 
 export interface MailMessage {
@@ -270,34 +92,41 @@ export interface MailMessage {
   claimed?: boolean;
 }
 
-export interface Reward {
-  cur?: Partial<Record<Currency, number>>;
-  heroes?: string[];
-  items?: Item[];
-  gems?: Record<string, number>;
-  skins?: string[];
-  accXp?: number;
-}
-
 export interface PlayerSettings {
   lang: Lang;
   music: number;
   sfx: number;
   notify: boolean;
+  /** Сам повышать уровень Легиона при сборе сундука. */
   autoLevel: boolean;
+  /** Сам вызывать стража этапа после волн. */
   autoBoss: boolean;
+  /** Повторять бой со стражем после поражения (через паузу). */
   autoRetry: boolean;
-  /** Автопереплавка: всё ниже указанной редкости (−1 — выключено). */
-  autoSmelt: number;
+  /** Авторазбор новых вещей ниже этой редкости (−1 — выключено). */
+  autoSalvage: number;
   haptics: boolean;
   speed: 1 | 2;
-  /** Ручные ульты в боях с боссами и в режимах (по умолчанию включены). */
-  manualUlt?: boolean;
-  /** Последняя прочитанная запись «Что нового» (id из CHANGELOG). */
+  /** Ручные ульты и парирование в боях со стражами и в режимах. */
+  manual?: boolean;
+  /** Последняя прочитанная запись «Что нового». */
   news?: string;
 }
 
-/** Близость с героиней: уровень, опыт и счётчики действий за день. */
+/** Герой Легиона: ранг, уровни навыков, облик и снаряжение. Уровень — общий у Легиона. */
+export interface HeroState {
+  id: string;
+  /** Ранг ★1…★7. */
+  rank: number;
+  /** Уровень умения 1…10. */
+  skill: number;
+  /** Уровень ульты 1…10. */
+  ult: number;
+  skin?: string;
+  gear: Partial<Record<GearSlot, string>>;
+}
+
+/** Близость с героем: уровень, опыт и счётчики действий за день. */
 export interface BondState {
   lvl: number;
   xp: number;
@@ -306,72 +135,55 @@ export interface BondState {
   treat: number;
   spa: boolean;
   date: boolean;
-  /** ванна в резиденции (раз в день) */
   bath?: boolean;
 }
 
-/** Артефакты: уровни (1–5), слоты отряда, гарантии баннера. */
-export interface ArtifactState {
-  /** изготовленные артефакты и их уровни (1–5) */
-  owned: Record<string, number>;
-  slots: (string | null)[];
-}
-
-/** Резиденция героинь: уровни комнат и последняя ночёвка. */
+/** Резиденция: уровни комнат и последняя ночёвка. */
 export interface HomeState {
   rooms: Partial<Record<'living' | 'kitchen' | 'bath' | 'bedroom', number>>;
-  /** день последней ночёвки (одна героиня за ночь) */
   slept?: string;
   sleptWith?: string;
 }
 
-/** Праздник Легиона: прогресс текущего праздника (с началом следующего начинается заново). */
+/** Праздник Легиона: прогресс текущего праздника. */
 export interface FestivalState {
-  /** номер праздника (цикла) */
   cycle: number;
-  /** какой праздник (id) — прогресс сбрасывается и при смене праздника с тем же номером */
   fest?: string;
   /** уровень силы на старте праздника — от него считаются враги пути и босса */
   lvl: number;
   points: number;
-  /** забранные ступени шкалы наград (индексы) */
   claimed: number[];
-  /** звёзды этапов пути (индекс этапа − 1 → 0–3) */
   stars: number[];
-  /** день, к которому относятся билеты, задания и попытки босса */
   day: string;
   tickets: number;
-  /** задания праздника, награда за которые забрана сегодня */
   tasks: string[];
-  /** всего заданий праздника выполнено за праздник */
   tasksDone: number;
-  /** цели праздника, награда за которые забрана */
   goals: string[];
-  /** общие счётчики на старте праздника (для целей) */
   base: Record<string, number>;
-  /** босс праздника: уровень, снятое HP текущего уровня, попытки сегодня, победы, лучший урон */
   boss: { lvl: number; dmg: number; used: number; kills: number; best: number };
-  /** «Самоцветные копи»: этаж, раскопанные клетки, кирки */
   mine?: MineState;
-  /** «Пляжный волейбол» Солнечного курорта: матчи сегодня, лестница соперниц, победы */
   volley?: VolleyState;
 }
 
 export interface VolleyState {
-  /** матчей сыграно сегодня */
   used: number;
-  /** купленные в лавке матчи (не сгорают) */
   bonus: number;
-  /** последняя обыгранная пара лестницы (0 — ни одной) */
   best: number;
   wins: number;
-  /** разгромные победы (соперницы взяли не больше одного очка) */
   big: number;
-  /** идущий матч: ступень, своя пара и время начала */
   match?: { rung: number; heroes: string[]; at: number };
 }
 
-/** Вечер у костра: день, разговор уже был, какая сцена, какие сцены уже видели. */
+export interface MineState {
+  floor: number;
+  seed: number;
+  picks: number;
+  dug: number[];
+  chests: number;
+  steps: number;
+  best: number;
+}
+
 export interface CampfireState {
   day: string;
   done: boolean;
@@ -379,7 +191,6 @@ export interface CampfireState {
   seen: string[];
 }
 
-/** Адъютант в лагере: кто стоит на главном экране, в чём, и сколько ласк сегодня уже засчитано. */
 export interface AdjutantState {
   hero: string;
   skin?: string;
@@ -387,7 +198,6 @@ export interface AdjutantState {
   pats: number;
 }
 
-/** Вылазка: награждаемые забеги за день, рекорды по сложностям и текущий забег. */
 export interface SortieState {
   day: string;
   runs: number;
@@ -395,23 +205,14 @@ export interface SortieState {
   active?: { id: number; tier: string; hero: string; at: number; rewarded: boolean };
 }
 
-export interface MineState {
-  floor: number;
-  seed: number;
-  picks: number;
-  /** раскопанные клетки текущего этажа */
-  dug: number[];
-  chests: number;
-  steps: number;
-  /** самый глубокий этаж за праздник */
-  best: number;
-}
-
-/** Активная встреча на экране боя. */
-export interface EncounterState {
-  kind: string;
-  at: number;
-  until: number;
+export interface FishingState {
+  day: string;
+  bait: number;
+  bought: number;
+  hook?: { fish: string; spot: string; weight: number; hero?: string };
+  log: Record<string, { n: number; best: number }>;
+  milestones: number[];
+  buddy?: string;
 }
 
 export interface PhotoEntry {
@@ -426,13 +227,22 @@ export interface PhotoEntry {
 
 export interface PhotoState {
   day: string;
-  /** кадров с наградой сегодня */
   shots: number;
   album: PhotoEntry[];
-  /** что уже известно о вкусах героини (угаданные место, поза, выражение) */
   known: Record<string, { loc?: string; pose?: string; face?: string }>;
-  /** лучший кадр за всё время (звёзды) */
   best: number;
+}
+
+/** Колосс: попытки за день, лучший урон дня, недели и за всё время, забранные пороги дня. */
+export interface RaidState {
+  day: string;
+  used: number;
+  bestDay: number;
+  week: string;
+  bestWeek: number;
+  best: number;
+  /** пороги урона, награда за которые забрана сегодня */
+  tiers: number[];
 }
 
 export interface PlayerState {
@@ -442,74 +252,40 @@ export interface PlayerState {
   createdAt: number;
   rng: number;
   battleSeed: number;
-  /** Близость с героинями (режим «Уход») и Сердца Эфира для нарядов близости. */
-  bond?: Record<string, BondState>;
-  bondHearts?: number;
-  home?: HomeState;
-  artifacts?: ArtifactState;
-  festival?: FestivalState;
-  /** Фотосессия: кадры с наградой за день, альбом, разгаданные вкусы героинь. */
-  photo?: PhotoState;
-  /** Рыбалка: наживка, клюнувшая рыба, коллекция. */
-  fishing?: FishingState;
-  /** Вечер у костра: разговоры героинь. */
-  campfire?: CampfireState;
-  adjutant?: AdjutantState;
-  sortie?: SortieState;
-  /** Встреча, ждущая решения игрока, и время следующей. */
-  encounter?: EncounterState | null;
-  encounterNext?: number;
   uidCounter: number;
   account: { lvl: number; xp: number };
   cur: Record<Currency, number>;
-  heroines: Record<string, HeroineState>;
+  /** Уровень Легиона — общий для всех героев. */
+  legion: { lvl: number };
+  heroines: Record<string, HeroState>;
   items: Record<string, Item>;
   invCap: number;
-  gems: Record<string, number>;
   skins: string[];
-  progress: {
-    diff: Difficulty;
-    cleared: [number, number, number];
-    wave: number;
-    bossFails: number;
-    retryAt: number;
-    maxGlobal: number;
-    maxGlobalEver: number;
-  };
-  chest: { since: number; minutes: number; gold: number; xp: number; accXp: number; itemMin: number; dust: number };
+  /** Знамя Легиона: уровни улучшений аккаунта. */
+  banner: Record<string, number>;
+  /** Поход: пройдено этапов (сквозной номер 0…600), волна текущего этапа, неудачи стража. */
+  progress: { stage: number; wave: number; fails: number; retryAt: number };
+  chest: { since: number; minutes: number; gold: number; xp: number; accXp: number; itemMin: number; steel: number };
   boosts: { x2Until: number };
   day: {
     key: string;
-    quickFree: boolean;
-    quickAd: boolean;
+    /** бесплатные быстрые сборы сегодня */
+    quickFree: number;
+    /** быстрые сборы за кристаллы сегодня */
     quick: number;
-    ads: number;
+    /** ускорения ×2 сегодня */
+    boosts: number;
+    /** ключи подземелий, потраченные сегодня */
     keys: Record<string, number>;
-    arena: number;
-    arenaBought: number;
     gift: boolean;
   };
-  week: { key: string; treeDiscount: boolean };
-  constellation: number;
-  ascension: { count: number; ether: number; up: Record<string, number>; story: number };
+  week: { key: string };
   modes: {
-    dungeons: Record<string, number>;
+    /** Башня: пройдено этажей. */
     tower: number;
-    abyss: number;
-    expeditions: Expedition[];
-    expeditionBoard: { day: string; quests: string[] };
-    lab?: LabyrinthRun;
-    labBest: number;
-    arena: { rating: number; wins: number; losses: number; opponents: ArenaOpponent[]; refreshDay: string };
-    /** Разлом Колосса: попытки за день, лучший урон дня/недели. */
-    rift?: RiftState;
-    /** Стихийные шпили: пройденный этаж по стихиям. */
-    spires?: Partial<Record<Element, number>>;
-    /** Нашествие: забег на выживание (один в день). */
-    horde?: HordeState;
-    /** Бездна: лучший жар договоров в победе и полученные награды рубежей жара. */
-    abyssHeat?: number;
-    abyssHeatClaimed?: number[];
+    /** Подземелья: лучший пройденный уровень по видам. */
+    dungeons: Record<string, number>;
+    raid?: RaidState;
   };
   quests: {
     dayKey: string;
@@ -529,29 +305,28 @@ export interface PlayerState {
     passSeason: string;
     passXp: number;
     passClaimed: number[];
-    /** Открыто бонусных сундуков пропуска (после 50-го уровня). */
     passBonus?: number;
   };
   mail: MailMessage[];
   settings: PlayerSettings;
   tutorial: number;
-  dev: { used: boolean; unlockAll?: boolean; immortal?: boolean; oneShot?: boolean; fixedSeed?: number | null; speed?: number; log?: boolean };
+  dev: { used: boolean; unlockAll?: boolean; immortal?: boolean; oneShot?: boolean; fixedSeed?: number | null; speed?: number };
   lastSeen: number;
   story: string[];
   titles: string[];
   title?: string;
-  lastBoss?: { gold: number; xp: number; at: number; doubled?: boolean };
   notify?: { chestFullAt?: number };
   referral?: { by?: string; count: number; claimed: number[] };
-}
-
-export interface ArenaOpponent {
-  id: string;
-  name: string;
-  rating: number;
-  power: number;
-  seed: number;
-  team: { id: string; lvl: number; stars: number }[];
+  // ——— Лагерь ———
+  bond?: Record<string, BondState>;
+  bondHearts?: number;
+  home?: HomeState;
+  festival?: FestivalState;
+  photo?: PhotoState;
+  fishing?: FishingState;
+  campfire?: CampfireState;
+  adjutant?: AdjutantState;
+  sortie?: SortieState;
 }
 
 /** Событие для аналитики и журнала. */
