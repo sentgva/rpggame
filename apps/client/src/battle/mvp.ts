@@ -1,7 +1,7 @@
-import { HEROINE_MAP, type BattleEvent } from '@idle/shared';
+import { HEROINE_MAP, type CombatEvent } from '@idle/shared';
 
 /** Лучший герой боя: больше всех урона (лечение и связки тоже в счёт). */
-export function mvpOf(events: BattleEvent[]): string | null {
+export function mvpOf(events: CombatEvent[]): string | null {
   const start = events.find((e) => e.k === 'start');
   if (!start || start.k !== 'start') return null;
   const refs = new Map<number, string>();

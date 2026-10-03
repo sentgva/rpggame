@@ -2,9 +2,10 @@ import {
   CURRENCIES,
   HEROINES,
   ITEM_RARITY_NAMES,
-  ITEM_SLOTS,
-  LEGENDARIES,
-  MYTHICS,
+  GEAR_SLOTS,
+  lootLuck,
+  stageLabel,
+  stageRef,
   SETS,
   SKINS,
   rollRarity,
@@ -121,20 +122,30 @@ function Resources() {
         <Button size="small" kind="danger" onClick={() => void dev('dev.cur', { cur, op: 'zero' })}>{t('dev.zero')}</Button>
       </div>
       <div className={css.divider} />
-      <Button size="small" kind="secondary" onClick={() => void dev('dev.gems', { lvl: 1, count: 9 })}>{t('dev.gems')} ×9</Button>{' '}
       <Button size="small" kind="secondary" onClick={() => void dev('dev.mail', { crystals: 500 })}>{t('dev.mail')}</Button>
     </Panel>
   );
 }
 
 function Heroes() {
+  const cfg = useCfg();
+  const s = useGameState();
   const [id, setId] = useState('all');
-  const [lvl, setLvl] = useState(60);
-  const [stars, setStars] = useState(5);
-  const [spec, setSpec] = useState<string>('');
+  const [legion, setLegion] = useState(s.legion.lvl);
+  const [rank, setRank] = useState(3);
+  const [skill, setSkill] = useState(5);
   const [skin, setSkin] = useState<string>('');
   return (
     <Panel title={t('dev.heroes')}>
+      <Field label={t('legion.level')}>
+        <div className={css.row} style={{ gap: 4 }}>
+          <input className={css.input} type="number" value={legion} onChange={(e) => setLegion(Number(e.target.value))} style={{ width: 90 }} />
+          <Button size="small" onClick={() => void dev('dev.legion', { lvl: legion })}>
+            {t('dev.apply')}
+          </Button>
+        </div>
+      </Field>
+      <div className={css.divider} />
       <Field label={t('nav.heroes')}>
         <select className={css.input} value={id} onChange={(e) => setId(e.target.value)}>
           <option value="all">{t('common.all')}</option>
@@ -145,18 +156,11 @@ function Heroes() {
           ))}
         </select>
       </Field>
-      <Field label={t('dev.setLevel')}>
-        <input className={css.input} type="number" value={lvl} onChange={(e) => setLvl(Number(e.target.value))} style={{ width: 90 }} />
+      <Field label={t('heroes.tabRank')}>
+        <input className={css.input} type="number" value={rank} min={1} max={cfg.hero.maxRank} onChange={(e) => setRank(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
-      <Field label={t('dev.setStars')}>
-        <input className={css.input} type="number" value={stars} min={1} max={6} onChange={(e) => setStars(Number(e.target.value))} style={{ width: 90 }} />
-      </Field>
-      <Field label={t('heroes.spec')}>
-        <select className={css.input} value={spec} onChange={(e) => setSpec(e.target.value)}>
-          <option value="">—</option>
-          <option value="A">A</option>
-          <option value="B">B</option>
-        </select>
+      <Field label={t('heroes.tabSkills')}>
+        <input className={css.input} type="number" value={skill} min={1} max={cfg.hero.maxSkill} onChange={(e) => setSkill(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
       {id !== 'all' && (
         <Field label={t('heroes.tabSkins')}>
@@ -171,14 +175,23 @@ function Heroes() {
         </Field>
       )}
       <div className={css.row} style={{ flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-        <Button size="small" onClick={() => void dev('dev.hero', { id, lvl, stars: undefined })}>{t('dev.apply')} ({t('dev.setLevel')})</Button>
-        <Button size="small" onClick={() => void dev('dev.hero', { id, stars: id === 'all' ? undefined : stars })}>{t('dev.apply')} ({t('dev.setStars')})</Button>
-        {spec && <Button size="small" onClick={() => void dev('dev.hero', { id, spec })}>{t('dev.apply')} ({t('heroes.spec')})</Button>}
-        {skin && <Button size="small" onClick={() => void dev('dev.hero', { id, skin })}>{t('dev.apply')} ({t('heroes.tabSkins')})</Button>}
-        <Button size="small" kind="secondary" onClick={() => void dev('dev.hero', { id, fullTree: true })}>{t('dev.fullTree')}</Button>
-        <Button size="small" kind="secondary" onClick={() => void dev('dev.hero', { id: 'all' })}>{t('dev.allHeroes')}</Button>
-        <Button size="small" kind="secondary" onClick={() => void dev('dev.skins')}>{t('dev.skins')}</Button>
-        {id !== 'all' && <Button size="small" kind="secondary" onClick={() => void dev('dev.hero', { id, awaken: true, stars: 6 })}>{t('heroes.awaken')}</Button>}
+        <Button size="small" onClick={() => void dev('dev.hero', { id, rank })}>
+          {t('dev.apply')} ({t('heroes.tabRank')})
+        </Button>
+        <Button size="small" onClick={() => void dev('dev.hero', { id, skill })}>
+          {t('dev.apply')} ({t('heroes.tabSkills')})
+        </Button>
+        {skin && (
+          <Button size="small" onClick={() => void dev('dev.hero', { id, skin })}>
+            {t('dev.apply')} ({t('heroes.tabSkins')})
+          </Button>
+        )}
+        <Button size="small" kind="secondary" onClick={() => void dev('dev.hero', { id: 'all' })}>
+          {t('dev.allHeroes')}
+        </Button>
+        <Button size="small" kind="secondary" onClick={() => void dev('dev.skins')}>
+          {t('dev.skins')}
+        </Button>
       </div>
     </Panel>
   );
@@ -186,18 +199,21 @@ function Heroes() {
 
 function Items() {
   const s = useGameState();
-  const [slot, setSlot] = useState('weapon');
+  const [slot, setSlot] = useState<string>('');
   const [rarity, setRarity] = useState(4);
-  const [lvl, setLvl] = useState(Math.max(10, s.progress.maxGlobal));
+  const [lvl, setLvl] = useState(Math.max(10, s.progress.stage));
   const [set, setSet] = useState('');
-  const [fx, setFx] = useState('');
   const [enh, setEnh] = useState(0);
+  const [count, setCount] = useState(1);
   return (
     <Panel title={t('dev.items')}>
-      <Field label={t('gear.forgeSlot')}>
+      <Field label={t('gear.title')}>
         <select className={css.input} value={slot} onChange={(e) => setSlot(e.target.value)}>
-          {ITEM_SLOTS.map((x) => (
-            <option key={x}>{x}</option>
+          <option value="">—</option>
+          {GEAR_SLOTS.map((x) => (
+            <option key={x} value={x}>
+              {t(`slot.${x}`)}
+            </option>
           ))}
         </select>
       </Field>
@@ -213,7 +229,7 @@ function Items() {
       <Field label={t('dev.setLevel')}>
         <input className={css.input} type="number" value={lvl} onChange={(e) => setLvl(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
-      <Field label={t('gear.forgeSet')}>
+      <Field label={t('gear.sets')}>
         <select className={css.input} value={set} onChange={(e) => setSet(e.target.value)}>
           <option value="">—</option>
           {SETS.map((x) => (
@@ -223,32 +239,15 @@ function Items() {
           ))}
         </select>
       </Field>
-      <Field label={t('gear.unique')}>
-        <select className={css.input} value={fx} onChange={(e) => setFx(e.target.value)}>
-          <option value="">—</option>
-          {LEGENDARIES.map((x) => (
-            <option key={x.id} value={x.id}>
-              {tl(x.name)}
-            </option>
-          ))}
-          {MYTHICS.map((x) => (
-            <option key={x.id} value={x.id}>
-              [M] {tl(x.name)}
-            </option>
-          ))}
-        </select>
-      </Field>
       <Field label="+">
         <input className={css.input} type="number" value={enh} min={0} max={15} onChange={(e) => setEnh(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
-      <div className={css.row} style={{ gap: 6, marginTop: 6 }}>
-        <Button size="small" onClick={() => void dev('dev.item', { slot, rarity, lvl, set: set || undefined, fx: fx || undefined, enh })}>
-          {t('dev.createItem')}
-        </Button>
-        <Button size="small" kind="secondary" disabled={!set} onClick={() => void dev('dev.fullSet', { set, rarity: Math.max(3, rarity), lvl })}>
-          {t('dev.fullSet')}
-        </Button>
-      </div>
+      <Field label="×">
+        <input className={css.input} type="number" value={count} min={1} max={50} onChange={(e) => setCount(Number(e.target.value))} style={{ width: 90 }} />
+      </Field>
+      <Button size="small" onClick={() => void dev('dev.item', { slot: slot || undefined, rarity, lvl, set: set || undefined, enh, count })}>
+        {t('dev.createItem')}
+      </Button>
     </Panel>
   );
 }
@@ -256,40 +255,27 @@ function Items() {
 function Progress() {
   const s = useGameState();
   const cfg = useCfg();
-  const [diff, setDiff] = useState(0);
-  const [act, setAct] = useState(1);
-  const [stage, setStage] = useState(1);
+  const [stage, setStage] = useState(s.progress.stage);
   const [tower, setTower] = useState(s.modes.tower);
-  const [abyss, setAbyss] = useState(s.modes.abyss);
   const [acc, setAcc] = useState(s.account.lvl);
-  const [cons, setCons] = useState(s.constellation);
   return (
     <Panel title={t('dev.progress')}>
-      <div className={css.row} style={{ gap: 6 }}>
-        <select className={css.input} value={diff} onChange={(e) => setDiff(Number(e.target.value))}>
-          <option value={0}>Normal</option>
-          <option value={1}>Hard</option>
-          <option value={2}>Nightmare</option>
-        </select>
-        <input className={css.input} type="number" min={1} max={10} value={act} onChange={(e) => setAct(Number(e.target.value))} style={{ width: 60 }} />
-        <input className={css.input} type="number" min={1} max={20} value={stage} onChange={(e) => setStage(Number(e.target.value))} style={{ width: 60 }} />
-        <Button size="small" onClick={() => void dev('dev.progress', { diff, idx: (act - 1) * 20 + stage })}>
-          {t('dev.goStage')}
-        </Button>
-      </div>
+      <Field label={t('dev.goStage')}>
+        <div className={css.row} style={{ gap: 4 }}>
+          <input className={css.input} type="number" min={0} max={600} value={stage} onChange={(e) => setStage(Number(e.target.value))} style={{ width: 80 }} />
+          <span className={css.tiny}>{stageLabel(stageRef(Math.max(1, stage)))}</span>
+          <Button size="small" onClick={() => void dev('dev.progress', { stage })}>
+            {t('dev.apply')}
+          </Button>
+        </div>
+      </Field>
       <Field label={t('mode.tower')}>
         <input className={css.input} type="number" value={tower} onChange={(e) => setTower(Number(e.target.value))} style={{ width: 90 }} />
-      </Field>
-      <Field label={t('mode.abyss')}>
-        <input className={css.input} type="number" value={abyss} onChange={(e) => setAbyss(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
       <Field label={t('dev.accLevel')}>
         <input className={css.input} type="number" value={acc} max={cfg.account.maxLevel} onChange={(e) => setAcc(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
-      <Field label={t('hub.constellation')}>
-        <input className={css.input} type="number" value={cons} max={240} onChange={(e) => setCons(Number(e.target.value))} style={{ width: 90 }} />
-      </Field>
-      <Button size="small" onClick={() => void dev('dev.progress', { tower, abyss, accLvl: acc, constellation: cons })}>
+      <Button size="small" onClick={() => void dev('dev.progress', { tower, accLvl: acc })}>
         {t('dev.apply')}
       </Button>
       <div className={css.divider} />
@@ -328,9 +314,6 @@ function Battle() {
       <Field label={t('dev.oneShot')}>
         <Toggle value={!!d.oneShot} onChange={(v) => void dev('dev.battle', { oneShot: v })} />
       </Field>
-      <Field label={t('dev.dmgLog')}>
-        <Toggle value={!!d.log} onChange={(v) => void dev('dev.battle', { log: v })} />
-      </Field>
       <Field label={t('dev.speed')}>
         <div className={css.row} style={{ gap: 4 }}>
           {[1, 2, 5, 10].map((x) => (
@@ -346,7 +329,6 @@ function Battle() {
           <Toggle value={!!d.fixedSeed} onChange={(v) => void dev('dev.battle', { fixedSeed: v ? seed : null })} />
         </div>
       </Field>
-      <div className={css.tiny}>{t('dev.dmgLog')}: console (DevTools)</div>
     </Panel>
   );
 }
@@ -354,10 +336,10 @@ function Battle() {
 function Balance() {
   const cfg = useCfg();
   const s = useGameState();
-  const [n, setN] = useState(Math.max(1, s.progress.maxGlobal));
+  const [n, setN] = useState(Math.round(lootLuck(s, cfg) * 100));
   const rng = new Rng(1);
   const counts = [0, 0, 0, 0, 0, 0];
-  for (let i = 0; i < 4000; i++) counts[rollRarity(cfg, rng, n, Math.min(2, Math.floor((n - 1) / 200)))]++;
+  for (let i = 0; i < 4000; i++) counts[rollRarity(cfg, rng, n / 100)]++;
   return (
     <Panel title={t('dev.balance')}>
       <Button
@@ -376,7 +358,7 @@ function Balance() {
         {JSON.stringify({ stat: cfg.stat, enemy: cfg.enemy, income: cfg.income, hero: cfg.hero }, null, 1)}
       </pre>
       <div className={css.tiny}>{t('dev.lootTable')}</div>
-      <Field label="n">
+      <Field label="luck %">
         <input className={css.input} type="number" value={n} onChange={(e) => setN(Number(e.target.value))} style={{ width: 90 }} />
       </Field>
       {counts.map((c, i) => (

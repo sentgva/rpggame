@@ -1,12 +1,12 @@
-import type { BattleEvent } from '@idle/shared';
+import type { CombatEvent } from '@idle/shared';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { sfx } from '../audio/sfx';
 import { battleSpeed } from '../battle/director';
+import { manualEnabled, runLive } from '../battle/live';
 import { mvpOf } from '../battle/mvp';
-import { runLive } from '../battle/live';
 import { BattleRenderer } from '../battle/renderer';
 import { t } from '../i18n';
 import { useUi } from '../store/ui';
-import { sfx } from '../audio/sfx';
 import { haptic } from '../tg/telegram';
 import { MvpCard } from './Mvp';
 import { UltBar } from './UltBar';
@@ -14,7 +14,7 @@ import { Button, css } from './ui';
 
 type View = { outcome?: ReactNode; result?: ReactNode };
 
-/** Бой с ручными ультами: действие отправляется после боя с командами игрока. */
+/** Бой с ручным управлением: действие отправляется после боя вместе с командами игрока. */
 export interface LiveSpec {
   type: string;
   params: Record<string, unknown>;
@@ -24,7 +24,7 @@ export interface LiveSpec {
 }
 
 interface Props {
-  events?: BattleEvent[];
+  events?: CombatEvent[];
   win?: boolean;
   live?: LiveSpec;
   act: number;
@@ -35,7 +35,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** Бой режима (подземелье, Башня, арена, лабиринт…) в отдельной сцене. */
+/** Бой режима (Башня, подземелье, Колосс, праздник…) в отдельной сцене. */
 function BattleModal({ events, win, live, act, title, result, outcome, onClose }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const [done, setDone] = useState<({ win: boolean; mvp?: string | null } & View) | null>(null);
@@ -44,7 +44,7 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
   useEffect(() => {
     const r = new BattleRenderer();
     let alive = true;
-    let played: BattleEvent[] = events ?? [];
+    let played: CombatEvent[] = events ?? [];
     const finish = (v: { win: boolean } & View) => {
       if (!alive) return;
       setDone({ ...v, mvp: v.win ? mvpOf(played) : null });
@@ -55,10 +55,15 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
     void r.init(host.current!).then(async () => {
       if (!alive) return;
       if (live) {
-        const res = await runLive(live.type, live.params, (lb) => {
-          played = lb.events;
-          return r.play({ events: lb.events, live: lb, win: lb.win, act, kind: 'mode', speed: battleSpeed(), label: title }, ctrl.current.signal);
-        });
+        const res = await runLive(
+          live.type,
+          live.params,
+          (lb) => {
+            played = lb.events;
+            return r.play({ events: lb.events, live: lb, win: lb.win, act, kind: 'mode', speed: battleSpeed(), label: title }, ctrl.current.signal);
+          },
+          manualEnabled(),
+        );
         if (!res) {
           if (alive) onClose();
           return;
@@ -79,36 +84,30 @@ function BattleModal({ events, win, live, act, title, result, outcome, onClose }
   }, []);
 
   return (
-    <div className={css.panel} style={{ width: '100%', maxWidth: 480, paddingBottom: 'calc(12px + var(--safe-bottom))' }} onClick={(e) => e.stopPropagation()}>
-      <div className={css.panelTitle}>{title}</div>
-      <div style={{ position: 'relative' }}>
-        <div ref={host} style={{ position: 'relative', height: 280, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--frame)', background: '#0e0a0c' }} />
-        {!done && <UltBar />}
+    <div className={css.panel} style={{ width: '100%', maxWidth: 480, padding: 0, overflow: 'hidden', paddingBottom: 'var(--safe-bottom)' }} onClick={(e) => e.stopPropagation()}>
+      <div className={css.panelTitle} style={{ padding: '10px 12px 6px', margin: 0 }}>
+        {title}
       </div>
-      {done ? (
-        <div className={css.col} style={{ marginTop: 8 }}>
-          <div className={css.title} style={{ textAlign: 'center', color: done.win ? 'var(--accent-2)' : '#ff8070' }}>
-            {done.outcome ?? (done.win ? t('common.victory') : t('common.defeat'))}
+      <div ref={host} style={{ position: 'relative', height: 'min(46vh, 360px)', minHeight: 240, overflow: 'hidden', background: '#0c0a1c' }} />
+      {!done && <UltBar />}
+      <div style={{ padding: 12 }}>
+        {done ? (
+          <div className={css.col}>
+            <div className={css.title} style={{ textAlign: 'center', fontSize: 22, color: done.win ? 'var(--accent)' : 'var(--bad)' }}>
+              {done.outcome ?? (done.win ? t('common.victory') : t('common.defeat'))}
+            </div>
+            {done.mvp && <MvpCard hero={done.mvp} />}
+            {done.win || done.outcome ? done.result : <div className={css.tiny} style={{ textAlign: 'center' }}>{t('battle.loseHint')}</div>}
+            <Button block onClick={onClose}>
+              {t('common.ok')}
+            </Button>
           </div>
-          {done.mvp && <MvpCard hero={done.mvp} />}
-          {done.win || done.outcome ? done.result : null}
-          <Button block onClick={onClose}>
-            {t('common.ok')}
-          </Button>
-        </div>
-      ) : (
-        <div className={css.row} style={{ marginTop: 8 }}>
-          <Button
-            kind="secondary"
-            block
-            onClick={() => {
-              ctrl.current.abort();
-            }}
-          >
+        ) : (
+          <Button kind="secondary" block onClick={() => ctrl.current.abort()}>
             {t('tut.skip')}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -126,4 +125,27 @@ export function showBattle(p: Omit<Props, 'onClose'> & { onClose?: () => void })
     ),
     { sticky: true },
   );
+}
+
+/**
+ * Бой в режиме: живая сцена (ульты и парирование вручную, если включено), итог — свой заголовок и награды.
+ * Возвращает результат действия (null — бой не состоялся или закрыт).
+ */
+export function playMode(type: string, params: Record<string, unknown>, title: string, act: number, render: (res: any) => View): Promise<any> {
+  return new Promise((resolve) => {
+    let got: any = null;
+    showBattle({
+      live: {
+        type,
+        params,
+        render,
+        onResult: (res) => {
+          got = res;
+        },
+      },
+      act,
+      title,
+      onClose: () => resolve(got),
+    });
+  });
 }

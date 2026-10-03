@@ -1,153 +1,110 @@
+import { HEROINE_MAP, activeParty, heroCanUpgrade, heroLevel } from '@idle/shared';
 import { iconUrl, portraitUrl } from '../art/runtime';
 import { currentLive, useLive } from '../battle/live';
 import { t } from '../i18n';
-import { useGame } from '../store/game';
+import { useCfg, useGame } from '../store/game';
+import { navigate } from '../store/ui';
 import { haptic } from '../tg/telegram';
+import { CLASS_COLOR, cx } from './ui';
+import st from './UltBar.module.css';
 
 /**
- * Панель ручных ульт поверх сцены боя: портреты героинь с кольцом энергии.
- * Полное кольцо — ульта готова; нажатие выпускает её на ближайшем ходу героини.
- * Когда босс готовит «Сокрушительный удар», панель подсказывает сбить его ультой.
+ * Панель Легиона под сценой. В бою с ручным управлением — портреты с кольцами энергии (тап — ульта),
+ * щит Кассиана (парирование) и «Авто». Вне такого боя — строй героев: уровень и отметка «есть улучшение».
  */
-/** Подсказка «жми на портрет» — первые несколько боёв. */
-let tipShown = -1;
-function showTip(): boolean {
-  if (tipShown < 0) {
-    try {
-      tipShown = Number(localStorage.getItem('ultTip') ?? 0);
-      localStorage.setItem('ultTip', String(tipShown + 1));
-    } catch {
-      tipShown = 0;
-    }
-  }
-  return tipShown < 3;
+export function UltBar() {
+  const live = useLive();
+  if (live.active && live.heroes.length) return <LiveBar />;
+  return <PartyStrip />;
 }
 
-export function UltBar() {
-  const { active, manual, heroes, cast } = useLive();
+function LiveBar() {
+  const { manual, heroes, cast, guard, chain, clock } = useLive();
   const skins = useGame((g) => g.state?.heroines);
-  if (!active || !heroes.length) return null;
-  const warn = !!cast && manual;
+  const window = cast ? cast.end - clock : Infinity;
+  const parryNow = !!cast && window <= 1200 && window > 0;
+  const guardReady = guard.has && clock >= guard.ready;
+  const guardCd = guard.has && !guardReady ? Math.min(1, (guard.ready - clock) / 5000) : 0;
   return (
-    <div
-      style={{ position: 'absolute', left: 6, right: 6, bottom: 6, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, pointerEvents: 'none' }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {!warn && manual && showTip() && (
-        <div style={{ background: 'rgba(20,12,16,.85)', color: '#f2e6d8', borderRadius: 6, padding: '2px 8px', fontSize: 11 }}>{t('ult.tip')}</div>
-      )}
-      {warn && (
-        <div style={{ background: 'rgba(120,20,10,.88)', color: '#ffe8a0', border: '1px solid #ff8a4a', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontWeight: 800, animation: 'pulse .6s ease-in-out infinite alternate' }}>
-          ⚡ {t('ult.interruptHint')}
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', pointerEvents: 'auto' }}>
+    <div className={st.bar}>
+      <button
+        className={cx(st.auto, !manual && st.autoOn)}
+        onClick={() => {
+          haptic.select();
+          currentLive?.auto();
+        }}
+      >
+        {t('ult.auto')}
+      </button>
+      <div className={st.heroes}>
         {heroes.map((h) => {
           const ready = manual && h.alive && !h.pending && h.energy >= 100;
           const pct = Math.max(0, Math.min(100, h.energy));
-          const ring = h.alive ? (h.energy >= 100 ? '#ffe08a' : '#e0a13a') : '#555';
-          const sigReady = manual && h.alive && h.sig && !h.sigPending;
+          const col = CLASS_COLOR[HEROINE_MAP[h.ref]?.cls ?? 'knight'];
           return (
-            <div key={h.uid} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
             <button
+              key={h.uid}
+              className={cx(st.hero, ready && st.ready, !h.alive && st.dead, h.pending && st.pending)}
               disabled={!ready}
-              aria-label={t('ult.cast')}
+              style={{ ['--p' as string]: `${pct * 3.6}deg`, ['--c' as string]: h.energy >= 100 ? '#ffe08a' : col }}
               onClick={() => {
                 haptic.medium();
                 currentLive?.cast(h.uid);
               }}
-              style={{
-                position: 'relative',
-                width: 48,
-                height: 48,
-                padding: 3,
-                border: 0,
-                borderRadius: 10,
-                cursor: ready ? 'pointer' : 'default',
-                background: `conic-gradient(${ring} ${pct * 3.6}deg, rgba(20,12,16,.85) 0)`,
-                boxShadow: ready ? (warn ? '0 0 12px 3px #ff6a2a' : '0 0 10px 2px #ffd060') : '0 1px 3px rgba(0,0,0,.6)',
-                animation: ready ? 'pulse .7s ease-in-out infinite alternate' : undefined,
-                opacity: h.alive ? 1 : 0.35,
-                filter: h.alive ? undefined : 'grayscale(1)',
-              }}
+              aria-label={t('ult.cast')}
             >
-              <img
-                className="pixel"
-                src={portraitUrl(h.ref, skins?.[h.ref]?.skin)}
-                alt=""
-                draggable={false}
-                style={{ width: '100%', height: '100%', borderRadius: 7, display: 'block', background: '#1c1216', opacity: ready || h.pending ? 1 : 0.7 }}
-              />
-              {(ready || h.pending) && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    bottom: -2,
-                    fontSize: 10,
-                    fontWeight: 900,
-                    color: h.pending ? '#cfe8ff' : '#2a1400',
-                    background: h.pending ? 'rgba(20,30,60,.85)' : '#ffd060',
-                    borderRadius: 4,
-                    lineHeight: '13px',
-                  }}
-                >
-                  {h.pending ? '…' : 'ULT'}
-                </span>
-              )}
+              <img className="pixel" src={portraitUrl(h.ref, skins?.[h.ref]?.skin)} alt="" draggable={false} />
             </button>
-            {manual && (
-              <button
-                disabled={!sigReady}
-                aria-label={t('battle.sig')}
-                onClick={() => {
-                  haptic.select();
-                  currentLive?.castSig(h.uid);
-                }}
-                style={{
-                  width: 30,
-                  height: 22,
-                  padding: 0,
-                  borderRadius: 6,
-                  border: `1px solid ${sigReady ? '#f2e6d8' : 'rgba(255,255,255,.15)'}`,
-                  background: h.sigPending ? 'rgba(20,30,60,.9)' : sigReady ? 'rgba(90,60,20,.95)' : 'rgba(20,12,16,.75)',
-                  boxShadow: sigReady ? '0 0 8px 1px rgba(255,220,140,.7)' : undefined,
-                  opacity: h.alive ? (sigReady || h.sigPending ? 1 : 0.45) : 0.25,
-                  cursor: sigReady ? 'pointer' : 'default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {h.sigPending ? (
-                  <span style={{ fontSize: 11, color: '#cfe8ff', fontWeight: 900 }}>…</span>
-                ) : (
-                  <img className="pixel" src={iconUrl(h.cls)} alt="" width={16} height={16} draggable={false} />
-                )}
-              </button>
-            )}
-            </div>
           );
         })}
-        <button
-          onClick={() => currentLive?.auto()}
-          disabled={!manual}
-          style={{
-            height: 30,
-            alignSelf: 'center',
-            padding: '0 8px',
-            borderRadius: 6,
-            border: '1px solid var(--frame)',
-            background: manual ? 'rgba(20,12,16,.85)' : 'rgba(60,120,60,.85)',
-            color: '#f2e6d8',
-            fontSize: 11,
-            fontWeight: 800,
-            cursor: manual ? 'pointer' : 'default',
-          }}
-        >
-          {manual ? t('ult.auto') : t('ult.autoOn')}
-        </button>
+      </div>
+      <button
+        className={cx(st.guard, parryNow && guardReady && st.guardNow, !guard.has && st.dead)}
+        disabled={!guard.has || !guardReady}
+        style={{ ['--cd' as string]: `${guardCd * 360}deg` }}
+        onClick={() => {
+          haptic.heavy();
+          currentLive?.guard();
+        }}
+        aria-label={t('ult.guard')}
+      >
+        <img className="pixel" src={iconUrl('shield')} alt="" draggable={false} />
+        {parryNow && guardReady && <span className={st.now}>{t('ult.now')}</span>}
+      </button>
+      {chain.n >= 2 && chain.until > clock && <div className={st.chain}>{t('battle.chain')} ×{chain.n}</div>}
+      {cast && !parryNow && guard.has && manual && <div className={st.hint}>{t('ult.parryHint')}</div>}
+    </div>
+  );
+}
+
+function PartyStrip() {
+  const s = useGame((g) => g.state)!;
+  const cfg = useCfg();
+  const party = activeParty(s);
+  return (
+    <div className={st.bar}>
+      <div className={st.heroes} style={{ justifyContent: 'space-between', flex: 1 }}>
+        {party.map((id) => {
+          const h = s.heroines[id];
+          const col = CLASS_COLOR[HEROINE_MAP[id].cls];
+          const lvl = heroLevel(cfg, s, h);
+          const capped = lvl < s.legion.lvl;
+          return (
+            <button
+              key={id}
+              className={cx(st.hero, st.idle)}
+              style={{ ['--p' as string]: '360deg', ['--c' as string]: col }}
+              onClick={() => {
+                haptic.select();
+                navigate('heroes', { id: 'hero', params: { id } });
+              }}
+            >
+              <img className="pixel" src={portraitUrl(id, h.skin)} alt="" draggable={false} />
+              <span className={cx(st.lvl, capped && st.capped)}>{lvl}</span>
+              {(heroCanUpgrade(cfg, s, id) || capped) && <span className={st.dot} />}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

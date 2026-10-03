@@ -2,7 +2,7 @@ import { isUnlocked } from '@idle/shared';
 import { heroUrl } from '../art/runtime';
 import { Button, css } from '../components/ui';
 import { t } from '../i18n';
-import { canLevelAny } from '../store/badges';
+import { canLevelLegion } from '../store/badges';
 import { useCfg, useGame, useGameState } from '../store/game';
 import { useUi } from '../store/ui';
 
@@ -20,13 +20,14 @@ export function Tutorial() {
   const modals = useUi((u) => u.modals.length);
   const steps: Step[] = [
     { text: t('tut.welcome'), when: () => true, tab: 'battle' },
-    { text: t('tut.chest'), when: () => s.chest.minutes >= 1 || s.progress.cleared[0] >= 1, tab: 'battle' },
+    { text: t('tut.level'), when: () => canLevelLegion(s, cfg), tab: 'battle' },
     { text: t('tut.boss'), when: () => s.progress.wave >= 3, tab: 'battle' },
-    { text: t('tut.heroes'), when: () => canLevelAny(s, cfg) },
+    { text: t('tut.ult'), when: () => s.progress.stage >= 1, tab: 'battle' },
     { text: t('tut.gear'), when: () => Object.keys(s.items).length > 0 },
-    { text: t('tut.tree'), when: () => isUnlocked({ s, cfg }, 'tree') },
+    { text: t('tut.chest'), when: () => s.chest.minutes >= 1, tab: 'battle' },
     { text: t('tut.combo'), when: () => Object.keys(s.heroines).length >= 3 },
-    { text: t('tut.rank'), when: () => isUnlocked({ s, cfg }, 'ranks') && s.cur.emblems >= cfg.hero.rankEmblems[0] },
+    { text: t('tut.rank'), when: () => s.legion.lvl >= cfg.hero.rankCaps[0] },
+    { text: t('tut.camp'), when: () => isUnlocked({ s, cfg }, 'care') },
   ];
   const step = steps[s.tutorial];
   if (!step || modals > 0) return null;

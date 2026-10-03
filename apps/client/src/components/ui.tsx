@@ -1,13 +1,11 @@
 import {
-  ELEMENT_COLORS,
-  BASE_ITEM_MAP,
   ELEMENT_NAMES,
   CLASSES,
   HEROINE_MAP,
   ITEM_RARITY_COLORS,
-  LEGENDARY_MAP,
-  MYTHIC_MAP,
   formatNum,
+  heroLevel,
+  itemName as itemNameOf,
   type ClassId,
   type Currency,
   type Element,
@@ -97,14 +95,8 @@ export const CUR_ICON: Record<string, string> = {
   xp: 'xp',
   crystals: 'crystals',
   emblems: 'emblems',
-  dust: 'dust',
-  starDust: 'starDust',
-  ether: 'ether',
-  arenaTokens: 'arenaTokens',
-  guildCoins: 'guildCoins',
-  forgeMats: 'forgeMats',
-  divineMats: 'divineMats',
-  labCoins: 'labCoins',
+  books: 'books',
+  steel: 'steel',
   eventTokens: 'eventTokens',
   hearts: 'hearts',
 };
@@ -184,8 +176,8 @@ export const CLASS_COLOR: Record<ClassId, string> = {
   hunter: '#6fd0e0',
 };
 
-/** Ранг героини — шевроны (1–6). */
-export function Rank({ n, max = 6, size = 10 }: { n: number; max?: number; size?: number }) {
+/** Ранг героя — звёзды (★1–★7). */
+export function Rank({ n, max = 7, size = 10 }: { n: number; max?: number; size?: number }) {
   const list = [];
   for (let i = 0; i < max; i++) list.push(<img key={i} src={iconUrl('rank')} className={cx(s.icon, i >= n && s.dim)} width={size} height={size} alt="" />);
   return <span className={s.stars}>{list}</span>;
@@ -208,10 +200,13 @@ export function HeroCard({
 }) {
   const def = HEROINE_MAP[id];
   const h = useGame((g) => g.state?.heroines[id]);
+  const legion = useGame((g) => g.state?.legion);
+  const cfg = useGame((g) => g.cfg);
   const color = CLASS_COLOR[def.cls];
+  const lvl = h && legion && cfg ? heroLevel(cfg, { legion }, h) : 1;
   return (
     <div
-      className={cx(s.hero, h?.awakened && s.heroAwake)}
+      className={cx(s.hero, h && h.rank >= 7 && s.heroAwake)}
       style={{
         ['--cls' as string]: color,
         borderColor: owned ? color : undefined,
@@ -232,9 +227,9 @@ export function HeroCard({
       {owned && h ? (
         <div className={s.heroMeta}>
           <span>
-            {t('common.level')} {h.lvl}
+            {t('common.level')} {lvl}
           </span>
-          <Rank n={h.stars} size={9} />
+          <Rank n={h.rank} size={9} />
         </div>
       ) : (
         sub
@@ -245,10 +240,8 @@ export function HeroCard({
   );
 }
 
-export function itemName(item: Item): string {
-  if (item.fx && LEGENDARY_MAP[item.fx]) return tl(LEGENDARY_MAP[item.fx].name);
-  if (item.fx && MYTHIC_MAP[item.fx]) return `${tl(BASE_ITEM_MAP[item.base]?.name)} · ${tl(MYTHIC_MAP[item.fx].name)}`;
-  return tl(BASE_ITEM_MAP[item.base]?.name);
+export function itemName(item: Pick<Item, 'kind' | 'rarity'>): string {
+  return tl(itemNameOf(item.kind, item.rarity));
 }
 
 export function rarityColor(r: number): string {

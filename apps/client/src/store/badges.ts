@@ -2,12 +2,13 @@ import {
   DAILY_QUESTS,
   WEEKLY_QUESTS,
   achievementClaimable,
-  goldToNext,
-  levelCap,
-  xpToNext,
+  activeParty,
+  heroCanUpgrade,
+  legionMaxLevel,
+  levelCost,
+  mergeGroups,
   type Config,
   type PlayerState,
-  activeParty,
 } from '@idle/shared';
 import { useMemo } from 'react';
 import { useGame } from './game';
@@ -20,29 +21,26 @@ export function questClaimable(s: PlayerState): number {
   return n;
 }
 
-export function canLevelAny(s: PlayerState, cfg: Config): boolean {
-  const party = activeParty(s);
-  return party.some((id) => {
-    const h = s.heroines[id];
-    return h && h.lvl < levelCap(cfg, h) && s.cur.xp >= xpToNext(cfg, h.lvl) && s.cur.gold >= goldToNext(cfg, h.lvl);
-  });
+/** Хватает ли на следующий уровень Легиона. */
+export function canLevelLegion(s: PlayerState, cfg: Config): boolean {
+  if (s.legion.lvl >= legionMaxLevel(cfg)) return false;
+  const c = levelCost(cfg, s.legion.lvl);
+  return s.cur.gold >= c.gold && s.cur.xp >= c.xp;
 }
 
 export function useBadges(): Record<Tab, boolean> {
   const s = useGame((g) => g.state)!;
   const cfg = useGame((g) => g.cfg)!;
-  const now = useGame.getState().now();
   return useMemo(() => {
     const newItems = Object.values(s.items).some((i) => i.isNew);
     const mail = s.mail.some((m) => !m.claimed && m.rewards);
     const login = s.quests.login.claimedKey !== s.day.key;
-    const expReady = s.modes.expeditions.some((e) => e.end <= now);
     return {
-      battle: s.progress.wave >= 3,
-      heroes: canLevelAny(s, cfg),
-      gear: newItems,
-      map: expReady,
+      battle: canLevelLegion(s, cfg),
+      heroes: activeParty(s).some((id) => heroCanUpgrade(cfg, s, id)),
+      gear: newItems || mergeGroups(s, 2).length > 0,
+      map: false,
       hub: questClaimable(s) > 0 || mail || login || achievementClaimable(s) > 0,
     };
-  }, [s, cfg, now]);
+  }, [s, cfg]);
 }

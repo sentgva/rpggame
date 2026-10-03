@@ -19,7 +19,7 @@ import { t } from '../../i18n';
 import { useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { RewardList, showReward } from '../common';
-import { playMode } from './Endgame';
+import { playMode } from '../../components/BattleModal';
 import fs from './Festival.module.css';
 import st from './FestModes.module.css';
 

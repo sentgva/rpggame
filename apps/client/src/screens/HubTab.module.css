@@ -1,43 +1,117 @@
-/* Лагерь: адъютант (Adjutant.module.css), четыре главных раздела крупно и сетка остальных — в родном «металлическом» стиле. */
+/* Лагерь: адъютант (Adjutant.module.css), крупные плитки отдыха и сетка разделов. */
 .main {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 10px;
 }
 .mainTile {
+  position: relative;
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  border-radius: 18px;
+  min-height: 96px;
+  padding: 12px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
   cursor: pointer;
-  color: inherit;
+  color: var(--text);
   text-align: left;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--c) 40%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(44, 37, 88, 0.95), rgba(22, 19, 46, 0.98));
+  box-shadow: var(--shadow);
   transition: transform 0.12s var(--ease);
 }
 .mainTile:active,
 .tile:active {
-  transform: translateY(2px);
+  transform: scale(0.97);
+}
+.mainIcon {
+  position: absolute;
+  right: 8px;
+  top: 8px;
 }
 .mainLabel {
-  font-family: var(--font-pixel);
-  font-size: 21px;
-  line-height: 1;
-  color: var(--accent-2);
-  text-shadow: 0 1px 0 #000;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 1.1;
+}
+.mainSub {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.locked {
+  filter: grayscale(0.7);
+  opacity: 0.55;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 .tile {
+  position: relative;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 6px;
+  gap: 4px;
+  padding: 10px 4px 8px;
   cursor: pointer;
-  color: inherit;
+  color: var(--text);
+  background: linear-gradient(180deg, rgba(44, 37, 88, 0.9), rgba(26, 22, 52, 0.94));
   transition: transform 0.12s var(--ease);
 }
 .tileLabel {
-  font-family: var(--font-pixel);
-  font-size: 16px;
-  line-height: 1.05;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.1;
   text-align: center;
+}
+.dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--edge);
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+
+/* ——— Знамя ——— */
+.bannerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bannerIcon {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, rgba(255, 193, 77, 0.35), rgba(255, 193, 77, 0.06));
+  border: 1px solid rgba(255, 193, 77, 0.35);
+}
+.bannerBar {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 0 2px;
+  overflow: hidden;
+}
+.bannerBar > div {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ffb340, #ffe08a);
 }

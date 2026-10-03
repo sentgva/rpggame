@@ -38,7 +38,7 @@ export function BattleView() {
     void ready.then(() => {
       if (!alive || r !== shared || !r.isReady) return;
       r.attach(el);
-      registerPlayer((p, signal) => r.play(p, signal));
+      registerPlayer({ play: (p, signal) => r.play(p, signal), march: (heroes, act, ms, signal) => r.march(heroes, act, ms, signal) });
     });
     const ro = new ResizeObserver(() => {
       if (el.clientWidth && el.clientHeight && r.isReady) r.resize(el.clientWidth, el.clientHeight);

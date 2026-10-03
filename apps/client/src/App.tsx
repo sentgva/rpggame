@@ -22,7 +22,7 @@ const MapTab = lazy(() => import('./screens/MapTab'));
 const HubTab = lazy(() => import('./screens/HubTab'));
 
 const TABS: { id: Tab; icon: string }[] = [
-  { id: 'battle', icon: 'battle' },
+  { id: 'battle', icon: 'sword' },
   { id: 'heroes', icon: 'heroes' },
   { id: 'gear', icon: 'gear' },
   { id: 'map', icon: 'map' },
@@ -45,7 +45,10 @@ function Loading({ error }: { error: string | null }) {
   return (
     <div className={styles.app}>
       <div className={styles.loading}>
-        <div className={styles.logo}>IDLE RPG</div>
+        <div className={styles.logo}>
+          IDLE RPG
+          <span>{t('app.subtitle')}</span>
+        </div>
         <HeroImg className={styles.loadingSprite} id="lira" />
         <div style={{ color: error ? 'var(--bad)' : 'var(--text-2)' }}>{error ?? t('app.loading')}</div>
         {error && (
@@ -132,11 +135,11 @@ function TopBar() {
         <Bar value={s.account.xp} max={need} height={7} color="linear-gradient(180deg,#8ad0ff,#3d7be0)" />
       </div>
       <div className={styles.res}>
-        <Icon name="gold" size={22} />
+        <Icon name="gold" size={20} />
         {formatNum(s.cur.gold)}
       </div>
       <div className={styles.res}>
-        <Icon name="crystals" size={22} />
+        <Icon name="crystals" size={20} />
         {formatNum(s.cur.crystals)}
       </div>
     </div>
@@ -158,10 +161,10 @@ function BottomNav() {
           }}
         >
           <span className={styles.navIcon}>
-            <Icon name={x.icon} size={30} />
+            <Icon name={x.icon} size={26} />
             {badges[x.id] && <span className="nav-dot" style={dotStyle} />}
           </span>
-          {t(`nav.${x.id}`)}
+          <span className={styles.navLabel}>{t(`nav.${x.id}`)}</span>
         </button>
       ))}
     </nav>
@@ -172,10 +175,9 @@ const dotStyle: React.CSSProperties = {
   position: 'absolute',
   top: -2,
   right: -4,
-  width: 10,
-  height: 10,
+  width: 9,
+  height: 9,
   borderRadius: '50%',
   background: 'var(--edge)',
-  border: '1.5px solid #1a0a0a',
-  boxShadow: '0 0 6px rgba(224,58,58,.8)',
+  boxShadow: '0 0 0 2px var(--bg-1), 0 0 6px rgba(255,90,122,.8)',
 };

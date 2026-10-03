@@ -1,238 +1,290 @@
+/* Экран «Поход»: сцена на полэкрана, панель Легиона, карточки управления. */
 .wrap {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 .viewport {
   position: relative;
   flex: none;
-  height: 45%;
-  min-height: 220px;
-  max-height: 380px;
+  height: min(48vh, 420px);
+  min-height: 250px;
   overflow: hidden;
-  border-bottom: 2px solid var(--frame);
-  box-shadow: 0 2px 0 rgba(184, 50, 44, 0.6);
-  background: #0e0a0c;
+  background: linear-gradient(180deg, #1a1638, #0c0a1c);
 }
-.hud {
+.viewport::after {
+  /* мягкое затемнение по краям сцены */
+  content: '';
   position: absolute;
-  left: 8px;
-  top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  inset: 0;
   pointer-events: none;
-}
-.stageTag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(10, 6, 8, 0.72);
-  border: 1px solid var(--frame);
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-family: var(--font-pixel);
-  font-size: 16px;
-  color: var(--accent-2);
-}
-.diff {
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: #3a2a2e;
-  color: var(--text);
-}
-.diff1 {
-  background: #7a3a14;
-}
-.diff2 {
-  background: #6a1420;
-}
-.waves {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-}
-.waveDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  background: #2a1e22;
-  border: 1px solid #000;
-}
-.waveDone {
-  background: var(--good);
-}
-.bossDot {
-  width: 16px;
-  height: 16px;
-}
-.chestBtn {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  width: 58px;
-  height: 58px;
-  border-radius: 8px;
-  background: rgba(10, 6, 8, 0.75);
-  border: 2px solid var(--frame);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.12s var(--ease);
-}
-.chestBtn:active {
-  transform: scale(0.94);
-}
-.chestFull {
-  border-color: var(--accent);
-  animation: glow 1.6s ease-in-out infinite;
-}
-.chestStage {
-  display: flex;
-  gap: 2px;
-  margin-top: 1px;
-}
-.chestStage span {
-  width: 9px;
-  height: 3px;
-  background: #2a1e22;
-  border-radius: 1px;
-}
-.chestStage .on {
-  background: var(--accent);
-}
-.x2 {
-  position: absolute;
-  right: 8px;
-  top: 72px;
-  background: rgba(10, 6, 8, 0.75);
-  border: 1px solid var(--accent);
-  color: var(--accent-2);
-  border-radius: 4px;
-  font-family: var(--font-pixel);
-  font-size: 15px;
-  padding: 2px 6px;
-  pointer-events: none;
-}
-.bossBar {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.retry {
-  background: rgba(10, 6, 8, 0.8);
-  border: 1px solid var(--frame);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
+  background:
+    linear-gradient(180deg, rgba(10, 8, 24, 0.55), transparent 22%, transparent 78%, rgba(10, 8, 24, 0.5)),
+    radial-gradient(ellipse at 50% 60%, transparent 55%, rgba(6, 4, 18, 0.35));
 }
 .controls {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px;
+  padding: 10px 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
-.chestRow {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+
+/* ——— верх сцены ——— */
+.hud {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 70px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+.stageChip {
+  pointer-events: auto;
+  appearance: none;
+  border: 1px solid var(--line-2);
+  background: rgba(12, 10, 30, 0.72);
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+  padding: 5px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  cursor: pointer;
+  color: var(--text);
+}
+.actName {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.stageNum {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1;
+}
+.track {
+  display: flex;
   align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: rgba(12, 10, 30, 0.6);
 }
-.incomeGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.pip {
+  width: 16px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.pipDone {
+  background: linear-gradient(90deg, #ffb340, #ffe08a);
+}
+.pipNow {
+  background: rgba(255, 224, 138, 0.55);
+  animation: twinkle 0.9s ease-in-out infinite;
+}
+.crown {
+  display: flex;
+  opacity: 0.4;
+}
+.crownOn {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px #ff5a7a);
+  animation: pulse 1s ease-in-out infinite;
+}
+.farm {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(12, 10, 30, 0.6);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+/* ——— кнопки сбоку ——— */
+.sideBtns {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 6px;
 }
-.incomeCell {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--frame-dark);
-  border-radius: 4px;
-  padding: 5px 6px;
+.round {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 50%;
+  padding: 3px;
+  cursor: pointer;
+  background: conic-gradient(#ffc14d var(--p), rgba(255, 255, 255, 0.14) 0);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.round::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #3a3270, #15112c);
+}
+.round img {
+  position: relative;
+}
+.roundFull {
+  animation: pulse 1.1s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px #fff3c4,
+    0 0 18px 4px rgba(255, 193, 77, 0.6);
+}
+.roundTag {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  border-radius: 7px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 14px;
+}
+.x2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  color: var(--bg-0);
+  background: linear-gradient(180deg, #7ff0c4, #3fcf94);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+
+/* ——— вызов стража ——— */
+.call {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 4px;
-  font-weight: 800;
-  font-size: 13px;
 }
-.quickRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+.retry {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(12, 10, 30, 0.75);
+  padding: 2px 8px;
+  border-radius: 8px;
 }
-.party {
+
+/* ——— Легион ——— */
+.legion {
   display: flex;
-  gap: 6px;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 193, 77, 0.16), transparent 50%),
+    linear-gradient(180deg, rgba(44, 37, 88, 0.92), rgba(27, 23, 54, 0.94));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
 }
-.pm {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  background: radial-gradient(circle at 50% 35%, #3a2a30, #140e12 75%);
-  border: 1.5px solid #4a3a36;
-  border-radius: 5px;
+.legionTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.legionLvl {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2px 0 1px;
-  cursor: pointer;
+  justify-content: center;
+  background: linear-gradient(180deg, #ffe39c, #ffb340);
+  color: var(--bg-0);
+  box-shadow: 0 6px 16px rgba(255, 170, 50, 0.3);
 }
-.pm img {
-  width: 48px;
-  height: 48px;
-  image-rendering: pixelated;
+.legionLvl .tiny,
+.legionLvl span {
+  color: rgba(20, 12, 4, 0.7);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
-.pmLvl {
+.legionLvl b {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1;
+}
+.brk {
   font-size: 10px;
   font-weight: 800;
+  color: var(--rose);
+  border: 1px solid color-mix(in srgb, var(--rose) 60%, transparent);
+  border-radius: 8px;
+  padding: 1px 6px;
 }
-.pmEmpty {
-  opacity: 0.35;
+
+/* ——— карточки ——— */
+.card {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(40, 34, 80, 0.9), rgba(26, 22, 52, 0.94));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
 }
-.mech {
+.cardHead {
   display: flex;
-  gap: 8px;
   align-items: center;
-  font-size: 12px;
-  color: var(--text-2);
-}
-.quickRow button {
-  min-width: 0;
-}
-
-/* свойства элиты босса этапа */
-.affixes {
-  display: flex;
   gap: 8px;
-  align-items: flex-start;
-  font-size: 12px;
-  color: var(--text-2);
+  margin-bottom: 8px;
+  font-family: var(--font-display);
 }
-
-.affix {
+.quest {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.quest .grow > div {
+  margin-bottom: 4px;
+}
+.guardian {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
   line-height: 1.35;
 }
-
-.affix b {
-  color: #ff9a7a;
-}
-
-.affixBonus {
-  margin-left: 4px;
-  padding: 0 6px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  color: #1b1418;
-  background: var(--accent-2);
+.guardian img {
+  image-rendering: pixelated;
+  flex: none;
 }

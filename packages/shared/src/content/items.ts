@@ -50,7 +50,7 @@ export const ITEM_KINDS: ItemKindDef[] = [
   { id: 'wand', slot: 'weapon', type: 'wand', names: N(['Жезл послушницы', "Acolyte's Wand"], ['Жезл света', 'Wand of Light'], ['Жезл серафима', "Seraph's Wand"]) },
   { id: 'bow', slot: 'weapon', type: 'bow', names: N(['Охотничий лук', 'Hunting Bow'], ['Эльфийский лук', 'Elven Bow'], ['Лук небосвода', 'Skyvault Bow']) },
   { id: 'staff', slot: 'weapon', type: 'staff', names: N(['Посох ученицы', "Apprentice's Staff"], ['Посох проклятий', 'Staff of Hexes'], ['Посох Преисподней', 'Netherflame Staff']) },
-  { id: 'crossbow', slot: 'weapon', type: 'crossbow', names: N(['Лёгкий арбалет', 'Light Crossbow'], ['Северный арбалет', 'Northern Crossbow'], ['Арбалет Вечной зимы', 'Crossbow of Endless Winter']) },
+  { id: 'crossbow', slot: 'weapon', type: 'bow', names: N(['Лёгкий арбалет', 'Light Crossbow'], ['Северный арбалет', 'Northern Crossbow'], ['Арбалет Вечной зимы', 'Crossbow of Endless Winter']) },
   { id: 'helm_heavy', slot: 'helmet', type: 'heavy', names: N(['Шлем стражника', "Guard's Helm"], ['Шлем паладина', "Paladin's Helm"], ['Корона бастиона', 'Bastion Crown']) },
   { id: 'helm_medium', slot: 'helmet', type: 'medium', names: N(['Кожаный капюшон', 'Leather Hood'], ['Капюшон следопыта', "Ranger's Hood"], ['Маска ночной тени', 'Nightshade Mask']) },
   { id: 'helm_light', slot: 'helmet', type: 'light', names: N(['Шёлковый обруч', 'Silk Circlet'], ['Диадема звёзд', 'Star Diadem'], ['Венец Эфира', 'Aether Crown']) },

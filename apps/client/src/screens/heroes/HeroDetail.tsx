@@ -1,359 +1,420 @@
 import {
   CLASSES,
-  COMBOS,
-  EQUIP_SLOTS,
+  GEAR_SLOTS,
   HEROINE_MAP,
-  SKILL_MAP,
+  ROSTER,
+  SETS,
   SKINS,
   SLOT_NAMES,
-  activeParty,
-  buildHeroine,
-  equipSlotToItemSlot,
-  fxText,
-  goldPerMin,
-  goldToNext,
-  isUnlocked,
-  itemPower,
-  levelCap,
-  maxRank,
-  rankCost,
-  sigRank,
-  stageFromGlobal,
-  statText,
-  xpToNext,
-  type FinalStats,
-  type StatKey,
   fashionFits,
   fashionOfDay,
+  heroLevel,
+  heroStats,
+  maxRank,
+  passiveTier,
+  rankCap,
+  rankCost,
+  setCounts,
+  skillCost,
+  skillPower,
+  stageRef,
+  type FinalStats,
+  type GearSlot,
+  type SkillDef,
 } from '@idle/shared';
 import { useState } from 'react';
-import { heroUrl } from '../../art/runtime';
-import { HeroImg } from '../../components/HeroImg';
-import { Button, CLASS_COLOR, Cost, ElementIcon, Icon, ItemSlot, Panel, Rank, Tabs, css, cx, elementName, formatNum, confirmDialog } from '../../components/ui';
-import { getLang, t, tl } from '../../i18n';
-import { useCfg, useGame, useGameState } from '../../store/game';
-import { useUi } from '../../store/ui';
-import { haptic } from '../../tg/telegram';
 import { sfx } from '../../audio/sfx';
-import { describeSkill } from '../../text/describe';
-import { BackHeader, UnequipAllButton, openItem, skinSourceText } from '../common';
-import { SkillTree } from './SkillTree';
 import { FashionDay } from '../../components/Fashion';
+import { HeroImg } from '../../components/HeroImg';
+import { Button, CLASS_COLOR, Cost, ElementIcon, Icon, ItemSlot, Panel, Rank, Tabs, confirmDialog, css, cx, elementName, formatNum, itemName, rarityColor } from '../../components/ui';
+import { t, tl } from '../../i18n';
+import { useCfg, useGame, useGameState } from '../../store/game';
+import { navigate, useUi } from '../../store/ui';
+import { haptic } from '../../tg/telegram';
+import { BackHeader, UnequipAllButton, skinSourceText } from '../common';
+import { mainShort, pct } from '../gear/itemText';
+import { openSlotPicker } from '../gear/SlotPicker';
+import { CombosPanel } from '../HeroesTab';
+import st from './Legion.module.css';
 
-type TabId = 'role' | 'stats' | 'tree' | 'gear' | 'skins' | 'bio';
+type TabId = 'rank' | 'gear' | 'skills' | 'skins' | 'bio';
+
+/** Соседний герой (стрелки по краям карточки). */
+function switchHero(id: string, dir: 1 | -1) {
+  const s = useGame.getState().state!;
+  const own = ROSTER.filter((x) => s.heroines[x]);
+  const i = own.indexOf(id);
+  const next = own[(i + dir + own.length) % own.length];
+  if (!next || next === id) return;
+  haptic.select();
+  useUi.setState((u) => ({ stacks: { ...u.stacks, heroes: [...u.stacks.heroes.slice(0, -1), { id: 'hero', params: { id: next } }] } }));
+}
 
 export function HeroDetail({ id }: { id: string }) {
   const s = useGameState();
   const cfg = useCfg();
   const def = HEROINE_MAP[id];
   const h = s.heroines[id];
-  const [tab, setTab] = useState<TabId>('role');
+  const [tab, setTab] = useState<TabId>('rank');
 
   if (!h) return <NotOwned id={id} />;
-  const party = activeParty(s);
-  const build = buildHeroine(cfg, s, h, { party });
-  const cap = levelCap(cfg, h);
-  const xp = xpToNext(cfg, h.lvl);
-  const gold = goldToNext(cfg, h.lvl);
+  const build = heroStats(cfg, s, id);
   const cls = CLASSES[def.cls];
   const color = CLASS_COLOR[def.cls];
-  const rc = rankCost(cfg, h);
-  const rankGold = rc ? Math.ceil(goldPerMin(cfg, s) * rc.goldMin) : 0;
-  const top = h.stars >= maxRank(cfg);
-
-  const level = async (times: number) => {
-    const r = await useGame.getState().act('hero.level', { id, times });
-    if (r.ok) {
-      sfx('levelup');
-      haptic.success();
-    }
-  };
+  const lvl = heroLevel(cfg, s, h);
+  const cap = rankCap(cfg, h.rank);
+  const owned = ROSTER.filter((x) => s.heroines[x]).length;
 
   return (
     <div className={css.col}>
-      <BackHeader title={tl(def.name)} right={<Rank n={h.stars} size={13} />} />
-      <Panel style={{ borderColor: color }}>
-        <div className={css.row} style={{ alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ position: 'relative', flex: 'none' }}>
-            <HeroImg className="pixel" id={id} skin={h.skin} width={128} height={128} style={{ animation: 'bob 1.4s ease-in-out infinite', filter: h.awakened ? `drop-shadow(0 0 6px ${color})` : undefined }} />
+      <BackHeader title={tl(def.name)} right={<Rank n={h.rank} size={12} />} />
+      <div className={st.hero} style={{ ['--c' as string]: color }}>
+        {owned > 1 && (
+          <>
+            <button className={st.switch} style={{ left: 4 }} onClick={() => switchHero(id, -1)} aria-label="prev">
+              ‹
+            </button>
+            <button className={st.switch} style={{ right: 4 }} onClick={() => switchHero(id, 1)} aria-label="next">
+              ›
+            </button>
+          </>
+        )}
+        <div className={st.heroArt}>
+          <HeroImg className="pixel" id={id} skin={h.skin} />
+        </div>
+        <div className={st.heroInfo} style={{ paddingRight: owned > 1 ? 26 : 0 }}>
+          <div className={st.heroName}>{tl(def.name)}</div>
+          <div className={st.heroTitle}>{tl(def.title)}</div>
+          <div className={st.chips}>
+            <span className={st.chipC} style={{ color, borderColor: color }}>
+              <Icon name={def.cls} size={13} />
+              {tl(cls.name)}
+            </span>
+            <span className={st.chipC}>
+              <ElementIcon el={def.element} size={13} />
+              {elementName(def.element)}
+            </span>
           </div>
-          <div className={css.grow}>
-            <div className={css.title}>{tl(def.name)}</div>
-            <div className={css.tiny}>{tl(def.title)}</div>
-            <div className={css.row} style={{ gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              <span className={css.chip} style={{ color, borderColor: color }}>
-                <Icon name={def.cls} size={14} />
-                {tl(cls.name)}
-                {h.spec && ` · ${tl(cls.specs[h.spec === 'A' ? 0 : 1].name)}`}
-              </span>
-              <span className={css.chip}>
-                <ElementIcon el={def.element} size={14} />
-                {elementName(def.element)}
-              </span>
+          <div className={css.tiny}>{tl(cls.role)}</div>
+          <div className={st.bigStat}>
+            <div>
+              <span>{t('common.level')}</span>
+              <b className={cx(s.legion.lvl > lvl && st.capped)}>
+                {lvl}
+                <small style={{ fontSize: 12, color: 'var(--text-2)' }}>/{cap}</small>
+              </b>
             </div>
-            <div className={css.row} style={{ marginTop: 6 }}>
-              <Icon name="battle" size={18} />
-              <b className={css.num}>{formatNum(build.power)}</b>
-              <span className={css.tiny}>{t('common.power')}</span>
-            </div>
-            <div className={css.tiny} style={{ marginTop: 2 }}>
-              {t('common.lvl', { lvl: h.lvl })} · {t('heroes.cap', { cap })} · {t('heroes.rank', { n: h.stars, max: maxRank(cfg) })}
+            <div>
+              <span>{t('common.power')}</span>
+              <b>{formatNum(build.power)}</b>
             </div>
           </div>
         </div>
-        <div className={css.divider} />
-        <div className={css.row} style={{ flexWrap: 'wrap', gap: 6 }}>
-          <Button size="small" disabled={h.lvl >= cap} onClick={() => void level(1)}>
-            {t('heroes.levelUp')}
-            <Cost cur="xp" amount={xp} size={14} />
-            <Cost cur="gold" amount={gold} size={14} />
-          </Button>
-          <Button size="small" kind="secondary" disabled={h.lvl >= cap} onClick={() => void level(10)}>
-            {t('heroes.levelUp10')}
-          </Button>
-          <Button size="small" kind="secondary" disabled={h.lvl >= cap} onClick={() => void level(500)}>
-            {t('heroes.levelMax')}
-          </Button>
-        </div>
-        <div className={css.row} style={{ flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {rc && (
-            <Button
-              size="small"
-              kind={s.cur.emblems >= rc.emblems && s.cur.gold >= rankGold ? 'good' : 'secondary'}
-              disabled={!isUnlocked({ s, cfg }, 'ranks')}
-              onClick={async () => {
-                const r = await useGame.getState().act('hero.rank', { id });
-                if (r.ok) {
-                  sfx('rare');
-                  haptic.success();
-                  useUi.getState().toast(t('heroes.rankUp', { name: tl(def.name), n: h.stars + 1, cap: cfg.hero.levelCaps[h.stars] ?? cap }), 'good');
-                }
-              }}
-            >
-              <Icon name="rank" size={16} />
-              {t('heroes.rankBtn')}
-              <Cost cur="emblems" amount={rc.emblems} size={14} />
-              <Cost cur="gold" amount={rankGold} size={14} />
-            </Button>
-          )}
-          {!isUnlocked({ s, cfg }, 'ranks') && <span className={css.tiny}>{t('heroes.ranksAt', { n: cfg.unlocks.stage.ranks })}</span>}
-          {top && !h.awakened && (
-            <Button size="small" onClick={() => void useGame.getState().act('hero.awaken', { id })}>
-              {t('heroes.awaken')}
-              <Cost cur="emblems" amount={cfg.hero.awakenEmblems} size={14} />
-              <Cost cur="crystals" amount={cfg.hero.awakenCrystals} size={14} />
-            </Button>
-          )}
-          {h.lvl >= cfg.hero.specLevel ? (
-            <Button size="small" kind="secondary" onClick={() => chooseSpec(id)}>
-              {t('heroes.spec')}
-            </Button>
-          ) : (
-            <span className={css.tiny}>{t('heroes.specAt', { lvl: cfg.hero.specLevel })}</span>
-          )}
-        </div>
-      </Panel>
+      </div>
 
       <Tabs<TabId>
         value={tab}
         onChange={setTab}
         items={[
-          { id: 'role', label: t('heroes.tabRole') },
-          { id: 'stats', label: t('heroes.tabStats') },
-          { id: 'tree', label: t('heroes.tabTree') },
+          { id: 'rank', label: t('heroes.tabRank') },
           { id: 'gear', label: t('heroes.tabGear') },
+          { id: 'skills', label: t('heroes.tabSkills') },
           { id: 'skins', label: t('heroes.tabSkins') },
           { id: 'bio', label: t('heroes.tabBio') },
         ]}
       />
-      {tab === 'role' && <RolePanel id={id} />}
-      {tab === 'stats' && <StatsPanel stats={build.stats} fx={build.fx.map((f) => fxText(f, getLang()))} />}
-      {tab === 'tree' && <SkillTree heroId={id} />}
-      {tab === 'gear' && <HeroGear heroId={id} />}
-      {tab === 'skins' && <HeroSkins heroId={id} />}
-      {tab === 'bio' && (
-        <Panel title={tl(def.title)}>
-          <p style={{ lineHeight: 1.5, margin: '0 0 8px' }}>{tl(def.bio)}</p>
-          <p className={css.gold} style={{ fontStyle: 'italic', margin: '0 0 8px' }}>
-            «{tl(def.quote)}»
-          </p>
-          <div className={css.tiny}>{tl(cls.role)}</div>
-          <div className={css.divider} />
-          {cls.specs.map((sp) => (
-            <div key={sp.id} style={{ marginBottom: 6 }}>
-              <b>{tl(sp.name)}</b> <span className={css.muted}>— {tl(sp.desc)}</span>
-            </div>
-          ))}
-        </Panel>
-      )}
+      {tab === 'rank' && <RankPanel id={id} stats={build.stats} />}
+      {tab === 'gear' && <GearPanel id={id} />}
+      {tab === 'skills' && <SkillsPanel id={id} />}
+      {tab === 'skins' && <SkinsPanel id={id} />}
+      {tab === 'bio' && <BioPanel id={id} />}
     </div>
   );
 }
 
-/** Роль в Легионе: фирменное умение, ульта и связки с другими классами. */
-function RolePanel({ id }: { id: string }) {
+// ——— ранг и характеристики ———
+
+const STAT_ROWS: { k: keyof FinalStats; pct?: boolean }[] = [
+  { k: 'hp' },
+  { k: 'atk' },
+  { k: 'def' },
+  { k: 'haste', pct: true },
+  { k: 'crit', pct: true },
+  { k: 'critDmg', pct: true },
+  { k: 'skillDmg', pct: true },
+  { k: 'lifesteal', pct: true },
+  { k: 'heal', pct: true },
+  { k: 'dmgRed', pct: true },
+  { k: 'energy', pct: true },
+];
+
+function RankPanel({ id, stats }: { id: string; stats: FinalStats }) {
+  const s = useGameState();
+  const cfg = useCfg();
+  const def = HEROINE_MAP[id];
+  const h = s.heroines[id];
+  const cost = rankCost(cfg, h.rank);
+  const cap = rankCap(cfg, h.rank);
+  const nextCap = h.rank < maxRank(cfg) ? rankCap(cfg, h.rank + 1) : null;
+  const needLvl = s.legion.lvl < cap;
+  const afford = !!cost && s.cur.emblems >= cost.emblems && s.cur.gold >= cost.gold;
+  const tierNext = h.rank + 1 === 3 || h.rank + 1 === 5;
+
+  return (
+    <>
+      <Panel title={t('heroes.rankTitle')}>
+        <div className={st.rankBox}>
+          <div className={st.rankBig}>
+            <div>
+              <b>★{h.rank}</b>
+              <span>{t('heroes.rankOf', { max: maxRank(cfg) })}</span>
+            </div>
+          </div>
+          <div className={css.grow}>
+            {nextCap ? (
+              <>
+                <div>
+                  {t('heroes.capLine')}: <b>{cap}</b> <span className={st.arrow}>→</span> <b className={css.gold}>{nextCap}</b>
+                </div>
+                <div className={css.tiny}>{t('heroes.rankGain', { pct: Math.round((cfg.hero.rankMult - 1) * 100) })}</div>
+                {tierNext && <div className={css.tiny} style={{ color: 'var(--rose)' }}>{t('heroes.rankPassive', { n: h.rank + 1 })}</div>}
+              </>
+            ) : (
+              <div className={css.gold}>{t('heroes.rankMax')}</div>
+            )}
+          </div>
+        </div>
+        {cost && (
+          <>
+            <div className={css.divider} />
+            {needLvl && <div className={css.tiny} style={{ marginBottom: 6, color: '#ffb0b8' }}>{t('heroes.rankNeedLvl', { lvl: cap })}</div>}
+            <Button
+              block
+              kind={afford && !needLvl ? 'good' : 'secondary'}
+              disabled={needLvl}
+              onClick={async () => {
+                const r = await useGame.getState().act('hero.rank', { id });
+                if (r.ok) {
+                  sfx('rare');
+                  haptic.success();
+                  useUi.getState().toast(t('heroes.rankUp', { name: tl(def.name), n: h.rank + 1, cap: nextCap ?? cap }), 'good');
+                }
+              }}
+            >
+              <Icon name="rank" size={16} />
+              {t('heroes.rankBtn')}
+              <Cost cur="emblems" amount={cost.emblems} size={14} />
+              <Cost cur="gold" amount={cost.gold} size={14} />
+            </Button>
+          </>
+        )}
+      </Panel>
+      <Panel title={t('heroes.tabStats')}>
+        <div className={st.stats}>
+          {STAT_ROWS.map(({ k, pct: p }) => (
+            <div key={k} className={st.stat}>
+              <span>{t(`stat.${k}`)}</span>
+              <b>{p ? pct(stats[k]) : formatNum(stats[k])}</b>
+            </div>
+          ))}
+        </div>
+        <div className={css.tiny} style={{ marginTop: 8 }}>
+          {t('heroes.statsHint')}
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+// ——— снаряжение ———
+
+function GearPanel({ id }: { id: string }) {
+  const s = useGameState();
+  const cfg = useCfg();
+  const h = s.heroines[id];
+  const counts = setCounts(s, h);
+  const sets = SETS.filter((x) => (counts[x.id] ?? 0) > 0);
+  return (
+    <>
+      <Panel
+        title={t('gear.title')}
+        right={
+          <div className={css.row} style={{ gap: 4 }}>
+            <UnequipAllButton hero={id} />
+            <Button
+              size="small"
+              onClick={async () => {
+                const r = await useGame.getState().act('party.autoEquip', { hero: id });
+                if (r.ok) useUi.getState().toast(t('gear.autoDone', { n: r.result.changes }), 'good');
+              }}
+            >
+              {t('gear.auto')}
+            </Button>
+          </div>
+        }
+      >
+        <div className={st.slots}>
+          {GEAR_SLOTS.map((slot: GearSlot) => {
+            const it = h.gear[slot] ? s.items[h.gear[slot]!] : null;
+            return (
+              <div key={slot} className={st.slot} onClick={() => openSlotPicker(id, slot)}>
+                <ItemSlot item={it} placeholder={slot} size={48} onClick={() => openSlotPicker(id, slot)} />
+                <div className={st.slotText}>
+                  <span className={css.tiny}>{tl(SLOT_NAMES[slot])}</span>
+                  {it ? (
+                    <>
+                      <b style={{ color: rarityColor(it.rarity) }}>{itemName(it)}</b>
+                      <span className={css.tiny}>{mainShort(cfg, it)}</span>
+                    </>
+                  ) : (
+                    <span className={css.tiny} style={{ color: 'var(--accent)' }}>
+                      {t('gear.tapToEquip')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+      <Panel title={t('gear.sets')}>
+        {sets.length === 0 && <div className={css.tiny}>{t('gear.setsHint')}</div>}
+        <div className={css.col} style={{ gap: 6 }}>
+          {sets.map((set) => {
+            const n = counts[set.id] ?? 0;
+            return (
+              <div key={set.id} className={st.setRow}>
+                <span className={st.setDot} style={{ background: set.color }} />
+                <div className={css.grow}>
+                  <b style={{ color: set.color }}>
+                    {tl(set.name)} · {n}/4
+                  </b>
+                  <div style={{ opacity: n >= 2 ? 1 : 0.45 }}>2: {tl(set.two.text)}</div>
+                  <div style={{ opacity: n >= 4 ? 1 : 0.45 }}>4: {tl(set.four)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+// ——— навыки ———
+
+function SkillsPanel({ id }: { id: string }) {
   const s = useGameState();
   const def = HEROINE_MAP[id];
   const h = s.heroines[id];
   const cls = CLASSES[def.cls];
-  const sig = SKILL_MAP[cls.sig];
-  const ultId = h.spec ? cls.specs[h.spec === 'A' ? 0 : 1].ult : cls.ult;
-  const ult = SKILL_MAP[ultId];
-  const basic = SKILL_MAP[cls.basic];
-  const mine = COMBOS.filter((c) => c.from === def.cls || c.to.includes(def.cls));
+  const tier = passiveTier(h.rank);
   return (
-    <Panel title={tl(cls.role)}>
-      <SkillLine icon={def.cls} title={`${t('heroes.sig')}: ${tl(sig?.name)}`} sub={`${t('heroes.sigRank', { n: sigRank(h) })} · ${t('heroes.sigHint')}`} lines={sig ? describeSkill(sig, sigRank(h)) : []} />
-      <SkillLine icon="star" title={`${t('heroes.ult')}: ${tl(ult?.name)}`} lines={ult ? describeSkill(ult, 1) : []} />
-      <SkillLine icon="battle" title={`${t('heroes.basic')}: ${tl(basic?.name)}`} lines={basic ? describeSkill(basic, 1) : []} />
-      <div className={css.divider} />
-      <div className={css.tiny} style={{ color: CLASS_COLOR[def.cls], fontWeight: 800 }}>
-        {t('heroes.comboGives')}
-      </div>
-      <div style={{ marginBottom: 6 }}>{tl(cls.combo.gives)}</div>
-      <div className={css.tiny} style={{ color: CLASS_COLOR[def.cls], fontWeight: 800 }}>
-        {t('heroes.comboTakes')}
-      </div>
-      <div style={{ marginBottom: 6 }}>{tl(cls.combo.takes)}</div>
-      <div className={css.row} style={{ gap: 4, flexWrap: 'wrap' }}>
-        {mine.map((c) => (
-          <span key={c.id} className={css.chip}>
-            <Icon name="combo" size={12} />
-            {tl(c.name)}
-          </span>
+    <>
+      <SkillCard id={id} which="skill" skill={cls.skill} />
+      <SkillCard id={id} which="ult" skill={cls.ult} />
+      <Panel title={`${t('heroes.passive')}: ${tl(cls.passive.name)}`}>
+        {cls.passive.desc.map((d, i) => (
+          <div key={i} className={cx(st.tier, i > tier && st.tierOff)}>
+            <span className={st.tierStar}>★{[1, 3, 5][i]}</span>
+            <span>{tl(d)}</span>
+          </div>
         ))}
-      </div>
-    </Panel>
+      </Panel>
+      <CombosPanel only={def.cls} />
+    </>
   );
 }
 
-function SkillLine({ icon, title, sub, lines }: { icon: string; title: string; sub?: string; lines: string[] }) {
+function SkillCard({ id, which, skill }: { id: string; which: 'skill' | 'ult'; skill: SkillDef }) {
+  const s = useGameState();
+  const cfg = useCfg();
+  const def = HEROINE_MAP[id];
+  const h = s.heroines[id];
+  const lvl = h[which];
+  const cost = skillCost(cfg, s, lvl);
+  const afford = !!cost && s.cur.books >= cost.books && s.cur.gold >= cost.gold;
+  const color = CLASS_COLOR[def.cls];
   return (
-    <div className={css.row} style={{ alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-      <Icon name={icon} size={22} />
-      <div className={css.grow}>
-        <b>{title}</b>
-        {sub && <div className={css.tiny}>{sub}</div>}
-        <div className={css.tiny}>{lines.join(' · ')}</div>
+    <div className={st.skill} style={{ ['--c' as string]: color }}>
+      <div className={st.skillHead}>
+        <div className={cx(st.skillIcon, which === 'ult' && st.ultIcon)}>
+          <Icon name={which === 'ult' ? 'star' : def.cls} size={26} />
+        </div>
+        <div className={css.grow}>
+          <div className={css.tiny} style={{ color, fontWeight: 800, textTransform: 'uppercase' }}>
+            {which === 'ult' ? t('heroes.ultLabel') : t('heroes.skillLabel')}
+          </div>
+          <b style={{ fontFamily: 'var(--font-display)', fontSize: 15 }}>{tl(skill.name)}</b>
+        </div>
+        <span className={st.skillLvl}>
+          {lvl}/{cfg.hero.maxSkill}
+        </span>
       </div>
+      <div className={st.skillDesc}>{tl(skill.desc)}</div>
+      <div className={css.row} style={{ gap: 6, flexWrap: 'wrap' }}>
+        {which === 'skill' ? <span className={st.tag}>⏱ {t('heroes.cd', { s: ((skill.cd ?? 0) / 1000).toFixed(1).replace('.0', '') })}</span> : <span className={st.tag}>⚡ {t('heroes.energyCost')}</span>}
+        <span className={st.tag}>{t('heroes.skillPower', { pct: Math.round(skillPower(cfg, lvl) * 100) })}</span>
+      </div>
+      {cost ? (
+        <Button
+          size="small"
+          kind={afford ? 'good' : 'secondary'}
+          onClick={async () => {
+            const r = await useGame.getState().act('hero.skill', { id, which });
+            if (r.ok) {
+              sfx('levelup');
+              haptic.success();
+            }
+          }}
+        >
+          {t('heroes.skillUp')}
+          <Cost cur="books" amount={cost.books} size={14} />
+          <Cost cur="gold" amount={cost.gold} size={14} />
+        </Button>
+      ) : (
+        <div className={css.tiny} style={{ color: 'var(--accent)' }}>
+          {t('heroes.skillMax')}
+        </div>
+      )}
     </div>
   );
 }
 
-const MAIN_STATS: (keyof FinalStats)[] = ['hp', 'atk', 'def', 'spd', 'crit', 'critDmg', 'acc', 'eva', 'pen', 'lifesteal', 'healPower', 'resist', 'energyRegen'];
-const PCT = new Set(['crit', 'critDmg', 'acc', 'eva', 'pen', 'lifesteal', 'healPower', 'resist', 'energyRegen']);
+// ——— облики ———
 
-function StatsPanel({ stats, fx }: { stats: FinalStats; fx: string[] }) {
-  const bonus = Object.entries(stats.bonus).filter(([, v]) => v);
-  return (
-    <Panel title={t('heroes.tabStats')}>
-      {MAIN_STATS.map((k) => {
-        const v = stats[k] as number;
-        return (
-          <div key={k} className={css.statRow}>
-            <span className={css.muted}>{t(`stat.${k}`)}</span>
-            <b className={css.num}>{PCT.has(k) ? `${Math.round(v * 1000) / 10}%` : formatNum(v)}</b>
-          </div>
-        );
-      })}
-      {bonus.map(([k, v]) => (
-        <div key={k} className={css.statRow}>
-          <span>{statText(k as StatKey, v as number, getLang())}</span>
-        </div>
-      ))}
-      {fx.length > 0 && (
-        <>
-          <div className={css.divider} />
-          {fx.map((f, i) => (
-            <div key={i} className={css.tiny} style={{ color: '#f2c86a', padding: '2px 0' }}>
-              <Icon name="star" size={10} /> {f}
-            </div>
-          ))}
-        </>
-      )}
-    </Panel>
-  );
-}
-
-function HeroGear({ heroId }: { heroId: string }) {
+function SkinsPanel({ id }: { id: string }) {
   const s = useGameState();
-  const cfg = useCfg();
-  const h = s.heroines[heroId];
-  return (
-    <Panel
-      title={t('gear.title')}
-      right={
-        <div className={css.row} style={{ gap: 4 }}>
-          <UnequipAllButton hero={heroId} />
-          <Button size="small" kind="secondary" onClick={() => void useGame.getState().act('item.autoEquip', { hero: heroId })}>
-            {t('gear.auto')}
-          </Button>
-        </div>
-      }
-    >
-      <div className={css.list}>
-        {EQUIP_SLOTS.map((slot) => {
-          const it = h.gear[slot] ? s.items[h.gear[slot]!] : null;
-          return (
-            <div
-              key={slot}
-              className={css.listItem}
-              style={{ cursor: 'pointer', padding: 4 }}
-              onClick={() => {
-                if (it) openItem(it.uid, heroId);
-                else {
-                  useUi.getState().setGearHero(heroId);
-                  useUi.getState().setTab('gear');
-                }
-              }}
-            >
-              <ItemSlot item={it} placeholder={equipSlotToItemSlot(slot)} size={40} />
-              <div className={css.grow}>
-                <div className={css.tiny}>{tl(SLOT_NAMES[slot])}</div>
-                {it ? <b style={{ fontSize: 13 }}>{formatNum(itemPower(cfg, it))}</b> : <span className={css.tiny}>{t('gear.empty')}</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Panel>
-  );
-}
-
-function HeroSkins({ heroId }: { heroId: string }) {
-  const s = useGameState();
-  const h = s.heroines[heroId];
-  const skins = SKINS.filter((x) => x.hero === heroId);
+  const h = s.heroines[id];
+  const skins = SKINS.filter((x) => x.hero === id);
   const theme = fashionOfDay(s.day.key);
+  const owned = skins.filter((x) => s.skins.includes(x.id)).length;
   return (
-    <Panel title={t('heroes.tabSkins')}>
+    <Panel title={t('heroes.tabSkins')} right={<span className={css.tiny}>{t('heroes.collection', { n: owned, total: skins.length })}</span>}>
       <div style={{ marginBottom: 8 }}>
         <FashionDay party={false} />
       </div>
-      <div className={css.grid3}>
-        <div className={cx(css.hero)} style={!h.skin ? { outline: '2px solid var(--accent-2)' } : undefined} onClick={() => void useGame.getState().act('hero.skin', { id: heroId, skin: null })}>
-          <img className={css.heroSprite} src={heroUrl(heroId)} alt="" />
-          <div className={css.heroName}>{t('heroes.skinNone')}</div>
+      <div className={st.skins}>
+        <div className={cx(st.skin, !h.skin && st.skinOn)} onClick={() => void useGame.getState().act('hero.skin', { id, skin: null })}>
+          <HeroImg className="pixel" id={id} still />
+          <div className={st.skinName}>{t('heroes.skinNone')}</div>
         </div>
         {skins.map((sk) => {
-          const owned = s.skins.includes(sk.id);
+          const has = s.skins.includes(sk.id);
           return (
             <div
               key={sk.id}
-              className={css.hero}
-              style={h.skin === sk.id ? { outline: '2px solid var(--accent-2)' } : undefined}
+              className={cx(st.skin, h.skin === sk.id && st.skinOn)}
               onClick={() => {
-                if (owned) void useGame.getState().act('hero.skin', { id: heroId, skin: sk.id });
-                else if (sk.crystals)
-                  confirmDialog(t('shop.buySkin', { name: tl(sk.name), n: sk.crystals }), () => void useGame.getState().act('shop.buy', { offer: `sk_${sk.id}` }));
-                else useUi.getState().toast(sk.source === 'shop' ? t('heroes.skinLocked') : skinSourceText(sk.id, true), 'info');
+                if (has) void useGame.getState().act('hero.skin', { id, skin: sk.id });
+                else if (sk.crystals) confirmDialog(t('shop.buySkin', { name: tl(sk.name), n: sk.crystals }), () => void useGame.getState().act('shop.buy', { offer: `sk_${sk.id}` }));
+                else useUi.getState().toast(skinSourceText(sk.id, true), 'info');
               }}
             >
-              <HeroImg className={cx(css.heroSprite, !owned && css.dim)} id={heroId} skin={sk.id} still={!owned} unarmed={!!sk.look.wear} flirt={owned && !!sk.look.wear} />
-              <div className={css.heroName}>{tl(sk.name)}</div>
+              <HeroImg className={cx('pixel', !has && css.dim)} id={id} skin={sk.id} still={!has} unarmed={!!sk.look.wear} flirt={has && !!sk.look.wear} />
+              <div className={st.skinName}>{tl(sk.name)}</div>
               {fashionFits(sk.id, theme) && <div className={css.tiny} style={{ color: '#ff9ac8' }}>{t('fashion.today')}</div>}
-              {!owned && sk.source !== 'shop' && <div className={css.tiny}>{skinSourceText(sk.id)}</div>}
-              <div className={css.tiny}>{owned ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : t('heroes.skinLocked')}</div>
+              <div className={css.tiny}>{has ? t('heroes.skinBonus') : sk.crystals ? <Cost cur="crystals" amount={sk.crystals} size={12} /> : skinSourceText(sk.id)}</div>
             </div>
           );
         })}
@@ -362,67 +423,60 @@ function HeroSkins({ heroId }: { heroId: string }) {
   );
 }
 
-function chooseSpec(id: string) {
+// ——— о герое ———
+
+function BioPanel({ id }: { id: string }) {
+  const s = useGameState();
   const def = HEROINE_MAP[id];
-  const cls = CLASSES[def.cls];
-  const h = useGame.getState().state!.heroines[id];
-  useUi.getState().open((close) => (
-    <div className={css.panel} style={{ width: '100%', maxWidth: 480, animation: 'slide-up .22s var(--ease)' }} onClick={(e) => e.stopPropagation()}>
-      <div className={css.panelTitle}>{t('heroes.spec')}</div>
-      <div className={css.col}>
-        {cls.specs.map((sp) => (
-          <div key={sp.id} className={css.listItem} style={{ alignItems: 'flex-start', flexDirection: 'column', borderColor: h.spec === sp.id ? 'var(--accent)' : undefined }}>
-            <b className={css.gold}>{tl(sp.name)}</b>
-            <span className={css.muted}>{tl(sp.desc)}</span>
-            {sp.fx && (
-              <span className={css.tiny}>
-                <Icon name="star" size={10} /> {fxText(sp.fx, getLang())}
-              </span>
-            )}
-            <span className={css.tiny}>
-              {Object.entries(sp.passive)
-                .map(([k, v]) => statText(k as StatKey, v as number, getLang()))
-                .join(', ')}
-            </span>
-            {h.spec !== sp.id && (
-              <Button
-                size="small"
-                onClick={async () => {
-                  const r = await useGame.getState().act('hero.spec', { id, spec: sp.id });
-                  if (r.ok) close();
-                }}
-              >
-                {t('heroes.specChoose')}
-                {h.spec && <Cost cur="crystals" amount={500} size={14} />}
-              </Button>
-            )}
-          </div>
-        ))}
+  const bond = s.bond?.[id]?.lvl ?? 0;
+  return (
+    <Panel title={tl(def.title)}>
+      <p style={{ lineHeight: 1.5, margin: '0 0 8px' }}>{tl(def.bio)}</p>
+      <p className={css.gold} style={{ fontStyle: 'italic', margin: '0 0 10px' }}>
+        «{tl(def.quote)}»
+      </p>
+      <div className={css.row}>
+        <Icon name="care" size={22} />
+        <div className={css.grow}>
+          <b>{t('heroes.bond', { n: bond })}</b>
+          <div className={css.tiny}>{t('heroes.bondHint')}</div>
+        </div>
+        <Button size="small" kind="secondary" onClick={() => navigate('hub', { id: 'care', params: { hero: id } })}>
+          {t('heroes.bondGo')}
+        </Button>
       </div>
-    </div>
-  ));
+    </Panel>
+  );
 }
 
 function NotOwned({ id }: { id: string }) {
   const def = HEROINE_MAP[id];
   const cls = CLASSES[def.cls];
-  const ref = stageFromGlobal(Math.max(1, def.join));
+  const ref = stageRef(Math.max(1, def.join));
   return (
     <div className={css.col}>
       <BackHeader title={tl(def.name)} />
-      <Panel style={{ borderColor: CLASS_COLOR[def.cls] }}>
-        <div className={css.col} style={{ alignItems: 'center', textAlign: 'center' }}>
-          <img className={cx('pixel', css.dim)} src={heroUrl(id)} width={128} height={128} alt="" />
-          <div className={css.title}>{tl(def.name)}</div>
-          <div className={css.muted}>
-            <Icon name={def.cls} size={14} /> {tl(cls.name)} · {tl(def.title)}
+      <div className={st.hero} style={{ ['--c' as string]: CLASS_COLOR[def.cls] }}>
+        <div className={st.heroArt}>
+          <HeroImg className="pixel" id={id} still style={{ filter: 'brightness(0.2)' }} />
+        </div>
+        <div className={st.heroInfo}>
+          <div className={st.heroName}>{tl(def.name)}</div>
+          <div className={st.heroTitle}>{tl(def.title)}</div>
+          <div className={st.chips}>
+            <span className={st.chipC}>
+              <Icon name={def.cls} size={13} />
+              {tl(cls.name)}
+            </span>
           </div>
-          <p style={{ lineHeight: 1.45 }}>{tl(def.bio)}</p>
-          <div className={css.chip}>
+          <div className={css.tiny}>{tl(cls.role)}</div>
+          <div className={st.chipC} style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
             <Icon name="lock" size={12} /> {t('legion.joinsAt', { act: ref.act, stage: ref.stage })}
           </div>
-          <div className={css.tiny}>{tl(cls.combo.gives)}</div>
         </div>
+      </div>
+      <Panel>
+        <p style={{ lineHeight: 1.45, margin: 0 }}>{tl(def.bio)}</p>
       </Panel>
     </div>
   );

@@ -1,0 +1,581 @@
+/* Вкладка «Легион» и карточка героя. */
+
+/* ——— шапка Легиона ——— */
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.lvl {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ffe39c, #ffb340);
+  color: var(--bg-0);
+  box-shadow: 0 6px 16px rgba(255, 170, 50, 0.3);
+}
+.lvl span {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: rgba(20, 12, 4, 0.7);
+}
+.lvl b {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1;
+}
+.power {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-display);
+}
+.power b {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* ——— строй ——— */
+.field {
+  position: relative;
+  height: 74px;
+  margin-top: 10px;
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(106, 184, 255, 0.08), rgba(255, 90, 122, 0.12)),
+    repeating-linear-gradient(90deg, transparent 0 24px, rgba(255, 255, 255, 0.03) 24px 25px);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.field::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-left: 10px solid rgba(255, 90, 122, 0.55);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+.fieldUnit {
+  position: absolute;
+  bottom: 4px;
+  width: 52px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.fieldUnit img {
+  width: 52px;
+  height: 52px;
+}
+.fieldUnit span {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgba(10, 8, 24, 0.75);
+  margin-top: -6px;
+}
+.fieldTags {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ——— карточки героев ——— */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.card {
+  position: relative;
+  border-radius: 18px;
+  padding: 10px 10px 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1.5px solid color-mix(in srgb, var(--c) 45%, transparent);
+  background:
+    radial-gradient(circle at 70% 18%, color-mix(in srgb, var(--c) 34%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(44, 37, 88, 0.95), rgba(20, 17, 42, 0.98));
+  box-shadow: var(--shadow);
+  transition: transform 0.12s var(--ease);
+  min-height: 176px;
+  display: flex;
+  flex-direction: column;
+}
+.card:active {
+  transform: scale(0.97);
+}
+.cardLocked {
+  filter: saturate(0.4);
+  opacity: 0.7;
+}
+.cardSprite {
+  position: absolute;
+  right: -10px;
+  top: 6px;
+  width: 116px;
+  height: 116px;
+  pointer-events: none;
+}
+.cardTop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 62%;
+}
+.cardName {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 1.1;
+}
+.cardCls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--c);
+}
+.cardBottom {
+  position: relative;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lvlRow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-display);
+}
+.lvlRow b {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+.lvlRow span {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.capped {
+  color: #ffb0b8 !important;
+}
+.pw {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--edge);
+  box-shadow: 0 0 0 2px var(--bg-1);
+  z-index: 1;
+}
+.joins {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ——— связки ——— */
+.combo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+.comboOff {
+  opacity: 0.5;
+}
+.pair {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.pair img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #3a3270, #15112c);
+}
+.mini {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.mini > div {
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ——— карточка героя ——— */
+.hero {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1.5px solid color-mix(in srgb, var(--c) 45%, transparent);
+  background:
+    radial-gradient(circle at 30% 45%, color-mix(in srgb, var(--c) 40%, transparent), transparent 60%),
+    radial-gradient(circle at 90% 0%, rgba(255, 126, 182, 0.18), transparent 50%),
+    linear-gradient(180deg, #2a2456, #141130);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  min-height: 196px;
+}
+.heroArt {
+  position: relative;
+  flex: none;
+  width: 150px;
+  margin: -6px -6px -12px -10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.heroArt img {
+  width: 168px;
+  height: 168px;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
+}
+.heroInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.heroName {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.05;
+}
+.heroTitle {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.25;
+}
+.chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.chipC {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-2);
+}
+.bigStat {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+}
+.bigStat div {
+  display: flex;
+  flex-direction: column;
+}
+.bigStat span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+.bigStat b {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.switch {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(10, 8, 24, 0.55);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* ——— ранг ——— */
+.rankBox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rankBig {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 228, 156, 0.35), transparent 70%),
+    conic-gradient(from 0deg, #ffb340, #ff7eb6, #a58bff, #6ab8ff, #ffb340);
+  padding: 3px;
+}
+.rankBig > div {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.rankBig b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--accent);
+}
+.rankBig span {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+.arrow {
+  color: var(--text-3);
+  font-weight: 800;
+}
+
+/* ——— характеристики ——— */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+.stat span {
+  color: var(--text-2);
+}
+.stat b {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+/* ——— снаряжение ——— */
+.slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  min-width: 0;
+}
+.slot:active {
+  transform: scale(0.98);
+}
+.slotText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.slotText b {
+  font-size: 12px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.setDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex: none;
+}
+
+/* ——— навыки ——— */
+.skill {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+.skillHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.skillIcon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 55%, #1a1634), #1a1634);
+  border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+}
+.ultIcon {
+  border-radius: 50%;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c) 50%, transparent);
+}
+.skillLvl {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.skillDesc {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text);
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-2);
+}
+.tier {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 6px 0;
+}
+.tierOff {
+  opacity: 0.45;
+}
+.tierStar {
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 7px;
+  background: rgba(255, 193, 77, 0.15);
+  color: var(--accent);
+}
+
+/* ——— облики ——— */
+.skins {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.skin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(44, 37, 88, 0.9), rgba(20, 17, 42, 0.95));
+  border: 1.5px solid var(--line);
+  cursor: pointer;
+  text-align: center;
+}
+.skinOn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 193, 77, 0.25);
+}
+.skin img {
+  width: 84px;
+  height: 84px;
+}
+.skinName {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}

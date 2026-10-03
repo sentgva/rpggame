@@ -1,6 +1,10 @@
 import '@fontsource/manrope/500.css';
 import '@fontsource/manrope/700.css';
 import '@fontsource/manrope/800.css';
+import '@fontsource/rubik/500.css';
+import '@fontsource/rubik/600.css';
+import '@fontsource/rubik/700.css';
+import '@fontsource/rubik/800.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles/global.css';

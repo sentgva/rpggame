@@ -1,4 +1,4 @@
-import type { ClassId, L10n } from '../types';
+import type { ClassId, Element, L10n } from '../types';
 
 /**
  * Классы Легиона 3.0: базовые характеристики, поведение в «Живом бою» и набор навыков.
@@ -385,3 +385,19 @@ export function comboMastery(count: number): { lvl: number; next: number | null;
 export function passiveTier(rank: number): number {
   return rank >= 5 ? 2 : rank >= 3 ? 1 : 0;
 }
+
+export const ELEMENT_NAMES: Record<Element, L10n> = {
+  fire: { ru: 'Огонь', en: 'Fire' },
+  nature: { ru: 'Природа', en: 'Nature' },
+  water: { ru: 'Вода', en: 'Water' },
+  light: { ru: 'Свет', en: 'Light' },
+  dark: { ru: 'Тьма', en: 'Dark' },
+};
+
+export const ELEMENT_COLORS: Record<Element, string> = {
+  fire: '#E8552E',
+  nature: '#4FBF5A',
+  water: '#3D9BE0',
+  light: '#F2D46B',
+  dark: '#9B4DE0',
+};

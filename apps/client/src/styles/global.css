@@ -1,34 +1,48 @@
-/* Палитра из ТЗ (раздел 2) */
+/* Тема «Звёздная ночь» (Легион 3.0): глубокий фиолетовый, стеклянные панели, золото и розовый. */
 :root {
-  --panel-1: #1b1418;
-  --panel-2: #2a1e22;
-  --panel-3: #33252a;
-  --frame: #5a3a2e;
-  --frame-dark: #3a2620;
-  --edge: #b8322c;
-  --accent: #e0a13a;
-  --accent-2: #f2c86a;
-  --accent-dark: #9a6a1e;
-  --text: #f2e6d8;
-  --text-2: #a89484;
-  --text-3: #6f5f55;
-  --good: #4fbf5a;
-  --bad: #e03a3a;
-  --info: #3d7be0;
-  --tg-accent: #e0a13a;
+  --bg-0: #0b0918;
+  --bg-1: #120f25;
+  --bg-2: #1a1634;
+  --panel-1: #1b1736;
+  --panel-2: #241f47;
+  --panel-3: #2e2858;
+  --glass: rgba(36, 30, 72, 0.82);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-2: rgba(255, 255, 255, 0.16);
+  --frame: rgba(255, 255, 255, 0.12);
+  --frame-dark: rgba(255, 255, 255, 0.06);
+  --edge: #ff5a7a;
+  --accent: #ffc14d;
+  --accent-2: #ffd98a;
+  --accent-dark: #c4862a;
+  --rose: #ff7eb6;
+  --violet: #a58bff;
+  --sky: #6ab8ff;
+  --text: #f4f1ff;
+  --text-2: #aca6cf;
+  --text-3: #6f6994;
+  --good: #4fe0a6;
+  --bad: #ff5a6a;
+  --info: #6ab8ff;
+  --tg-accent: #ffc14d;
 
-  --r-common: #9a9a9a;
-  --r-uncommon: #4fbf5a;
-  --r-rare: #3d7be0;
-  --r-epic: #9b4de0;
-  --r-legendary: #f08a24;
-  --r-mythic: #e03a3a;
-  --r-divine: linear-gradient(135deg, #e03a3a, #f08a24, #f2d46b, #4fbf5a, #3d9be0, #9b4de0);
+  --r-common: #a3abbf;
+  --r-uncommon: #5fd38a;
+  --r-rare: #5aa8ff;
+  --r-epic: #b57bff;
+  --r-legendary: #ffc14d;
+  --r-mythic: #ff5a6a;
+  --r-divine: linear-gradient(135deg, #ff5a6a, #ffc14d, #5fd38a, #5aa8ff, #b57bff);
 
-  --font-pixel: 'PixelUI', 'Manrope', system-ui, sans-serif;
+  --font-display: 'Rubik', 'Manrope', system-ui, sans-serif;
+  /* исторически «пиксельный» заголовочный шрифт — теперь Rubik */
+  --font-pixel: var(--font-display);
   --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --nav-h: 64px;
-  --top-h: 52px;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 10px 28px rgba(4, 2, 16, 0.45);
+  --nav-h: 66px;
+  --top-h: 54px;
   /* полноэкранный Telegram: системная зона (часы, «чёлка») + зона кнопок Telegram («✕» и «•••») */
   --safe-top: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
   --safe-bottom: calc(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
@@ -47,7 +61,7 @@ body,
   padding: 0;
   height: 100%;
   overflow: hidden;
-  background: #120c10;
+  background: var(--bg-0);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 14px;
@@ -74,7 +88,7 @@ canvas.pixel,
   height: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--frame);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 2px;
 }
 
@@ -120,10 +134,28 @@ canvas.pixel,
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 6px 1px rgba(240, 138, 36, 0.35);
+    box-shadow: 0 0 6px 1px rgba(255, 193, 77, 0.35);
   }
   50% {
-    box-shadow: 0 0 14px 3px rgba(240, 138, 36, 0.6);
+    box-shadow: 0 0 16px 3px rgba(255, 193, 77, 0.6);
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
   }
 }
 @keyframes shine {

@@ -9,20 +9,16 @@ import { useUi } from '../../store/ui';
 import { sfx } from '../../audio/sfx';
 import { BackHeader, skinSourceText } from '../common';
 
-type ShopTab = 'emblems' | 'daily' | 'skins' | 'arena' | 'labyrinth' | 'event' | 'guild';
+type ShopTab = 'emblems' | 'daily' | 'skins' | 'event';
 
 export function Shop({ initial }: { initial?: ShopTab }) {
   const [tab, setTab] = useState<ShopTab>(initial ?? 'emblems');
-  const social = useGame((g) => g.flags.social);
   const tabs: { id: ShopTab; label: string }[] = [
     { id: 'emblems', label: t('shop.emblems') },
     { id: 'daily', label: t('shop.daily') },
     { id: 'skins', label: t('shop.skins') },
-    { id: 'arena', label: t('shop.arena') },
-    { id: 'labyrinth', label: t('shop.labyrinth') },
     { id: 'event', label: t('shop.event') },
   ];
-  if (social) tabs.push({ id: 'guild', label: t('shop.guild') });
   return (
     <div className={css.col}>
       <BackHeader title={t('shop.title')} />
@@ -44,7 +40,7 @@ function CurrencyShop({ shop }: { shop: ShopTab }) {
     const set = SKIN_MAP[o.give.skin!]?.set;
     return filter === 'other' ? !set : set === filter;
   });
-  const walletCur: Record<string, Currency> = { shards: 'crystals', daily: 'crystals', skins: 'crystals', arena: 'arenaTokens', labyrinth: 'labCoins', event: 'eventTokens', guild: 'guildCoins' };
+  const walletCur: Record<string, Currency> = { daily: 'crystals', emblems: 'crystals', skins: 'crystals', event: 'eventTokens' };
   return (
     <>
       <Panel>

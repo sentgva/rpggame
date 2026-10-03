@@ -1,33 +1,31 @@
 import {
   ACTS,
+  CIRCLE_NAMES,
+  DAILY_QUESTS,
   ENEMY_MAP,
   MECHANIC_TEXT,
-  AFFIX_REWARD,
-  ELITE_AFFIX_MAP,
-  stageAffixes,
-  activeParty,
+  boostsLeft,
   capMinutes,
-  farmStage,
   goldPerMin,
-  goldToNext,
-  levelCap,
-  offlineBonus,
+  isBreakthrough,
+  legionMaxLevel,
+  levelCost,
   partyPower,
+  recommendedPower,
   stageLabel,
   targetStage,
   xpPerMin,
-  xpToNext,
   type StageRef,
-  boostsLeft,
 } from '@idle/shared';
 import { useEffect, useState } from 'react';
 import { enemyUrl } from '../art/runtime';
-import { HeroImg } from '../components/HeroImg';
 import { BattleView, getRenderer } from '../battle/BattleView';
-import { UltBar } from '../components/UltBar';
-import { EncounterBadge } from '../components/Encounter';
 import { requestBoss, useBattle } from '../battle/director';
-import { Bar, Button, Cost, Icon, Panel, Sheet, css, cx, fmtTime, formatNum } from '../components/ui';
+import { useLive } from '../battle/live';
+import { FashionDay } from '../components/Fashion';
+import { MvpCard } from '../components/Mvp';
+import { UltBar } from '../components/UltBar';
+import { Bar, Button, Cost, Icon, Sheet, css, cx, fmtTime, formatNum } from '../components/ui';
 import { t, tl } from '../i18n';
 import { previewChest, useCfg, useGame, useGameState } from '../store/game';
 import { navigate, useUi } from '../store/ui';
@@ -35,8 +33,6 @@ import { haptic } from '../tg/telegram';
 import { sfx } from '../audio/sfx';
 import st from './BattleTab.module.css';
 import { RewardList, showReward } from './common';
-import { FashionDay } from '../components/Fashion';
-import { MvpCard } from '../components/Mvp';
 
 export function useNow(ms = 1000): number {
   const [now, setNow] = useState(() => useGame.getState().now());
@@ -52,88 +48,101 @@ export function BattleTab() {
     <div className={st.wrap}>
       <div className={st.viewport}>
         <BattleView />
-        <Hud />
-        <EncounterBadge />
-        <UltBar />
+        <StageHud />
+        <SceneButtons />
+        <GuardianCall />
       </div>
+      <UltBar />
       <div className={st.controls}>
+        <LegionPanel />
         <ChestPanel />
-        <PartyPanel />
-        <BossHint />
+        <QuestTracker />
+        <GuardianHint />
       </div>
       <ResultWatcher />
     </div>
   );
 }
 
-function Hud() {
+/** Верх сцены: акт и этап, волны → страж. */
+function StageHud() {
+  const s = useGameState();
+  const phase = useBattle((b) => b.phase);
+  const target = targetStage({ s });
+  const ref = target ?? null;
+  const act = ref ? ACTS[ref.act - 1] : null;
+  return (
+    <div className={st.hud}>
+      <button className={st.stageChip} onClick={() => navigate('map', { id: 'campaign' })}>
+        <span className={st.actName}>{act ? `${tl(CIRCLE_NAMES[ref!.circle])} · ${tl(act.name)}` : t('battle.allCleared')}</span>
+        <span className={st.stageNum}>{ref ? stageLabel(ref) : '—'}</span>
+      </button>
+      {ref && (
+        <div className={st.track}>
+          {[0, 1, 2].map((i) => (
+            <span key={i} className={cx(st.pip, i < s.progress.wave && st.pipDone, i === s.progress.wave && phase === 'wave' && st.pipNow)} />
+          ))}
+          <span className={cx(st.crown, s.progress.wave >= 3 && st.crownOn)}>
+            <Icon name="skull" size={14} />
+          </span>
+        </div>
+      )}
+      {phase === 'farm' && <div className={st.farm}>{t('battle.farming')}</div>}
+    </div>
+  );
+}
+
+/** Кнопки поверх сцены: сундук и ускорение. */
+function SceneButtons() {
   const s = useGameState();
   const cfg = useCfg();
   const now = useNow();
-  const phase = useBattle((b) => b.phase);
-  const label = useBattle((b) => b.label);
-  const target = targetStage({ s });
   const chest = previewChest(s, cfg, now);
   const cap = capMinutes(cfg, s, now);
   const fill = Math.min(1, chest.minutes / cap);
-  const stage = Math.min(4, Math.floor(fill * 4));
   const x2Left = s.boosts.x2Until - now;
-  // во время боя с боссом (живой бой отправляется в конце) кнопка не нужна
-  const canBoss = phase !== 'boss' && (!!target && s.progress.wave >= 3);
-  const retryLeft = s.progress.retryAt - now;
-
   return (
-    <>
-      <div className={st.hud}>
-        <div className={st.stageTag}>
-          <span className={cx(st.diff, st[`diff${s.progress.diff}`])}>{t(`diff.${['normal', 'hard', 'nightmare'][s.progress.diff]}`)}</span>
-          {phase === 'farm' || phase === 'idle' ? t('battle.farming', { stage: label || '1-1' }) : phase === 'mode' ? label : t('battle.stage', { stage: label })}
-        </div>
-        {target ? (
-          <div className={st.waves}>
-            {[0, 1, 2].map((i) => (
-              <span key={i} className={cx(st.waveDot, i < s.progress.wave && st.waveDone)} />
-            ))}
-            <Icon name="skull" size={16} className={st.bossDot} style={{ opacity: s.progress.wave >= 3 ? 1 : 0.35 }} />
-            <span style={{ fontSize: 11, fontWeight: 800, textShadow: '0 1px 0 #000' }}>{stageLabel(target)}</span>
-          </div>
-        ) : (
-          <div className={st.stageTag} style={{ fontSize: 11 }}>
-            {t('battle.allCleared')}
-          </div>
-        )}
-      </div>
-      <div
-        className={cx(st.chestBtn, fill >= 1 && st.chestFull)}
+    <div className={st.sideBtns}>
+      <button
+        className={cx(st.round, fill >= 1 && st.roundFull)}
+        style={{ ['--p' as string]: `${fill * 360}deg` }}
         onClick={() => {
           haptic.tap();
           void collectChest();
         }}
       >
-        <Icon name={stage >= 3 ? 'chestOpen' : 'chest'} size={36} />
-        <div className={st.chestStage}>
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className={i < Math.max(stage, fill > 0.02 ? 1 : 0) ? st.on : undefined} />
-          ))}
-        </div>
-      </div>
-      {x2Left > 0 && <div className={st.x2}>×2 {fmtTime(x2Left)}</div>}
-      <div className={st.bossBar}>
-        {canBoss && retryLeft > 0 && s.settings.autoRetry && <span className={st.retry}>{t('battle.retryIn', { time: fmtTime(retryLeft) })}</span>}
-        {canBoss && (
-          <Button
-            pulse
-            onClick={() => {
-              sfx('click');
-              requestBoss();
-            }}
-          >
-            <Icon name="skull" size={20} />
-            {t('battle.callBoss')}
-          </Button>
-        )}
-      </div>
-    </>
+        <Icon name={fill >= 0.5 ? 'chestOpen' : 'chest'} size={30} />
+        <span className={st.roundTag}>{Math.floor(fill * 100)}%</span>
+      </button>
+      {x2Left > 0 && <span className={st.x2}>×2 · {fmtTime(x2Left)}</span>}
+    </div>
+  );
+}
+
+/** Вызов стража: когда волны этапа пройдены и автобой стража выключен (или ждёт реванша). */
+function GuardianCall() {
+  const s = useGameState();
+  const now = useNow();
+  const phase = useBattle((b) => b.phase);
+  const liveActive = useLive((l) => l.active);
+  const target = targetStage({ s });
+  if (!target || s.progress.wave < 3 || phase === 'boss' || liveActive) return null;
+  const retryLeft = s.progress.retryAt - now;
+  const kind = target.kind === 'boss' ? 'boss' : target.kind === 'mini' ? 'mini' : 'elite';
+  return (
+    <div className={st.call}>
+      {retryLeft > 0 && s.settings.autoRetry && <span className={st.retry}>{t('battle.retryIn', { time: fmtTime(retryLeft) })}</span>}
+      <Button
+        pulse
+        onClick={() => {
+          sfx('click');
+          requestBoss();
+        }}
+      >
+        <Icon name="skull" size={18} />
+        {t(`battle.call.${kind}`)}
+      </Button>
+    </div>
   );
 }
 
@@ -145,11 +154,75 @@ export async function collectChest(fromWelcome = false) {
   sfx('loot');
   haptic.success();
   getRenderer()?.lootBurst(10 + res.items.length);
-  const levels = Object.values(res.levels as Record<string, number>).reduce((a, b) => a + b, 0);
-  if (!fromWelcome && (res.items.length > 0 || levels > 0 || res.gold > 0)) {
-    useUi.getState().toast(`+${formatNum(res.gold)} ${t('cur.gold')} · +${formatNum(res.xp)} ${t('cur.xp')}${res.items.length ? ` · ${t('welcome.items', { n: res.items.length })}` : ''}${levels ? ` · +${levels} ${t('common.level')}` : ''}`, 'good');
+  if (!fromWelcome && (res.items.length > 0 || res.levels > 0 || res.gold > 0)) {
+    useUi
+      .getState()
+      .toast(
+        `+${formatNum(res.gold)} ${t('cur.gold')} · +${formatNum(res.xp)} ${t('cur.xp')}${res.items.length ? ` · ${t('welcome.items', { n: res.items.length })}` : ''}${res.levels ? ` · +${res.levels} ${t('legion.lvlShort')}` : ''}`,
+        'good',
+      );
   }
   return res;
+}
+
+/** Рост Легиона: уровень (общий для всех), цена, сила против рекомендуемой. */
+function LegionPanel() {
+  const s = useGameState();
+  const cfg = useCfg();
+  const lvl = s.legion.lvl;
+  const max = legionMaxLevel(cfg);
+  const cost = levelCost(cfg, lvl);
+  const can = lvl < max && s.cur.gold >= cost.gold && s.cur.xp >= cost.xp;
+  const power = partyPower(cfg, s);
+  const target = targetStage({ s });
+  const rec = target ? recommendedPower(cfg, target.n) : 0;
+  const ratio = rec ? power / rec : 1;
+  const brk = isBreakthrough(cfg, lvl);
+  const up = async (n: number) => {
+    const r = await useGame.getState().act('legion.level', { n });
+    if (r.ok) {
+      sfx('levelup');
+      haptic.success();
+    }
+  };
+  return (
+    <div className={st.legion}>
+      <div className={st.legionTop}>
+        <div className={st.legionLvl}>
+          <span className={css.tiny}>{t('legion.level')}</span>
+          <b>{lvl}</b>
+        </div>
+        <div className={css.grow}>
+          <div className={css.row} style={{ justifyContent: 'space-between' }}>
+            <span className={css.cost}>
+              <Icon name="battle" size={18} />
+              {formatNum(power)}
+            </span>
+            {target && (
+              <span className={cx(css.tiny, ratio >= 1 ? css.goodText : ratio >= 0.75 ? css.gold : css.badText)}>
+                {t('legion.rec', { n: formatNum(rec) })}
+              </span>
+            )}
+          </div>
+          <div className={css.row} style={{ gap: 10, marginTop: 4 }}>
+            <Cost cur="gold" amount={cost.gold} size={16} />
+            <Cost cur="xp" amount={cost.xp} size={16} />
+            {brk && <span className={st.brk}>{t('legion.breakthrough')}</span>}
+          </div>
+        </div>
+      </div>
+      <div className={css.row}>
+        <Button block disabled={!can} onClick={() => void up(1)}>
+          <Icon name="up" size={16} />
+          {t('legion.up')}
+        </Button>
+        <Button kind="secondary" disabled={!can} onClick={() => void up(0)}>
+          {t('legion.max')}
+        </Button>
+      </div>
+      <FashionDay />
+    </div>
+  );
 }
 
 function ChestPanel() {
@@ -160,7 +233,7 @@ function ChestPanel() {
   const cap = capMinutes(cfg, s, now);
   const items = Math.floor(chest.itemMin / cfg.income.itemEveryMin);
   const quickCost = s.day.quick < cfg.income.quickCrystals.length ? cfg.income.quickCrystals[s.day.quick] : null;
-  const freeLeft = (s.day.quickFree ? 0 : 1) + (s.day.quickAd ? 0 : 1);
+  const freeLeft = cfg.income.quickFree - s.day.quickFree;
   const boosts = boostsLeft({ cfg, s });
 
   const quick = async (method: 'free' | 'crystals') => {
@@ -168,199 +241,126 @@ function ChestPanel() {
     if (r.ok) {
       sfx('loot');
       getRenderer()?.lootBurst(20);
-      showReward(t('battle.quick'), { cur: { gold: r.result.gold, xp: r.result.xp, dust: r.result.dust }, items: r.result.items });
+      showReward(t('battle.quick'), { cur: { gold: r.result.gold, xp: r.result.xp, steel: r.result.steel }, items: r.result.items });
     }
   };
 
   return (
-    <Panel
-      title={
-        <span className={css.row}>
-          <Icon name="chest" size={20} />
-          {t('battle.chest')}
+    <div className={st.card}>
+      <div className={st.cardHead}>
+        <Icon name="chest" size={22} />
+        <b className={css.grow}>{t('battle.chest')}</b>
+        <span className={css.tiny}>
+          {fmtTime(chest.minutes * 60000)} / {t('time.h', { n: Math.round(cap / 60) })}
         </span>
-      }
-      right={<span className={css.tiny}>{fmtTime(chest.minutes * 60000)} / {t('time.h', { n: cap / 60 })}</span>}
-    >
-      <div className={st.chestRow}>
-        <div className={css.col} style={{ gap: 6 }}>
-          <Bar value={chest.minutes} max={cap} text={t('battle.chestFill', { pct: Math.floor((chest.minutes / cap) * 100) })} height={14} />
-          <div className={css.row} style={{ gap: 10, flexWrap: 'wrap' }}>
-            <span className={css.cost}>
-              <Icon name="gold" size={18} />
-              {formatNum(chest.gold)}
-            </span>
-            <span className={css.cost}>
-              <Icon name="xp" size={18} />
-              {formatNum(chest.xp)}
-            </span>
-            <span className={css.cost}>
-              <Icon name="gear" size={18} />
-              {items}
-            </span>
-          </div>
-        </div>
-        <Button size="big" onClick={() => void collectChest()} pulse={chest.minutes >= cap}>
+      </div>
+      <Bar value={chest.minutes} max={cap} height={8} />
+      <div className={css.row} style={{ gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+        <span className={css.cost}>
+          <Icon name="gold" size={18} />
+          {formatNum(chest.gold)}
+        </span>
+        <span className={css.cost}>
+          <Icon name="xp" size={18} />
+          {formatNum(chest.xp)}
+        </span>
+        <span className={css.cost}>
+          <Icon name="steel" size={18} />
+          {formatNum(chest.steel)}
+        </span>
+        <span className={css.cost}>
+          <Icon name="gear" size={18} />
+          {items}
+        </span>
+        <span className={css.grow} />
+        <Button size="small" onClick={() => void collectChest()} pulse={chest.minutes >= cap}>
           {t('battle.collect')}
         </Button>
       </div>
-      <div className={css.divider} />
-      <div className={st.quickRow}>
+      <div className={css.row} style={{ marginTop: 8 }}>
         {freeLeft > 0 ? (
-          <Button kind="good" size="small" onClick={() => void quick('free')}>
+          <Button kind="good" size="small" block onClick={() => void quick('free')}>
             <Icon name="speed" size={16} />
-            {t('battle.quick')} · {freeLeft}/2
+            {t('battle.quick')} · {freeLeft}/{cfg.income.quickFree}
           </Button>
         ) : quickCost !== null ? (
-          <Button kind="secondary" size="small" onClick={() => void quick('crystals')}>
+          <Button kind="secondary" size="small" block onClick={() => void quick('crystals')}>
             <Icon name="speed" size={16} />
             {t('battle.quick')} · <Cost cur="crystals" amount={quickCost} size={14} />
           </Button>
         ) : (
-          <Button kind="secondary" size="small" disabled>
+          <Button kind="secondary" size="small" block disabled>
             {t('battle.quick')}
           </Button>
         )}
         <Button
           kind="secondary"
           size="small"
+          block
           disabled={boosts <= 0}
           onClick={async () => {
             const r = await useGame.getState().act('boost.x2');
             if (r.ok) useUi.getState().toast(t('battle.x2Desc'), 'good');
           }}
         >
-          <Icon name="speed" size={16} />
-          {t('battle.x2')} · {boosts}/{cfg.income.x2PerDay}
+          ×2 · {boosts}/{cfg.income.x2PerDay}
         </Button>
       </div>
       <div className={css.tiny} style={{ marginTop: 6 }}>
-        {t('battle.tip')}
-        {offlineBonus(s) > 0 && ` · +${Math.round(offlineBonus(s) * 100)}%`}
+        {t('battle.income', { gold: formatNum(goldPerMin(cfg, s)), xp: formatNum(xpPerMin(cfg, s)) })}
       </div>
-    </Panel>
+    </div>
   );
 }
 
-function PartyPanel() {
+/** Трекер: ближайшее ежедневное задание (или «забрать награды»). */
+function QuestTracker() {
   const s = useGameState();
-  const cfg = useCfg();
-  const party = activeParty(s);
-  const power = partyPower(cfg, s);
-  const n = farmStage(s);
-  const canLevel = activeParty(s).some((id) => {
-    const h = s.heroines[id];
-    return h.lvl < levelCap(cfg, h) && s.cur.xp >= xpToNext(cfg, h.lvl) && s.cur.gold >= goldToNext(cfg, h.lvl);
-  });
-
-  const levelAll = async () => {
-    let total = 0;
-    for (const id of activeParty(useGame.getState().state!)) {
-      const r = await useGame.getState().act('hero.level', { id, times: 500 }, { silent: true });
-      if (r.ok) total += r.result.done;
-    }
-    if (total) {
-      sfx('levelup');
-      haptic.success();
-      useUi.getState().toast(`+${total} ${t('common.level')}`, 'good');
-    }
-  };
-
+  const ready = DAILY_QUESTS.filter((q) => !s.quests.dailyClaimed.includes(q.id) && (s.quests.daily[q.counter] ?? 0) >= q.target).length;
+  const next = DAILY_QUESTS.find((q) => !s.quests.dailyClaimed.includes(q.id) && (s.quests.daily[q.counter] ?? 0) < q.target);
+  if (!ready && !next) return null;
   return (
-    <Panel title={t('battle.party')} right={<span className={css.cost}><Icon name="battle" size={18} />{formatNum(power)}</span>}>
-      <div className={st.party}>
-        {party.map((id, i) => {
-          const h = id ? s.heroines[id] : null;
-          return (
-            <div key={i} className={cx(st.pm, !h && st.pmEmpty)} onClick={() => (id ? navigate('heroes', { id: 'hero', params: { id } }) : navigate('heroes'))}>
-              {h ? <HeroImg id={h.id} skin={h.skin} /> : <Icon name="plus" size={28} style={{ margin: 10, opacity: 0.35 }} />}
-              <span className={st.pmLvl}>{h ? `${t('common.level')} ${h.lvl}` : ''}</span>
-            </div>
-          );
-        })}
+    <button className={cx(st.card, st.quest)} onClick={() => navigate('hub', { id: 'quests' })}>
+      <Icon name="quest" size={24} />
+      <div className={css.grow} style={{ textAlign: 'left' }}>
+        {ready ? (
+          <b className={css.gold}>{t('battle.questsReady', { n: ready })}</b>
+        ) : (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{tl(next!.name)}</div>
+            <Bar value={s.quests.daily[next!.counter] ?? 0} max={next!.target} height={6} />
+          </>
+        )}
       </div>
-      <FashionDay />
-      <div className={css.divider} />
-      <div className={st.incomeGrid}>
-        <div className={st.incomeCell}>
-          <Icon name="gold" size={18} />
-          {formatNum(goldPerMin(cfg, s, n))}
-          <span className={css.tiny}>{t('common.perMin')}</span>
-        </div>
-        <div className={st.incomeCell}>
-          <Icon name="xp" size={18} />
-          {formatNum(xpPerMin(cfg, s, n))}
-          <span className={css.tiny}>{t('common.perMin')}</span>
-        </div>
-        <div className={st.incomeCell}>
-          <Icon name="gear" size={18} />1/{cfg.income.itemEveryMin}
-          <span className={css.tiny}>{t('time.m', { n: '' }).trim()}</span>
-        </div>
-      </div>
-      <div className={css.row} style={{ marginTop: 8 }}>
-        <Button
-          kind="secondary"
-          block
-          size="small"
-          onClick={async () => {
-            const r = await useGame.getState().act('party.autoEquip');
-            if (r.ok) useUi.getState().toast(t('gear.autoDone', { n: r.result.changes }), 'good');
-          }}
-        >
-          <Icon name="armor" size={16} />
-          {t('battle.autoEquip')}
-        </Button>
-        <Button kind={canLevel ? 'good' : 'secondary'} block size="small" disabled={!canLevel} onClick={() => void levelAll()}>
-          <Icon name="up" size={16} />
-          {t('battle.levelUp')}
-        </Button>
-      </div>
-    </Panel>
+      <Icon name="back" size={16} style={{ transform: 'scaleX(-1)', opacity: 0.6 }} />
+    </button>
   );
 }
 
-function BossHint() {
+/** Кто ждёт в конце этапа: владычица с механикой или мини-босс. */
+function GuardianHint() {
   const s = useGameState();
   const target = targetStage({ s });
-  if (!target) return null;
+  if (!target || target.kind === 'normal') return null;
   const act = ACTS[target.act - 1];
-  const boss = ENEMY_MAP[act.boss];
-  const affixes = stageAffixes(target);
-  const mech = target.stage >= 15 && !!boss.mechanic;
-  if (!mech && !affixes.length) return null;
+  const id = target.kind === 'boss' ? act.boss : act.minis[target.stage / 5 - 1];
+  const def = ENEMY_MAP[id];
   return (
-    <Panel>
-      {mech && (
-        <div className={st.mech}>
-          <img className="pixel" src={enemyUrl(boss.id)} width={40} height={40} alt="" />
-          <div>
-            <div style={{ color: 'var(--text)', fontWeight: 800 }}>
-              {t('battle.mechanic')}: {tl(boss.name)}
-            </div>
-            {tl(MECHANIC_TEXT[boss.mechanic!])}
-          </div>
+    <div className={cx(st.card, st.guardian)}>
+      <img className="pixel" src={enemyUrl(id)} width={48} height={48} alt="" />
+      <div className={css.grow}>
+        <div className={css.tiny}>{t(target.kind === 'boss' ? 'battle.sovereign' : 'battle.mini')}</div>
+        <b>{tl(def.name)}</b>
+        {def.mechanic && <div className={css.tiny}>{tl(MECHANIC_TEXT[def.mechanic])}</div>}
+        <div className={css.tiny} style={{ color: 'var(--accent-2)' }}>
+          {t('battle.parryTip')}
         </div>
-      )}
-      {affixes.length > 0 && (
-        <div className={st.affixes} style={mech ? { marginTop: 8 } : undefined}>
-          <Icon name="skull" size={18} />
-          <div className={css.grow}>
-            <div style={{ color: 'var(--text)', fontWeight: 800 }}>
-              {t('battle.affixes')} <span className={st.affixBonus}>{t('battle.affixBonus', { n: Math.round(affixes.length * AFFIX_REWARD * 100) })}</span>
-            </div>
-            {affixes.map((id) => (
-              <div key={id} className={st.affix}>
-                <b>{tl(ELITE_AFFIX_MAP[id].name)}</b> — {tl(ELITE_AFFIX_MAP[id].desc)}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Panel>
+      </div>
+    </div>
   );
 }
 
-/** Показ результата боя с боссом. */
+/** Итог боя со стражем. */
 function ResultWatcher() {
   const result = useBattle((b) => b.result);
   useEffect(() => {
@@ -371,7 +371,7 @@ function ResultWatcher() {
       useUi.getState().open((close) => (
         <Sheet title={t('battle.bossWin', { stage: stage ? stageLabel(stage) : '' })} onClose={close}>
           {result.mvp && <MvpCard hero={result.mvp} />}
-          <RewardList r={{ cur: r.cur, items: r.items, shards: r.shards ? { [r.shards.hero]: r.shards.n } : undefined }} />
+          <RewardList r={{ cur: r.cur, items: r.items }} />
           <div style={{ height: 10 }} />
           <Button block onClick={close}>
             {t('common.ok')}

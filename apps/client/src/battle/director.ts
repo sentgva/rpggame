@@ -1,51 +1,36 @@
 /**
- * Режиссёр боя: крутит бесконечный автобой. На новом этапе отправляет серверу
- * волны и босса (награды считает сервер), в остальное время показывает
- * косметический фарм последнего пройденного этапа.
+ * Режиссёр похода: Легион идёт маршем, бьёт волны этапа (награды считает сервер), затем страж этапа —
+ * сам (автобой) или по кнопке игрока (ручное управление: ульты и щит). Если страж не вызван или ещё не по силам,
+ * Легион фармит пройденный этап — это только показ, доход идёт в сундук.
  */
-import { openJoin } from '../components/Gacha';
-import {
-  heroUnits,
-  simulateBattle,
-  activeArtifacts,
-  stageFromGlobal,
-  stageLabel,
-  targetStage,
-  waveUnits,
-  type BattleEvent,
-  type StageRef,
-  activeParty,
-} from '@idle/shared';
+import { activeParty, guardianUnits, heroUnits, simulateCombat, stageLabel, stageRef, targetStage, waveUnits, type CombatEvent, type StageRef } from '@idle/shared';
 import { create } from 'zustand';
-import { manualEnabled, runLive, type LiveBattle } from './live';
-import { mvpOf } from './mvp';
-import { useGame } from '../store/game';
+import { openJoin } from '../components/Join';
 import { sfx } from '../audio/sfx';
+import { useGame } from '../store/game';
+import { manualEnabled, runLive } from './live';
+import { mvpOf } from './mvp';
+import type { Playback, PlaybackKind } from './renderer';
 
-export type PlaybackKind = 'wave' | 'boss' | 'farm' | 'mode';
+export type { PlaybackKind };
 
-export interface Playback {
-  events: BattleEvent[];
-  kind: PlaybackKind;
-  act: number;
-  win: boolean;
-  speed: number;
-  label: string;
-  /** живой бой с ручными ультами: события меняются по ходу (пересчёт после команд игрока) */
-  live?: LiveBattle;
-}
-
-type Player = (p: Playback, signal: AbortSignal) => Promise<void>;
+type Player = {
+  play: (p: Playback, signal: AbortSignal) => Promise<void>;
+  march: (heroes: string[], act: number, ms: number, signal?: AbortSignal) => Promise<void>;
+};
 
 interface BattleUi {
-  phase: PlaybackKind | 'idle';
+  phase: PlaybackKind | 'march' | 'idle';
   label: string;
   stage: StageRef | null;
+  /** волна, которую сейчас бьют (0…2), 3 — страж */
+  wave: number;
   result: null | { kind: PlaybackKind; win: boolean; rewards?: any; stage?: StageRef; at: number; mvp?: string | null };
-  mode: boolean;
+  /** подсказка «страж ждёт» после победы над волнами */
+  guardianReady: boolean;
 }
 
-export const useBattle = create<BattleUi>(() => ({ phase: 'idle', label: '', stage: null, result: null, mode: false }));
+export const useBattle = create<BattleUi>(() => ({ phase: 'idle', label: '', stage: null, wave: 0, result: null, guardianReady: false }));
 
 let player: Player | null = null;
 let running = false;
@@ -53,13 +38,10 @@ let current: AbortController | null = null;
 let bossRequested = false;
 let waveCooldownUntil = 0;
 let modeLock: Promise<void> | null = null;
-let modeActive = false;
 
 export function registerPlayer(p: Player | null) {
   if (player === p) return;
   player = p;
-  // Смена проигрывателя (вкладку боя открыли/закрыли): текущий бой прерываем, иначе режиссёр
-  // ждал бы проигрывание, которое уже никто не показывает, и сцена оставалась пустой.
   current?.abort();
 }
 
@@ -77,29 +59,46 @@ export function battleSpeed(): number {
   const g = useGame.getState();
   const s = g.state!;
   const now = g.now();
-  let speed = s.boosts.x2Until > now ? 2 : 1;
+  let speed: number = s.boosts.x2Until > now ? 2 : s.settings.speed;
   if (g.isDev && s.dev.speed) speed = Math.max(speed, s.dev.speed);
   return speed;
 }
 
-/** Проиграть бой: через рендерер, если он смонтирован, иначе просто выждать его длительность. */
 async function play(p: Playback): Promise<void> {
-  // бой режима важнее фоновых боёв: не прерываем его
-  if (modeActive && p.kind !== 'mode') return;
   current?.abort();
   const ctrl = new AbortController();
   current = ctrl;
   const end = p.events[p.events.length - 1];
   const duration = end ? end.t : 1000;
-  if (player) await player(p, ctrl.signal);
+  if (player) await player.play(p, ctrl.signal);
   else await sleep(Math.min(duration / p.speed, 20000), ctrl.signal);
   if (current === ctrl) current = null;
 }
 
+async function march(ms: number, act: number) {
+  const s = useGame.getState().state!;
+  current?.abort();
+  const ctrl = new AbortController();
+  current = ctrl;
+  useBattle.setState({ phase: 'march' });
+  if (player) await player.march(activeParty(s), act, ms / battleSpeed(), ctrl.signal);
+  else await sleep(ms, ctrl.signal);
+  if (current === ctrl) current = null;
+}
+
+/** Вызвать стража этапа (кнопка): прерываем фарм, чтобы бой начался сразу. */
 export function requestBoss() {
   bossRequested = true;
-  // прерываем косметический фарм, чтобы босс начался сразу
-  if (useBattle.getState().phase === 'farm') current?.abort();
+  const ph = useBattle.getState().phase;
+  if (ph === 'farm' || ph === 'march') current?.abort();
+}
+
+/** Бой режима занимает сцену: фоновые бои ждут. */
+export function lockForMode(p: Promise<void>) {
+  current?.abort();
+  modeLock = p.finally(() => {
+    modeLock = null;
+  });
 }
 
 export function startDirector(): () => void {
@@ -136,83 +135,78 @@ async function step() {
   const s = g.state!;
   const now = g.now();
   const target = targetStage({ s });
+  useBattle.setState({ guardianReady: !!target && s.progress.wave >= 3 });
 
   if (target && s.progress.wave >= 3) {
-    const autoBoss = s.settings.autoBoss && (s.ascension.up.autoBoss ?? 0) > 0 && s.progress.retryAt <= now;
+    const auto = s.settings.autoBoss && s.progress.retryAt <= now;
     const retry = s.settings.autoRetry && s.progress.retryAt > 0 && now >= s.progress.retryAt;
-    if (bossRequested || autoBoss || retry) {
-      // ручные ульты — только когда босса вызвал сам игрок (автоповтор и автобосс идут на авто)
+    if (bossRequested || auto || retry) {
       const manual = bossRequested && manualEnabled();
       bossRequested = false;
-      await fightBoss(target, manual);
+      await fightGuardian(target, manual);
       return;
     }
   } else bossRequested = false;
 
   if (target && s.progress.wave < 3 && Date.now() >= waveCooldownUntil) {
+    await march(s.progress.wave === 0 ? 1500 : 1100, target.act);
     const r = await g.act('battle.wave', {}, { silent: true });
     if (!r.ok || !r.result?.battle?.events) {
       await sleep(2000);
       return;
     }
     const label = stageLabel(target);
-    useBattle.setState({ phase: 'wave', label, stage: target });
+    useBattle.setState({ phase: 'wave', label, stage: target, wave: r.result.wave - (r.result.battle.win ? 1 : 0) });
     await play({ events: r.result.battle.events, kind: 'wave', act: target.act, win: r.result.battle.win, speed: battleSpeed(), label });
-    if (!r.result.battle.win) waveCooldownUntil = Date.now() + 15000;
+    useBattle.setState({ wave: r.result.wave });
+    if (!r.result.battle.win) waveCooldownUntil = Date.now() + 12000;
     else sfx('wave');
     return;
   }
   await farm();
 }
 
-async function fightBoss(target: StageRef, manual = false) {
-  const g = useGame.getState();
+async function fightGuardian(target: StageRef, manual: boolean) {
   const label = stageLabel(target);
-  if (manual) {
-    useBattle.setState({ phase: 'boss', label, stage: target, result: null });
-    sfx('bossStart');
-    let events: BattleEvent[] = [];
-    const r = await runLive('battle.boss', {}, (live) => {
+  await march(900, target.act);
+  useBattle.setState({ phase: 'boss', label, stage: target, wave: 3, result: null });
+  sfx('bossStart');
+  let events: CombatEvent[] = [];
+  const r = await runLive(
+    'battle.boss',
+    {},
+    (live) => {
       events = live.events;
       return play({ events: live.events, live, kind: 'boss', act: target.act, win: live.win, speed: battleSpeed(), label });
-    });
-    if (!r) return;
-    useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now(), mvp: mvpOf(events) } });
-    sfx(r.result.win ? 'victory' : 'defeat');
-    if (r.result.joined?.length) void openJoin(r.result.joined);
-    return;
-  }
-  const r = await g.act('battle.boss');
-  if (!r.ok || !r.result?.battle?.events) return;
-  useBattle.setState({ phase: 'boss', label, stage: target, result: null });
-  sfx('bossStart');
-  await play({ events: r.result.battle.events, kind: 'boss', act: target.act, win: r.result.win, speed: battleSpeed(), label });
-  useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now(), mvp: mvpOf(r.result.battle.events) } });
+    },
+    manual,
+  );
+  if (!r) return;
+  useBattle.setState({ result: { kind: 'boss', win: r.result.win, rewards: r.result.rewards, stage: target, at: Date.now(), mvp: mvpOf(events) } });
   sfx(r.result.win ? 'victory' : 'defeat');
   if (r.result.joined?.length) void openJoin(r.result.joined);
 }
 
-/** Косметический фарм последнего пройденного этапа: только визуализация, доход идёт в сундук. */
+/** Показной бой на пройденном этапе: без наград (доход идёт в сундук). */
 async function farm() {
   const g = useGame.getState();
   const s = g.state!;
   const cfg = g.cfg!;
-  const ref = stageFromGlobal(Math.max(1, s.progress.maxGlobal || 1));
-  const wave = Math.floor(Math.random() * 3);
-  const heroes = heroUnits(cfg, s, activeParty(s));
-  if (!heroes.length) {
+  const ref = stageRef(Math.max(1, s.progress.stage || 1));
+  const party = activeParty(s);
+  if (!party.length) {
     await sleep(1500);
     return;
   }
-  const res = simulateBattle(cfg, {
+  await march(1300, ref.act);
+  const wave = Math.floor(Math.random() * 3);
+  const res = simulateCombat(cfg, {
     seed: (Math.random() * 0xffffffff) >>> 0,
-    units: [...heroes, ...waveUnits(cfg, ref, wave)],
-    timeLimit: 45,
+    units: [...heroUnits(cfg, s, party), ...(Math.random() < 0.25 ? guardianUnits(cfg, ref) : waveUnits(cfg, ref, wave))],
+    timeLimit: 40,
     immortal: true,
-    artifacts: activeArtifacts(s),
   });
   const label = stageLabel(ref);
   useBattle.setState({ phase: 'farm', label, stage: targetStage({ s }) });
   await play({ events: res.events, kind: 'farm', act: ref.act, win: res.win, speed: battleSpeed(), label });
-  await sleep(400);
 }

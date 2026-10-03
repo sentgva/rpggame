@@ -14,7 +14,7 @@ import {
   FEST_TICKETS,
   HEROINE_MAP,
   MECHANIC_TEXT,
-  RIFT_TACTICS,
+  TACTICS,
   SKIN_MAP,
   dayKey,
   festBoss,
@@ -35,7 +35,8 @@ import {
   festivalUpcoming,
   isUnlocked,
   scaleReward,
-  stageForLevel,
+  stageLabel,
+  stageRef,
   type FestMilestone,
   type FestivalDef,
   type FestivalState,
@@ -49,8 +50,7 @@ import { useCfg, useGame, useGameState } from '../../store/game';
 import { useUi } from '../../store/ui';
 import { useNow } from '../BattleTab';
 import { BackHeader, Locked, RewardList, shortDate, showReward } from '../common';
-import { stageText } from '../MapTab';
-import { playMode } from './Endgame';
+import { playMode } from '../../components/BattleModal';
 import { MineTab } from './FestMine';
 import { VolleyTab } from './FestVolley';
 import st from './Festival.module.css';
@@ -367,7 +367,7 @@ function openStage(def: FestivalDef, f: FestivalState, stage: number) {
           </div>
         ))}
       </div>
-      <div className={css.tiny}>{t('fest.power', { stage: stageText(stageForLevel(cfg, lvl)) })}</div>
+      <div className={css.tiny}>{t('fest.power', { stage: stageLabel(stageRef(lvl)) })}</div>
       <div className={cx(css.inset, st.modBox)}>
         <b>{mod ? tl(mod.name) : kind === 'trial' ? t('fest.trial') : kind === 'guardian' ? t('fest.guardian') : t('fest.noMod')}</b>
         {mod && <div className={css.tiny}>{tl(mod.desc)}</div>}
@@ -420,7 +420,7 @@ function BossTab({ def, f, now }: { def: FestivalDef; f: FestivalState; now: num
   const s = useGameState();
   const cfg = useCfg();
   const [tactic, setTactic] = useState(savedTactic);
-  const tac = RIFT_TACTICS.find((x) => x.id === tactic) ?? RIFT_TACTICS[0];
+  const tac = TACTICS.find((x) => x.id === tactic) ?? TACTICS[0];
   const boss = festBoss({ s, cfg, now }, def, f);
   const edef = ENEMY_MAP[boss.id];
   const left = FEST_BOSS_ATTEMPTS - f.boss.used;
@@ -452,7 +452,7 @@ function BossTab({ def, f, now }: { def: FestivalDef; f: FestivalState; now: num
           {t('mode.riftTactic')}
         </div>
         <div className={st.tactics}>
-          {RIFT_TACTICS.map((x) => (
+          {TACTICS.map((x) => (
             <button
               key={x.id}
               className={cx(css.chip, tactic === x.id && css.chipOn)}

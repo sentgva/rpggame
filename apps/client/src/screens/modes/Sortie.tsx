@@ -10,7 +10,7 @@ import {
   SORTIE_WEAPON_OF,
   sortieState,
   sortieTierOpen,
-  stageFromGlobal,
+  stageRef,
   type SortieTierId,
 } from '@idle/shared';
 import { useEffect, useRef, useState } from 'react';
@@ -111,7 +111,7 @@ function SortieRun({ run, onClose }: { run: { id: number; tier: SortieTierId; he
 
   useEffect(() => {
     const h = s.heroines[run.hero];
-    const power = 1 + 0.06 * (h.stars - 1) + (h.awakened ? 0.15 : 0) + h.lvl * 0.002 + (s.bond?.[run.hero]?.lvl ?? 0) * 0.01;
+    const power = 1 + 0.06 * (h.rank - 1) + Math.min(s.legion.lvl, 600) * 0.002 + (s.bond?.[run.hero]?.lvl ?? 0) * 0.01;
     const skins: Record<string, string | undefined> = {};
     for (const id of Object.keys(s.heroines)) skins[id] = s.heroines[id]?.skin;
     const g = new SortieGame(
@@ -121,7 +121,7 @@ function SortieRun({ run, onClose }: { run: { id: number; tier: SortieTierId; he
         skins,
         roster: Object.keys(s.heroines),
         tier: SORTIE_TIER_MAP[run.tier],
-        act: stageFromGlobal(Math.max(1, s.progress.maxGlobalEver)).act,
+        act: stageRef(Math.max(1, s.progress.stage)).act,
         power,
       },
       {

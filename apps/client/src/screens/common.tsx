@@ -171,8 +171,8 @@ export function UnequipAllButton({ hero }: { hero: string }) {
       disabled={n === 0}
       onClick={() =>
         confirmDialog(t('gear.unequipAllAsk', { n }), async () => {
-          const r = await useGame.getState().act('item.unequipAll', { hero });
-          if (r.ok) useUi.getState().toast(t('gear.unequipAllDone', { n: r.result.removed }), 'good');
+          const r = await useGame.getState().act('hero.unequipAll', { hero });
+          if (r.ok) useUi.getState().toast(t('gear.unequipAllDone', { n }), 'good');
         })
       }
     >

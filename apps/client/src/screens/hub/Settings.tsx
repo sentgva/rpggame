@@ -45,7 +45,7 @@ export function Settings() {
           <Slider value={st.sfx} onChange={(v) => set({ sfx: v })} />
         </Row>
         <Row label={t('settings.manualUlt')}>
-          <Toggle value={st.manualUlt !== false} onChange={(v) => set({ manualUlt: v })} />
+          <Toggle value={st.manual !== false} onChange={(v) => set({ manual: v })} />
         </Row>
         <Row label={t('settings.haptics')}>
           <Toggle value={st.haptics} onChange={(v) => set({ haptics: v })} />
@@ -59,13 +59,11 @@ export function Settings() {
         <Row label={t('settings.autoRetry')}>
           <Toggle value={st.autoRetry} onChange={(v) => set({ autoRetry: v })} />
         </Row>
-        {(s.ascension.up.autoBoss ?? 0) > 0 && (
-          <Row label={t('settings.autoBoss')}>
-            <Toggle value={st.autoBoss} onChange={(v) => set({ autoBoss: v })} />
-          </Row>
-        )}
+        <Row label={t('settings.autoBoss')}>
+          <Toggle value={st.autoBoss} onChange={(v) => set({ autoBoss: v })} />
+        </Row>
         <Row label={t('settings.autoSmelt')}>
-          <select className={css.input} value={st.autoSmelt} onChange={(e) => set({ autoSmelt: Number(e.target.value) })}>
+          <select className={css.input} value={st.autoSalvage} onChange={(e) => set({ autoSalvage: Number(e.target.value) })}>
             <option value={-1}>{t('settings.autoSmeltOff')}</option>
             {[1, 2, 3, 4].map((r) => (
               <option key={r} value={r}>

@@ -1,4 +1,4 @@
-import { BASE_ITEM_MAP, ENEMY_MAP, HEROINE_MAP, SKIN_MAP, type Item, type Look } from '@idle/shared';
+import { ENEMY_MAP, HEROINE_MAP, ITEM_KIND_MAP, SKIN_MAP, type Item, type Look } from '@idle/shared';
 import { renderIcon } from './icons';
 import { renderItemIcon } from './itemArt';
 import { renderWolf } from './beast';
@@ -146,21 +146,30 @@ export function enemyUrl(enemyId: string, pose: Pose = {}, unarmed = false): str
   return u;
 }
 
-/** Портрет: голова и плечи крупным планом. */
-export function portraitUrl(heroId: string, skin?: string): string {
-  const key = `portrait:${heroId}:${skin ?? ''}`;
-  let u = urlCache.get(key);
-  if (!u) {
+/** Портрет: голова и плечи крупным планом (холст). */
+export function portraitCanvas(heroId: string, skin?: string): HTMLCanvasElement {
+  const key = `pc:${heroId}:${skin ?? ''}`;
+  let c = canvasCache.get(key);
+  if (!c) {
     const src = heroCanvas(heroId, skin);
     // голова и плечи (в координатах 48×48: x13–34, y1–22), для HD — вдвое крупнее
     const f = src.width / 48;
-    const c = document.createElement('canvas');
+    c = document.createElement('canvas');
     c.width = 22 * f;
     c.height = 22 * f;
     const ctx = c.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, 13 * f, 1 * f, 22 * f, 22 * f, 0, 0, 22 * f, 22 * f);
-    u = c.toDataURL();
+    canvasCache.set(key, c);
+  }
+  return c;
+}
+
+export function portraitUrl(heroId: string, skin?: string): string {
+  const key = `portrait:${heroId}:${skin ?? ''}`;
+  let u = urlCache.get(key);
+  if (!u) {
+    u = portraitCanvas(heroId, skin).toDataURL();
     urlCache.set(key, u);
   }
   return u;
@@ -176,12 +185,12 @@ export function iconUrl(name: string): string {
   return u;
 }
 
-/** Иконка предмета: форма по типу базы, цвета по редкости, украшения по тиру. */
-export function itemIconUrl(item: Pick<Item, 'base' | 'slot' | 'rarity'>): string {
-  const base = BASE_ITEM_MAP[item.base];
-  const slot = base?.slot ?? item.slot;
-  const type = base?.type ?? item.slot;
-  const tier = base?.tier ?? 1;
+/** Иконка предмета: форма по виду, цвета по редкости, украшения — у редких и выше. */
+export function itemIconUrl(item: Pick<Item, 'kind' | 'slot' | 'rarity'>): string {
+  const kind = ITEM_KIND_MAP[item.kind];
+  const slot = kind?.slot ?? item.slot;
+  const type = kind?.type ?? item.slot;
+  const tier = item.rarity >= 4 ? 3 : item.rarity >= 3 ? 2 : item.rarity >= 2 ? 1 : 0;
   const key = `item:${slot}:${type}:${tier}:${item.rarity}`;
   let u = urlCache.get(key);
   if (!u) {
