@@ -203,9 +203,9 @@ export const ru = {
   'heroes.specAt': 'Специализация откроется на {lvl} уровне',
   'heroes.tabStats': 'Характеристики',
   'heroes.tabTree': 'Древо',
-  'heroes.tabGear': 'Снаряжение',
+  'heroes.tabGear': 'Вещи',
   'heroes.tabSkins': 'Облики',
-  'heroes.tabBio': 'О герое',
+  'heroes.tabBio': 'История',
   'heroes.cap': 'Потолок уровня {cap}',
   'heroes.skills': 'Умения в бою',
   'heroes.basic': 'Базовая атака',
@@ -1258,4 +1258,6 @@ export const ru = {
   'rarity.4': 'Легендарная',
   'rarity.5': 'Мифическая',
   'battle.loseHint': 'Поднимите уровень Легиона, ранги и снаряжение — и возвращайтесь.',
+  'gear.itemCard': 'Предмет',
+  'bag.sortBy': 'Сортировка:',
 };

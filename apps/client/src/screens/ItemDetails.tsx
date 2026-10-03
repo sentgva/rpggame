@@ -48,7 +48,7 @@ export function ItemDetails({ uid, hero, onClose }: { uid: string; hero?: string
   const act = (type: string, params: Record<string, unknown>) => useGame.getState().act(type, params);
 
   return (
-    <Sheet onClose={onClose}>
+    <Sheet title={t('gear.itemCard')} onClose={onClose}>
       <div className={st.detailHead} style={{ ['--rc' as string]: color }}>
         <ItemSlot item={item} size={76} />
         <div className={css.grow} style={{ minWidth: 0 }}>

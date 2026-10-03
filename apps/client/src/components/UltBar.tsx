@@ -19,7 +19,7 @@ export function UltBar() {
 }
 
 function LiveBar() {
-  const { manual, heroes, cast, guard, chain, clock } = useLive();
+  const { manual, heroes, cast, guard, clock } = useLive();
   const skins = useGame((g) => g.state?.heroines);
   const window = cast ? cast.end - clock : Infinity;
   const parryNow = !!cast && window <= 1200 && window > 0;
@@ -71,7 +71,6 @@ function LiveBar() {
         <img className="pixel" src={iconUrl('shield')} alt="" draggable={false} />
         {parryNow && guardReady && <span className={st.now}>{t('ult.now')}</span>}
       </button>
-      {chain.n >= 2 && chain.until > clock && <div className={st.chain}>{t('battle.chain')} ×{chain.n}</div>}
       {cast && !parryNow && guard.has && manual && <div className={st.hint}>{t('ult.parryHint')}</div>}
     </div>
   );

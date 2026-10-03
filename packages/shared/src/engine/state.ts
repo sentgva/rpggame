@@ -45,6 +45,7 @@ export function createPlayer(cfg: Config, id: string, name: string, now: number,
   for (const h of STARTER_HEROINES) heroines[h] = newHeroine(cfg, h);
   const cur = emptyCurrencies();
   cur.gold = 300;
+  cur.xp = 200;
   cur.crystals = 300;
 
   const s: PlayerState = {

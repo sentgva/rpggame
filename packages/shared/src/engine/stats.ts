@@ -1,5 +1,6 @@
 import type { Config } from '../config';
 import {
+  HEROINES,
   BANNER_MAP,
   BOND_STAT,
   CLASSES,
@@ -288,16 +289,25 @@ export function partyPower(cfg: Config, s: PlayerState): number {
   return activeParty(s).reduce((n, id) => n + heroStats(cfg, s, id).power, 0);
 }
 
+/** Множитель силы врагов на первых этапах: от easeFrom на 1-м до 1 на easeUntil. */
+export function enemyEase(cfg: Config, lvl: number): number {
+  const E = cfg.enemy;
+  if (lvl >= E.easeUntil) return 1;
+  return E.easeFrom + ((1 - E.easeFrom) * Math.max(0, lvl - 1)) / (E.easeUntil - 1);
+}
+
 /** Рекомендуемая сила для этапа уровня n: шесть героев уровня n с редким снаряжением того же уровня. */
 export function recommendedPower(cfg: Config, n: number): number {
-  const g = growth(cfg, n);
+  const g = growth(cfg, n) * enemyEase(cfg, n);
+  // сколько героев уже в Легионе к этому этапу
+  const heroes = Math.max(2, HEROINES.filter((h) => h.join < n).length);
   const rank = cfg.hero.rankCaps.findIndex((c) => c >= n) + 1 || cfg.hero.maxRank;
   const r = Math.pow(cfg.hero.rankMult, rank - 1);
   const G = cfg.gear;
   const atk = (100 * r + G.atk0 * G.rarityMult[2]) * g;
   const hp = (900 * r + G.hp0 * G.rarityMult[2] * 1.5) * g;
   const def = (40 * r + G.def0 * G.rarityMult[2]) * g;
-  return Math.round(6 * 0.85 * (atk * 1.1 * 4 + hp * 0.4 + def * 3));
+  return Math.round(heroes * 0.85 * (atk * 1.1 * 4 + hp * 0.4 + def * 3));
 }
 
 export function inventoryCap(cfg: Config, s: PlayerState): number {

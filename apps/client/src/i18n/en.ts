@@ -207,7 +207,7 @@ export const en: typeof ru = {
   'heroes.tabTree': 'Tree',
   'heroes.tabGear': 'Gear',
   'heroes.tabSkins': 'Outfits',
-  'heroes.tabBio': 'About',
+  'heroes.tabBio': 'Story',
   'heroes.cap': 'Level cap {cap}',
   'heroes.skills': 'Battle skills',
   'heroes.basic': 'Basic attack',
@@ -1260,4 +1260,6 @@ export const en: typeof ru = {
   'rarity.4': 'Legendary',
   'rarity.5': 'Mythic',
   'battle.loseHint': 'Raise the Legion level, ranks and gear — then come back.',
+  'gear.itemCard': 'Item',
+  'bag.sortBy': 'Sort:',
 };

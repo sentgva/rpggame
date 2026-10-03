@@ -103,7 +103,11 @@ export default function GearTab() {
             {f === 'all' ? t('gear.filterAll') : t(`slot.${f}`)}
           </button>
         ))}
-        <span style={{ flex: 1 }} />
+      </div>
+      <div className={st.filters}>
+        <span className={css.tiny} style={{ alignSelf: 'center' }}>
+          {t('bag.sortBy')}
+        </span>
         {(['power', 'rarity', 'new'] as Sort[]).map((x) => (
           <button key={x} className={cx(st.chip, sort === x && st.chipOn)} onClick={() => setSort(x)}>
             {t(`bag.sort.${x}`)}

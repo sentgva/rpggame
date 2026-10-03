@@ -216,7 +216,7 @@ function LegionPanel() {
           <Icon name="up" size={16} />
           {t('legion.up')}
         </Button>
-        <Button kind="secondary" disabled={!can} onClick={() => void up(0)}>
+        <Button kind="secondary" disabled={!can} style={{ flex: 'none', whiteSpace: 'nowrap', padding: '0 16px' }} onClick={() => void up(0)}>
           {t('legion.max')}
         </Button>
       </div>

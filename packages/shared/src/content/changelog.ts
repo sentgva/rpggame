@@ -20,6 +20,32 @@ export interface ChangelogEntry {
 /** Новые — первыми. id записи — это «версия», которую игрок уже видел. Мелкие правки и исправления сюда не пишем. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-05-remake',
+    date: '05.10.2026',
+    icon: '⚔️',
+    title: { ru: 'Легион 3.0: игра переродилась', en: 'Legion 3.0: the game is reborn' },
+    lead: {
+      ru: 'Новый живой бой, общий уровень Легиона, новое снаряжение и новый вид — прогресс начат заново',
+      en: 'New live battles, a shared Legion level, new gear and a new look — progress starts fresh',
+    },
+    color: '#ffc14d',
+    art: { hero: 'lira' },
+    items: [
+      {
+        ru: '⚡ Живой бой: ульты по кнопке складываются в Цепь Легиона и залпы, пары героев дают связки, а щит Кассиана парирует сокрушительные удары боссов',
+        en: '⚡ Live battles: manual ultimates chain into the Legion Chain and volleys, hero pairs trigger combos, and Cassian’s shield parries crushing boss blows',
+      },
+      {
+        ru: '📈 Один уровень на весь Легион, ранги ★1–7 за эмблемы, навыки за тома; 4 слота снаряжения, слияние 3→1, заточка сталью и комплекты',
+        en: '📈 One level for the whole Legion, ★1–7 ranks for emblems, skills for tomes; 4 gear slots, 3→1 merging, steel enhancing and sets',
+      },
+      {
+        ru: '🗺️ 600 этапов похода, Башня, подземелья с зачисткой, Колосс дня и Знамя Легиона — в новом оформлении «Звёздная ночь»',
+        en: '🗺️ 600 March stages, the Tower, dungeons with sweeps, the daily Colossus and the Legion Banner — in the new Starry Night look',
+      },
+    ],
+  },
+  {
     id: '2026-10-04-sortie',
     date: '04.10.2026',
     icon: '🗡️',

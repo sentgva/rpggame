@@ -17,7 +17,7 @@ import {
 import { Rng, mixSeed } from '../rng';
 import type { FinalStats, PlayerState } from '../types';
 import { combatStats, type CombatUnitInit, type SkillSlot } from './combat';
-import { growth, heroStats, skillPower } from './stats';
+import { enemyEase, growth, heroStats, skillPower } from './stats';
 
 /** Ряды на экране: соседи по строю не стоят друг на друге. */
 const HERO_LANES = [1, 0, 2, 1, 2, 0];
@@ -57,7 +57,8 @@ export type EnemyTier = 'normal' | 'elite' | 'mini' | 'boss';
 export function enemyStats(cfg: Config, def: EnemyDef, lvl: number, tier: EnemyTier): FinalStats {
   const E = cfg.enemy;
   const r = ROLE_STATS[def.role];
-  const g = Math.pow(E.growth, Math.max(0, lvl - 1));
+  // мягкий старт: на первых этапах враги слабее (пока в Легионе двое-трое героев без снаряжения)
+  const g = Math.pow(E.growth, Math.max(0, lvl - 1)) * enemyEase(cfg, lvl);
   const k =
     tier === 'boss' ? { hp: E.bossHp, atk: E.bossAtk } : tier === 'mini' ? { hp: E.miniHp, atk: E.miniAtk } : tier === 'elite' ? { hp: E.eliteHp, atk: E.eliteAtk } : { hp: 1, atk: 1 };
   return combatStats({
